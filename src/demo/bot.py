@@ -48,7 +48,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     # )
 
     stt = OpenAISTTService(
-        model="zipformer",
+        model=os.getenv("STT_MODEL_NAME"),
         api_key="my-api-key",
         encoder="/home/hieuclc/kltn/ai-voice-agent/zipformer/encoder-epoch-20-avg-10.int8.onnx",
         decoder="/home/hieuclc/kltn/ai-voice-agent/zipformer/decoder-epoch-20-avg-10.int8.onnx",
