@@ -79,6 +79,6 @@ class OpenAISTTService(BaseWhisperSTTService):
 
         if self.model_name == "whisper-large-v3":
             audio_input = BytesIO(samples)
-            segments, info = self.model.transcribe(audio_input, language = "vi", multilingual = True)
+            segments, info = self.recognizer.transcribe(audio_input, language = "vi", multilingual = True)
             return " ".join([segment.text.lower() for segment in segments]).strip()
             
