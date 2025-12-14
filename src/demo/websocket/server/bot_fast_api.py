@@ -26,7 +26,8 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
 from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIObserver, RTVIProcessor
 from pipecat.services.openai.tts import OpenAITTSService
-from pipecat.services.openai.stt import OpenAISTTService
+# from pipecat.services.openai.stt import OpenAISTTService
+from stt import OpenAISTTService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.serializers.protobuf import ProtobufFrameSerializer
 
@@ -34,6 +35,9 @@ from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketParams,
     FastAPIWebsocketTransport,
 )
+
+from pipecat.services.mcp_service import MCPClient
+from mcp.client.session_group import StreamableHttpParameters
 logger.info("✅ All components loaded successfully!")
 
 load_dotenv(override=True)
@@ -52,9 +56,18 @@ async def run_bot(websocket_client):
     )
     logger.info(f"Starting bot")
 
+    # stt = OpenAISTTService(
+    #     model="gpt-4o-mini-transcribe",
+    #     api_key=os.getenv("OPENAI_API_KEY"),
+    # )
+
     stt = OpenAISTTService(
-        model="gpt-4o-mini-transcribe",
-        api_key=os.getenv("OPENAI_API_KEY"),
+        model="whisper-large-v3",
+        api_key="my-api-key",
+        encoder="/home/hieuclc/kltn/ai-voice-agent/zipformer/encoder-epoch-20-avg-10.int8.onnx",
+        decoder="/home/hieuclc/kltn/ai-voice-agent/zipformer/decoder-epoch-20-avg-10.int8.onnx",
+        joiner="/home/hieuclc/kltn/ai-voice-agent/zipformer/joiner-epoch-20-avg-10.int8.onnx",
+        tokens="/home/hieuclc/kltn/ai-voice-agent/zipformer/tokens.txt",
     )
 
     tts = OpenAITTSService(
@@ -63,15 +76,23 @@ async def run_bot(websocket_client):
     )
 
     llm = OpenAILLMService(model = "gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"))
+    # Initialize and configure MCPClient with MCP SSE server url
+    server_params = StreamableHttpParameters(
+        url = os.getenv("MCP_SERVER"),
+        timeout = 20
+    )
+    mcp = MCPClient(server_params=server_params)
+    tools = await mcp.register_tools(llm)
 
     messages = [
         {
             "role": "system",
             "content": "You are a friendly AI assistant that use Vietnamese as your main language. Respond naturally and keep your answers conversational.",
         },
+
     ]
 
-    context = LLMContext(messages)
+    context = LLMContext(messages, tools = tools)
     context_aggregator = LLMContextAggregatorPair(context)
 
     rtvi = RTVIProcessor(config=RTVIConfig(config=[]))

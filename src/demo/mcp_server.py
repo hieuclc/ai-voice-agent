@@ -1,6 +1,5 @@
 import httpx
 from fastmcp import FastMCP
-import httpx
 import os
 import dotenv
 

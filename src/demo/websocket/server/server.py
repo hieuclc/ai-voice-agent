@@ -55,7 +55,7 @@ async def bot_connect(request: Request) -> Dict[Any, Any]:
     if server_mode == "websocket_server":
         ws_url = "ws://localhost:8765"
     else:
-        ws_url = "ws://localhost:7860/ws"
+        ws_url = os.getenv("WEBSOCKET_URL") #"ws://localhost:7860/ws"
     return {"ws_url": ws_url}
 
 

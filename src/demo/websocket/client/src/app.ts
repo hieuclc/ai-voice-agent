@@ -189,7 +189,7 @@ class WebsocketClientApp {
       this.log('Connecting to bot...');
       await this.pcClient.startBotAndConnect({
         // The baseURL and endpoint of your bot server that the client will connect to
-        endpoint: 'https://october-ended-widespread-application.trycloudflare.com/connect',
+        endpoint: import.meta.env.VITE_WEBSOCKET_URL + "/connect",
       });
 
       const timeTaken = Date.now() - startTime;
