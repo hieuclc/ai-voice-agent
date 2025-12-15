@@ -36,7 +36,7 @@ from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketTransport,
 )
 
-from pipecat.services.mcp_service import MCPClient
+from mcp_service import MCPClient
 from mcp.client.session_group import StreamableHttpParameters
 logger.info("✅ All components loaded successfully!")
 
@@ -84,10 +84,11 @@ async def run_bot(websocket_client):
     mcp = MCPClient(server_params=server_params)
     tools = await mcp.register_tools(llm)
 
+    llm_system_prompt = "You are an friendly AI assistant speaking in Vietnamese"
     messages = [
         {
             "role": "system",
-            "content": "You are a friendly AI assistant that use Vietnamese as your main language. Respond naturally and keep your answers conversational.",
+            "content": llm_system_prompt
         },
 
     ]
