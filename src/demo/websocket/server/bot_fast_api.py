@@ -82,6 +82,12 @@ async def run_bot(websocket_client):
         timeout = 20
     )
     mcp = MCPClient(server_params=server_params)
+    mcp._tools_dict = {
+        "google_search": {
+            "text_content": "Tôi đang thực hiện tìm kiếm thông tin, vui lòng chờ trong giây lát...",
+            "run_llm": True
+        }
+    }
     tools = await mcp.register_tools(llm)
 
     llm_system_prompt = "You are an friendly AI assistant speaking in Vietnamese"

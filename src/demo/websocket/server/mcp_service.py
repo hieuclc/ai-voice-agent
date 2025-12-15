@@ -10,7 +10,7 @@ from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from pipecat.pipeline.llm_switcher import LLMSwitcher
 from pipecat.services.llm_service import FunctionCallParams, LLMService
 from pipecat.utils.base_object import BaseObject
-from pipecat.frames.frames import LLMTextFrame
+from pipecat.frames.frames import LLMTextFrame, TTSAudioRawFrame
 try:
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.session import ClientSession
@@ -22,6 +22,7 @@ except ModuleNotFoundError as e:
     logger.error(f"Exception: {e}")
     logger.error("In order to use an MCP client, you need to `pip install pipecat-ai[mcp]`.")
     raise Exception(f"Missing module: {e}")
+from pipecat.frames.frames import FunctionCallResultProperties
 
 ServerParameters: TypeAlias = StdioServerParameters | SseServerParameters | StreamableHttpParameters
 
@@ -51,7 +52,7 @@ class MCPClient(BaseObject):
         super().__init__(**kwargs)
         self._server_params = server_params
         self._session = ClientSession
-
+        self._tools_dict = {}
         if isinstance(server_params, StdioServerParameters):
             self._client = stdio_client
             self._list_tools = self._stdio_list_tools
@@ -232,14 +233,24 @@ class MCPClient(BaseObject):
             ):
                 async with self._session(read_stream, write_stream) as session:
                     await session.initialize()
-                    await params.llm.push_frame(LLMTextFrame("Tôi đang thực hiện tìm kiếm thông tin, vui lòng chờ trong giây lát..."))
+                    if params.function_name in self._tools_dict:
+                        text_content = self._tools_dict.get(params.function_name).get("text_content")
+                        await params.llm.push_frame(LLMTextFrame(text_content))
+                        # silence de cho llm dung lai 1 chut truoc khi tra lai response 
+                        silence = b"\x00" * self.sample_rate * 1
+                        frame = TTSAudioRawFrame(
+                            audio=silence, sample_rate=24000, num_channels=1
+                        )
                     await self._call_tool(
                         session, params.function_name, params.arguments, params.result_callback
                     )
         except Exception as e:
             error_msg = f"Error calling mcp tool {params.function_name}: {str(e)}"
             logger.error(error_msg)
-            await params.result_callback(error_msg)
+            properties = FunctionCallResultProperties(run_llm=True)
+
+            # await params.llm.push_frame(LLMTextFrame("Có lỗi xảy ra khi thực hiện gọi tool, xin hãy thử lại sau"))
+            await params.result_callback(error_msg, properties = properties)
 
     async def _call_tool(self, session, function_name, arguments, result_callback):
         logger.debug(f"Calling mcp tool '{function_name}'")
@@ -263,8 +274,8 @@ class MCPClient(BaseObject):
                 logger.debug(f"Final response: {response}")
             else:
                 logger.error(f"Error getting content from {function_name} results.")
-        from pipecat.frames.frames import FunctionCallResultProperties
-        properties = FunctionCallResultProperties(run_llm=True)
+        tool_run_llm = self._tools_dict.get(function_name, {}).get("run_llm", False)
+        properties = FunctionCallResultProperties(run_llm=tool_run_llm)
         final_response = response if len(response) else "Sorry, could not call the mcp tool"
         await result_callback(final_response, properties = properties)
 
