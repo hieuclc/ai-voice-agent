@@ -138,18 +138,28 @@ async def google_search(query: str):
         "hl": "vi",
         "gl": "vn",
     }
-    results = []
+    search_results = []
     async with httpx.AsyncClient(timeout=10) as client:
         response = httpx.get(base_url, params = params)
         response.raise_for_status()
 
         for item in response.json().get("items"):
-            results.append({
+            search_results.append({
                 "title": item.get("title"),
                 "snippet": item.get("snippet"),
                 "link": item.get("link"),
             })
-    return results
+    urls = [i.get('link') for i in search_results]
+    chunks = crawl(urls)
+    best_chunks = reranker(query, chunks)
+    best_chunks = [clean_markdown_plain(i) for i in best_chunks]
+
+    result = ""
+    for _, i in enumerate(best_chunks):
+        context = f"[Source {i}:]\n{i}\n"
+        result += context
+
+    return result
 
 if __name__ == "__main__":
     mcp.run(transport='http', port = 8000)
