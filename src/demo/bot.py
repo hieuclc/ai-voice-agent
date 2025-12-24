@@ -31,29 +31,31 @@ from pipecat.services.openai.tts import OpenAITTSService
 # from pipecat.services.openai.stt import OpenAISTTService
 from stt import OpenAISTTService
 from pipecat.services.openai.llm import OpenAILLMService
-from pipecat.transports.base_transport import BaseTransport, TransportParams
-from pipecat.transports.daily.transport import DailyParams
+from pipecat.transports.base_transport import TransportParams
+from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 
+from mcp_service import MCPClient
+from mcp.client.session_group import StreamableHttpParameters
 logger.info("✅ All components loaded successfully!")
 
 load_dotenv(override=True)
 
 
-async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
+async def run_bot(webrtc_connection):
+    transport = SmallWebRTCTransport(
+        webrtc_connection=webrtc_connection,
+        params=TransportParams(
+            audio_in_enabled=True,
+            audio_out_enabled=True,
+            vad_analyzer=SileroVADAnalyzer(),
+            audio_out_10ms_chunks=2,
+        ),
+    )
     logger.info(f"Starting bot")
 
-    # stt = OpenAISTTService(
-    #     model="get-4o-mini-transcribe",
-    #     api_key=os.getenv("OPENAI_API_KEY"),
-    # )
-
     stt = OpenAISTTService(
-        model=os.getenv("STT_MODEL_NAME"),
-        api_key="my-api-key",
-        encoder="/home/hieuclc/kltn/ai-voice-agent/zipformer/encoder-epoch-20-avg-10.int8.onnx",
-        decoder="/home/hieuclc/kltn/ai-voice-agent/zipformer/decoder-epoch-20-avg-10.int8.onnx",
-        joiner="/home/hieuclc/kltn/ai-voice-agent/zipformer/joiner-epoch-20-avg-10.int8.onnx",
-        tokens="/home/hieuclc/kltn/ai-voice-agent/zipformer/tokens.txt",
+        model="gpt-4o-mini-transcribe",
+        api_key=os.getenv("OPENAI_API_KEY"),
     )
 
     tts = OpenAITTSService(
@@ -62,15 +64,23 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     )
 
     llm = OpenAILLMService(model = "gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"))
+    server_params = StreamableHttpParameters(
+        url = os.getenv("MCP_SERVER"),
+        timeout = 30
+    )
+    mcp = MCPClient(server_params=server_params)
+
+    tools = await mcp.register_tools(llm)
+    print("tools", tools)
 
     messages = [
         {
             "role": "system",
-            "content": "You are a friendly AI assistant that use Vietnamese as your main language. Respond naturally and keep your answers conversational.",
+            "content": "Bạn là một trợ lý ảo Tiếng Việt chuyên tư vấn cho người dùng. Hãy làm theo những chỉ dẫn sau:\n1. Giới thiệu bản thân trong 15 từ.\n2. Luôn trả lời bằng tiếng Việt và câu trả lời phải bằng văn bản thuần. Không sử dụng kí tự đặc biệt, hay các con số mà phải chuyển đổi về dạng văn bản.\n",
         },
     ]
 
-    context = LLMContext(messages)
+    context = LLMContext(messages, tools = tools)
     context_aggregator = LLMContextAggregatorPair(context)
 
     rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
@@ -109,33 +119,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         logger.info(f"Client disconnected")
         await task.cancel()
 
-    runner = PipelineRunner(handle_sigint=runner_args.handle_sigint)
+    runner = PipelineRunner()
 
     await runner.run(task)
 
-
-async def bot(runner_args: RunnerArguments):
-
-    transport_params = {
-        "daily": lambda: DailyParams(
-            audio_in_enabled=False,
-            audio_out_enabled=False,
-            vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)),
-            turn_analyzer=LocalSmartTurnAnalyzerV3(),
-        ),
-        "webrtc": lambda: TransportParams(
-            audio_in_enabled=False,
-            audio_out_enabled=False,
-            vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)),
-            turn_analyzer=LocalSmartTurnAnalyzerV3(),
-        ),
-    }
-
-    transport = await create_transport(runner_args, transport_params)
-
-    await run_bot(transport, runner_args)
-
-
-if __name__ == "__main__":
-    from pipecat.runner.run import main
-    main()
