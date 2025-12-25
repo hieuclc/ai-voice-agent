@@ -74,7 +74,6 @@ def reranker(query, chunks, payload_chunk_size = 30, best_results = 3):
 
         rerank_result = response.json()
 
-        # fix index về global index
         for item in rerank_result[:best_results]:
             item["index"] += start_idx
 
@@ -127,7 +126,7 @@ async def google_search(query: str):
     """Search Google for the user's query
     
     Args:
-        query: The user's query
+        query: The search query
     """
 
     base_url = "https://www.googleapis.com/customsearch/v1"
@@ -149,7 +148,7 @@ async def google_search(query: str):
                 "snippet": item.get("snippet"),
                 "link": item.get("link"),
             })
-    urls = [i.get('link') for i in search_results]
+    urls = [i.get('link') for i in search_results[:3]]
     chunks = crawl(urls)
     best_chunks = reranker(query, chunks)
     best_chunks = [clean_markdown_plain(i) for i in best_chunks]
