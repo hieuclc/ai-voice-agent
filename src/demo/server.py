@@ -26,26 +26,26 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv(override=True)
 
 
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     yield  # Run app
-#     await small_webrtc_handler.close()
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    yield
-    logger.warning("FastAPI shutting down...")
-
-    # 1️⃣ Cancel all bot tasks
-    for task in list(active_bot_tasks):
-        task.cancel()
-
-    await asyncio.gather(*active_bot_tasks, return_exceptions=True)
-
-    # 2️⃣ Close WebRTC handler (aiortc)
+    yield  # Run app
     await small_webrtc_handler.close()
 
-    logger.warning("Shutdown complete")
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     yield
+#     logger.warning("FastAPI shutting down...")
+
+#     # 1️⃣ Cancel all bot tasks
+#     for task in list(active_bot_tasks):
+#         task.cancel()
+
+#     await asyncio.gather(*active_bot_tasks, return_exceptions=True)
+
+#     # 2️⃣ Close WebRTC handler (aiortc)
+#     await small_webrtc_handler.close()
+
+#     logger.warning("Shutdown complete")
 
 
 app = FastAPI(lifespan = lifespan)
