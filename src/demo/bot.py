@@ -28,12 +28,13 @@ from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIObserver, RTVIPro
 from pipecat.runner.types import RunnerArguments
 from pipecat.runner.utils import create_transport
 from pipecat.services.openai.tts import OpenAITTSService
-# from pipecat.services.openai.stt import OpenAISTTService
 from stt import OpenAISTTService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
+from pipecat.processors.transcript_processor import TranscriptProcessor
 
+from transcription_handler import TranscriptHandler
 from mcp_service import MCPClient
 from mcp.client.session_group import StreamableHttpParameters
 logger.info("✅ All components loaded successfully!")
@@ -41,7 +42,7 @@ logger.info("✅ All components loaded successfully!")
 load_dotenv(override=True)
 
 
-async def run_bot(webrtc_connection):
+async def run_bot(webrtc_connection, session_id = None):
     transport = SmallWebRTCTransport(
         webrtc_connection=webrtc_connection,
         params=TransportParams(
@@ -80,6 +81,16 @@ async def run_bot(webrtc_connection):
         },
     ]
 
+    transcript = TranscriptProcessor()
+    transcript_handler = TranscriptHandler(session_id = "testt")
+    await transcript_handler.load_session()
+    if transcript_handler.messages:
+        for message in transcript_handler.messages:
+            messages.append({
+                "role": message.role,
+                "content": message.content
+            })
+
     context = LLMContext(messages, tools = tools)
     context_aggregator = LLMContextAggregatorPair(context)
 
@@ -90,10 +101,12 @@ async def run_bot(webrtc_connection):
             transport.input(),  # Transport user input
             rtvi,  # RTVI processor
             stt,
+            transcript.user(),
             context_aggregator.user(),  # User responses
             llm,  # LLM
             tts,  # TTS
             transport.output(),  # Transport bot output
+            transcript.assistant(),
             context_aggregator.assistant(),  # Assistant spoken responses
         ]
     )
@@ -111,15 +124,21 @@ async def run_bot(webrtc_connection):
     async def on_client_connected(transport, client):
         logger.info(f"Client connected")
         # Kick off the conversation.
-        messages.append({"role": "system", "content": "Say hello and briefly introduce yourself in Vietnamese."})
+        if not transcript_handler.messages:
+            messages.append({"role": "system", "content": "Say hello and briefly introduce yourself in Vietnamese."})
         await task.queue_frames([LLMRunFrame()])
+
+    @transcript.event_handler("on_transcript_update")
+    async def on_transcript_update(processor, frame):
+        await transcript_handler.on_transcript_update(processor, frame)
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
         logger.info(f"Client disconnected")
         await task.cancel()
+        await transport.close()
 
-    runner = PipelineRunner()
+    runner = PipelineRunner(handle_sigint=False)
 
     await runner.run(task)
 

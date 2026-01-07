@@ -25,7 +25,31 @@ from fastapi.middleware.cors import CORSMiddleware
 # Load environment variables
 load_dotenv(override=True)
 
-app = FastAPI()
+
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     yield  # Run app
+#     await small_webrtc_handler.close()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    logger.warning("FastAPI shutting down...")
+
+    # 1️⃣ Cancel all bot tasks
+    for task in list(active_bot_tasks):
+        task.cancel()
+
+    await asyncio.gather(*active_bot_tasks, return_exceptions=True)
+
+    # 2️⃣ Close WebRTC handler (aiortc)
+    await small_webrtc_handler.close()
+
+    logger.warning("Shutdown complete")
+
+
+app = FastAPI(lifespan = lifespan)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,6 +71,9 @@ small_webrtc_handler = SmallWebRTCRequestHandler(
     ]
 )
 
+import asyncio
+
+active_bot_tasks: set[asyncio.Task] = set()
 
 @app.post("/api/offer")
 async def offer(request: SmallWebRTCRequest, background_tasks: BackgroundTasks):
@@ -55,6 +82,14 @@ async def offer(request: SmallWebRTCRequest, background_tasks: BackgroundTasks):
     # Prepare runner arguments with the callback to run your bot
     async def webrtc_connection_callback(connection):
         background_tasks.add_task(run_bot, connection)
+    # async def webrtc_connection_callback(connection):
+    #     task = asyncio.create_task(run_bot(connection))
+    #     active_bot_tasks.add(task)
+
+    #     def _done(t: asyncio.Task):
+    #         active_bot_tasks.discard(t)
+
+    #     task.add_done_callback(_done)
 
     # Delegate handling to SmallWebRTCRequestHandler
     answer = await small_webrtc_handler.handle_web_request(
@@ -76,10 +111,6 @@ async def ice_candidate(request: SmallWebRTCPatchRequest):
 #     return FileResponse("index.html")
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    yield  # Run app
-    await small_webrtc_handler.close()
 
 
 if __name__ == "__main__":
