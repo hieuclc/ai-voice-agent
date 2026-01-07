@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from bot import run_bot
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi import BackgroundTasks, FastAPI, Request, HTTPException, Query
 from fastapi.responses import FileResponse
 from loguru import logger
 from pipecat.transports.smallwebrtc.request_handler import (
@@ -21,6 +21,9 @@ from pipecat.transports.smallwebrtc.request_handler import (
 )
 from aiortc import RTCIceServer
 from fastapi.middleware.cors import CORSMiddleware
+
+from transcription_handler import TranscriptHandler
+from uuid import uuid4
 
 # Load environment variables
 load_dotenv(override=True)
@@ -71,17 +74,18 @@ small_webrtc_handler = SmallWebRTCRequestHandler(
     ]
 )
 
+transcript_handler = TranscriptHandler(session_id = None)
+
 import asyncio
 
 active_bot_tasks: set[asyncio.Task] = set()
 
 @app.post("/api/offer")
-async def offer(request: SmallWebRTCRequest, background_tasks: BackgroundTasks):
+async def offer(request: SmallWebRTCRequest, background_tasks: BackgroundTasks, session_id = Query(...)):
     """Handle WebRTC offer requests via SmallWebRTCRequestHandler."""
-
     # Prepare runner arguments with the callback to run your bot
     async def webrtc_connection_callback(connection):
-        background_tasks.add_task(run_bot, connection)
+        background_tasks.add_task(run_bot, connection, session_id)
     # async def webrtc_connection_callback(connection):
     #     task = asyncio.create_task(run_bot(connection))
     #     active_bot_tasks.add(task)
@@ -105,6 +109,34 @@ async def ice_candidate(request: SmallWebRTCPatchRequest):
     await small_webrtc_handler.handle_patch_request(request)
     return {"status": "success"}
 
+
+@app.get("/api/chat-sessions")
+async def load_chat_sessions():
+    logger.debug(f"Getting previous sessions")
+    chat_sessions = await transcript_handler.get_chat_history()
+    return {"chat_sessions": chat_sessions}
+
+@app.get("/api/chat-sessions/{session_id}")
+async def load_chat_session(session_id: str):
+    logger.debug(f"Getting chat session '{session_id}'")
+    if session_id == "new":
+        return []
+    session = await transcript_handler.get_chat_history(session_id)
+
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Chat session '{session_id}' not found"
+        )
+
+    return session
+from uuid import uuid4
+@app.post("/api/chat-sessions/create")
+async def create_chat_session():
+    session_id = uuid4()
+    logger.debug(f"Creating chat session '{session_id}'")
+    
+    return {"session_id": session_id}
 
 # @app.get("/")
 # async def serve_index():

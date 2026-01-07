@@ -42,7 +42,7 @@ logger.info("✅ All components loaded successfully!")
 load_dotenv(override=True)
 
 
-async def run_bot(webrtc_connection, session_id = None):
+async def run_bot(webrtc_connection, session_id):
     transport = SmallWebRTCTransport(
         webrtc_connection=webrtc_connection,
         params=TransportParams(
@@ -82,7 +82,9 @@ async def run_bot(webrtc_connection, session_id = None):
     ]
 
     transcript = TranscriptProcessor()
-    transcript_handler = TranscriptHandler(session_id = "testt")
+    with open("/teamspace/studios/this_studio/test", 'w') as f:
+        f.write(session_id)
+    transcript_handler = TranscriptHandler(session_id = session_id)
     await transcript_handler.load_session()
     if transcript_handler.messages:
         for message in transcript_handler.messages:

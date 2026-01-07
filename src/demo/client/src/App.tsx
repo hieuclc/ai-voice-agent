@@ -25,8 +25,7 @@ const WEBRTC_URL =
   import.meta.env.VITE_WEBRTC_URL ?? `${API_BASE}/api/offer`;
 const SESSIONS_API =
   import.meta.env.VITE_SESSIONS_API ?? `${API_BASE}/api/chat-sessions`;
-const HISTORY_API =
-  import.meta.env.VITE_HISTORY_API ?? `${API_BASE}/api/chat-sessions`;
+
 
 const DEFAULT_ICE_SERVERS = [
   {
@@ -101,6 +100,7 @@ export default function App() {
   );
 
   const pushMessage = useCallback((msg: Omit<ChatMessage, 'id'>) => {
+    console.log(msg)
     setMessages((prev) => [
       ...prev,
       { ...msg, id: `${Date.now()}-${Math.random().toString(16).slice(2)}` },
@@ -109,12 +109,16 @@ export default function App() {
 
   const fetchSessions = useCallback(async () => {
     setLoadingSessions(true);
+    console.log("loading sessions")
     try {
       const response = await fetch(SESSIONS_API, { headers: apiHeaders });
+      console.log(response)
       if (!response.ok) {
         throw new Error(`Failed to load sessions (${response.status})`);
       }
-      const data = await response.json();
+      const chat_sessions_data = await response.json();
+      const data = chat_sessions_data["chat_sessions"]
+      // console.log()
       if (!Array.isArray(data)) return;
       const normalized = data
         .map((item: unknown) => {
@@ -143,12 +147,17 @@ export default function App() {
     async (sessionId: string) => {
       setLoadingHistory(true);
       try {
-        const response = await fetch(`${HISTORY_API}/${sessionId}`, {
+        const response = await fetch(`${SESSIONS_API}/${sessionId}`, {
           headers: apiHeaders,
         });
         if (!response.ok) {
+          // 404 means new session with no history - that's fine
+          if (response.status === 404) {
+            setMessages([]);
+            return;
+          }
           throw new Error(`Failed to load chat history (${response.status})`);
-        }
+      }
         const data = await response.json();
         const payload =
           Array.isArray(data?.messages) && data.messages.length
@@ -194,7 +203,7 @@ export default function App() {
 
   const createNewSession = useCallback(async () => {
     try {
-      const response = await fetch(SESSIONS_API, {
+      const response = await fetch(`${SESSIONS_API}/create`, {
         method: 'POST',
         headers: apiHeaders,
         body: JSON.stringify({}),
@@ -203,7 +212,7 @@ export default function App() {
         throw new Error(`Failed to create session (${response.status})`);
       }
       const data = await response.json();
-      const newId = parseSessionId(data) ?? randomId();
+      const newId = data["session_id"];
       setSelectedSessionId(newId);
       setActiveSessionId(null);
       setMessages([]);
@@ -276,13 +285,9 @@ export default function App() {
     setIsConnecting(true);
     setStatus('Connecting...');
     
-    // const sessionId =
-    //   selectedSessionId ??
-    //   activeSessionId ??
-    //   (await createNewSession());
-    // setSelectedSessionId(sessionId);
+    const sessionId = selectedSessionId ?? activeSessionId
 
-    const sessionId = "test"
+    // const sessionId = "test"
 
     console.log("sessionId", sessionId)
 
@@ -290,8 +295,8 @@ export default function App() {
       if (!sessionId) throw new Error('Missing session id');
 
       const transport = new SmallWebRTCTransport({
-        // webrtcUrl: buildWebrtcUrl(sessionId),
-        webrtcUrl: "http://localhost:7860/api/offer",
+        webrtcUrl: buildWebrtcUrl(sessionId),
+        // webrtcUrl: "http://localhost:7860/api/offer",
         iceServers: ICE_SERVERS,
       });
 
@@ -316,7 +321,7 @@ export default function App() {
         },
         onUserTranscript: (data) => {
           if (data.final) {
-            // console.log(`User: ${data.text}`);
+            console.log(`User: ${data.text}`);
             pushMessage({
               role: 'user',
               text: data.text,
@@ -325,7 +330,7 @@ export default function App() {
             });
           }
         },
-        onBotOutput: (data) => {
+        onBotTranscript: (data) => {
           if (data.text) {
             pushMessage({
               role: 'assistant',
@@ -335,23 +340,19 @@ export default function App() {
             });
           }
         },
-        // onBotTranscript: (data) => {
-        //   if (data.text) {
-        //     pushMessage({
-        //       role: 'assistant',
-        //       text: data.text,
-        //       source: 'live',
-        //       timestamp: data.timestamp,
-        //     });
-        //   }
-        // },
         onMessageError: (err) => {
           console.log('Message error', err);
           setError('Message error (see console for details)');
         },
         onError: (err) => {
           console.log(err);
-          setError((err as Error).message);
+          const errorMessage =
+            err instanceof Error
+              ? err.message
+              : typeof err === 'string'
+                ? err
+                : 'Unknown error occurred';
+          setError(errorMessage);
         },
       };
 
@@ -394,7 +395,11 @@ export default function App() {
   }, [fetchSessions]);
 
   useEffect(() => {
-    if (selectedSessionId) {
+    const exists = sessions.some(s => s.id === selectedSessionId);
+    console.log(selectedSessionId, exists)
+
+    if (selectedSessionId && exists) {
+      // Always fetch history - if it's a new session, API will return nothing
       fetchHistory(selectedSessionId);
     }
   }, [fetchHistory, selectedSessionId]);
@@ -493,9 +498,9 @@ export default function App() {
         </header>
 
         <section className="callouts">
-          <div className="pill secondary">
+          {/* <div className="pill secondary">
             Voice-only. Use your microphone; the bot will speak back.
-          </div>
+          </div> */}
           <div className="pill secondary">
             WebRTC URL: {buildWebrtcUrl(selectedSessionId ?? 'new')}
           </div>

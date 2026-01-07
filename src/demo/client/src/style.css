@@ -32,12 +32,11 @@ body {
 
 .sidebar-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 16px;
 }
 .sidebar-header .primary {
-  margin-left: auto;
+  align-self: flex-start;
 }
 
 .eyebrow {

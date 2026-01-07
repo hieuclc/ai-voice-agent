@@ -184,3 +184,39 @@ class TranscriptHandler:
         if self.mongo_client:
             self.mongo_client.close()
             logger.info("MongoDB connection closed")
+        
+    async def get_chat_history(self, session_id = None) -> List[dict]:
+        if session_id:
+            try:
+                session_doc = await self.collection.find_one(
+                    {"session_id": session_id},
+                    {"_id": 0}
+                )
+
+                if not session_doc:
+                    return None
+
+                return session_doc
+
+            except PyMongoError as e:
+                logger.error(f"Error fetching session '{session_id}': {e}")
+                return None
+        else:
+            try:
+                cursor = self.collection.find(
+                    {},
+                    {"_id": 0}  # hide Mongo _id
+                )
+
+                sessions = []
+                async for doc in cursor:
+                    sessions.append(doc)
+
+                logger.info(f"Fetched {len(sessions)} sessions from MongoDB")
+                return sessions
+
+            except PyMongoError as e:
+                logger.error(f"Error fetching all chat histories: {e}")
+                return []
+        
+    
