@@ -26,7 +26,6 @@ const WEBRTC_URL =
 const SESSIONS_API =
   import.meta.env.VITE_SESSIONS_API ?? `${API_BASE}/api/chat-sessions`;
 
-
 const DEFAULT_ICE_SERVERS = [
   {
     urls: 'stun:ss-turn1.xirsys.com',
@@ -86,10 +85,14 @@ export default function App() {
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const clientRef = useRef<PipecatClient | null>(null);
   const transportRef = useRef<SmallWebRTCTransport | null>(null);
+  const vadRef = useRef<any>(null);
+  const isSpeakingRef = useRef(false);
+
 
   const apiHeaders = useMemo(
     () => ({
@@ -107,6 +110,102 @@ export default function App() {
     ]);
   }, []);
 
+  // const stopBotAudio = useCallback(() => {
+  //   if (audioRef.current) {
+  //     const stream = audioRef.current.srcObject as MediaStream | null;
+      
+  //     if (stream) {
+  //       // Clear the buffer by recreating the MediaStream with the same track
+  //       const audioTrack = stream.getAudioTracks()[0];
+  //       if (audioTrack) {
+  //         // Recreate the stream to clear buffered audio
+  //         audioRef.current.srcObject = new MediaStream([audioTrack]);
+  //       }
+  //     }
+      
+  //     console.log('🔇 Bot audio buffer cleared');
+  //   }
+  // }, []);
+
+  const interruptBotAudio = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.muted = true;   // 🔥 câm ngay lập tức
+    audio.pause();        // optional
+  }, []);
+
+  const resumeBotAudio = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.muted = false;
+    audio.play().catch(() => {});
+  };
+
+
+
+  const initializeVAD = useCallback(async () => {
+    const { MicVAD } = await import('@ricky0123/vad-web');
+
+    vadRef.current = await MicVAD.new({
+      // ===== callbacks =====
+      onSpeechStart: async () => {
+        isSpeakingRef.current = true;
+        setIsUserSpeaking(true);
+        console.log('🎤 speech start');
+        // stopBotAudio();
+        interruptBotAudio();
+
+      },
+
+      onSpeechEnd: () => {
+        isSpeakingRef.current = false;
+        setIsUserSpeaking(false);
+        console.log('🛑 speech end');
+      },
+
+      // ===== VAD tuning =====
+      positiveSpeechThreshold: 0.5,
+      negativeSpeechThreshold: 0.35,
+      // redemptionFrames: 8,
+      // preSpeechPadFrames: 1,
+      submitUserSpeechOnPause: false,
+
+      // ===== 🚨 QUAN TRỌNG =====
+      onnxWASMBasePath:
+        'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/',
+
+      baseAssetPath:
+        'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/',
+
+      modelUrl:
+        'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/silero_vad_legacy.onnx',
+    });
+
+    console.log('✅ Silero VAD ready');
+  }, []);
+
+
+
+  // Start VAD
+  const startVAD = useCallback(async () => {
+    if (!vadRef.current) {
+      await initializeVAD();
+    }
+    await vadRef.current.start();
+    console.log('🎙️ VAD started');
+  }, [initializeVAD]);
+
+  // Stop VAD
+  const stopVAD = useCallback(async () => {
+    if (vadRef.current) {
+      await vadRef.current.pause();
+      console.log('🛑 VAD stopped');
+    }
+  }, []);
+
+
   const fetchSessions = useCallback(async () => {
     setLoadingSessions(true);
     console.log("loading sessions")
@@ -118,7 +217,6 @@ export default function App() {
       }
       const chat_sessions_data = await response.json();
       const data = chat_sessions_data["chat_sessions"]
-      // console.log()
       if (!Array.isArray(data)) return;
       const normalized = data
         .map((item: unknown) => {
@@ -151,7 +249,6 @@ export default function App() {
           headers: apiHeaders,
         });
         if (!response.ok) {
-          // 404 means new session with no history - that's fine
           if (response.status === 404) {
             setMessages([]);
             return;
@@ -261,6 +358,10 @@ export default function App() {
 
   const disconnect = useCallback(async () => {
     setIsConnecting(false);
+    
+    // Stop VAD
+    await stopVAD();
+    
     try {
       await clientRef.current?.disconnect();
       const stream = audioRef.current?.srcObject as MediaStream | null;
@@ -277,7 +378,7 @@ export default function App() {
       clientRef.current = null;
       transportRef.current = null;
     }
-  }, []);
+  }, [stopVAD]);
 
   const connect = useCallback(async () => {
     if (isConnecting || isConnected) return;
@@ -287,8 +388,6 @@ export default function App() {
     
     const sessionId = selectedSessionId ?? activeSessionId
 
-    // const sessionId = "test"
-
     console.log("sessionId", sessionId)
 
     try {
@@ -296,7 +395,6 @@ export default function App() {
 
       const transport = new SmallWebRTCTransport({
         webrtcUrl: buildWebrtcUrl(sessionId),
-        // webrtcUrl: "http://localhost:7860/api/offer",
         iceServers: ICE_SERVERS,
       });
 
@@ -305,12 +403,17 @@ export default function App() {
           console.log('Connected successfully');
           setStatus('Connected');
           setIsConnected(true);
-          // setActiveSessionId(sessionId);
+          
+          // Start VAD when connected
+          startVAD();
         },
         onDisconnected: () => {
           console.log('Disconnected');
           setStatus('Disconnected');
           setIsConnected(false);
+          
+          // Stop VAD when disconnected
+          stopVAD();
         },
         onBotReady: (data) => {
           console.log('Bot ready', JSON.stringify(data));
@@ -318,6 +421,9 @@ export default function App() {
           if (tracks?.bot?.audio) {
             setupAudioTrack(tracks.bot.audio);
           }
+        },
+        onBotStartedSpeaking: () => {
+          resumeBotAudio();
         },
         onUserTranscript: (data) => {
           if (data.final) {
@@ -388,6 +494,8 @@ export default function App() {
     selectedSessionId,
     setupAudioTrack,
     setupTrackListeners,
+    startVAD,
+    stopVAD,
   ]);
 
   useEffect(() => {
@@ -399,14 +507,17 @@ export default function App() {
     console.log(selectedSessionId, exists)
 
     if (selectedSessionId && exists) {
-      // Always fetch history - if it's a new session, API will return nothing
       fetchHistory(selectedSessionId);
     }
-  }, [fetchHistory, selectedSessionId]);
+  }, [fetchHistory, selectedSessionId, sessions]);
 
   useEffect(() => {
     return () => {
       disconnect();
+      // Cleanup VAD on unmount
+      if (vadRef.current) {
+        vadRef.current.destroy();
+      }
     };
   }, [disconnect]);
 
@@ -476,6 +587,7 @@ export default function App() {
             <div className="status-line">
               <span className={`dot ${isConnected ? 'on' : 'off'}`} />
               {status}
+              {isUserSpeaking && <span className="pill" style={{marginLeft: '8px', background: '#ef4444'}}>🎤 Speaking</span>}
             </div>
             <div className="sub">
               {selectedSessionId
@@ -498,11 +610,11 @@ export default function App() {
         </header>
 
         <section className="callouts">
-          {/* <div className="pill secondary">
-            Voice-only. Use your microphone; the bot will speak back.
-          </div> */}
           <div className="pill secondary">
             WebRTC URL: {buildWebrtcUrl(selectedSessionId ?? 'new')}
+          </div>
+          <div className="pill secondary">
+            Client-side VAD: Silero (interrupts bot on user speech)
           </div>
         </section>
 
