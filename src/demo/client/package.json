@@ -12,10 +12,10 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@types/react": "^19.0.7",
-    "@types/react-dom": "^19.0.2",
     "@types/node": "^22.15.30",
     "@types/protobufjs": "^6.0.0",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react-swc": "^3.10.1",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
@@ -24,9 +24,11 @@
     "@pipecat-ai/client-js": "^1.5.0",
     "@pipecat-ai/small-webrtc-transport": "^1.8.0",
     "@pipecat-ai/websocket-transport": "^1.5.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "@ricky0123/vad-web": "^0.0.30",
     "dotenv": "^17.2.3",
-    "protobufjs": "^7.4.0"
+    "onnxruntime-web": "^1.23.2",
+    "protobufjs": "^7.4.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

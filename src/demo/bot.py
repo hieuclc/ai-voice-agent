@@ -49,6 +49,7 @@ async def run_bot(webrtc_connection, session_id):
             audio_in_enabled=True,
             audio_out_enabled=True,
             vad_analyzer=SileroVADAnalyzer(),
+            turn_analyzer=LocalSmartTurnAnalyzerV3(params=VADParams(stop_secs=0.2)),
             audio_out_10ms_chunks=2,
         ),
     )

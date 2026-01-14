@@ -121,8 +121,51 @@ def clean_markdown_plain(md_text: str) -> str:
 # end = time.time()
 # -->> time = 8.17s, crawl time ~ 7.3s multiple websites (>5)
 
+import google.genai as genai
+import dotenv
+dotenv.load_dotenv(override = True)
+from google.genai.types import GenerateContentConfig
+
+client = genai.Client() 
+
+MODEL_ID = "gemini-2.5-flash"
+
 @mcp.tool()
-async def google_search(query: str):
+async def gemini_search(query: str):
+    """Search Gemini for the user's query
+    
+    Args:
+        query: The user's query. It should be reformatted as a question
+    """
+    # response = client.models.generate_content(
+    #     model=MODEL_ID,
+    #     contents=f"Tìm kiếm thông tin trên google và trả lời câu hỏi sau: {query}. Chỉ tập trung vào câu hỏi, không trả lời lan man.",
+    #     config={"tools": [{"google_search": {}}]},
+    # )
+    system_instruction = """Bạn là một trợ lý tìm kiếm và tổng hợp thông tin
+    QUY TẮC BẮT BUỘC:
+    - Luôn gọi tool tìm kiếm google (google_search) cho yêu cầu của người dùng.
+    """
+    config = GenerateContentConfig(
+            system_instruction=[system_instruction],
+            tools = [{"google_search": {}}]
+    )
+    query = "Trường đại học công nghệ đại học quốc gia hà nội có hiệu trưởng là ai"
+    response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=f"{query}",
+            config=config,
+        )
+    text_arr = []
+    for part in response.candidates[0].content.parts:
+        text = part.text
+        text_arr.append(text)
+    result = "".join(text_arr)
+    return result
+    
+
+# @mcp.tool()
+async def google_search(query: str, top_k = 3):
     """Search Google for the user's query
     
     Args:
@@ -148,8 +191,49 @@ async def google_search(query: str):
                 "snippet": item.get("snippet"),
                 "link": item.get("link"),
             })
-    urls = [i.get('link') for i in search_results[:3]]
+    wikipedia_list = []
+    wikipedia_content = []
+    if "wikipedia" not in query:
+        async with httpx.AsyncClient(timeout=10) as client:
+            wiki_params = {
+                "key": os.environ["GOOGLE_API_KEY"],
+                "cx": os.environ["GOOGLE_SEARCH_ENGINE_ID"],
+                "q": query + " wikipedia",
+                "hl": "vi",
+                "gl": "vn",
+            }
+            response = await client.get(base_url, params = wiki_params)
+            response.raise_for_status()
+            wikipedia_list = [response.json().get("items")[0].get("link")]
+        print(wikipedia_list)
+
+        search_results = [i for i in search_results if "wikipedia" not in i.get("link")]
+    if wikipedia_list:
+        wikipedia_url = wikipedia_list[0]
+        wikipedia_post = wikipedia_url.replace("https://vi.wikipedia.org/wiki/", "")
+        wikipedia_base_url = f"https://vi.wikipedia.org/w/api.php?format=json&action=query&titles={wikipedia_post}&prop=extracts&explaintext=true"
+        print(wikipedia_base_url)
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            )
+        }
+        async with httpx.AsyncClient(timeout=10, headers = headers) as client:
+            
+            response = await client.get(wikipedia_base_url)
+            response.raise_for_status()
+
+            for key, content in response.json().get("query").get("pages").items():
+                wikipedia_content.append(content.get("extract"))
+
+
+    urls = [i.get('link') for i in search_results[:top_k]]
     chunks = crawl(urls)
+    chunks.extend(semantic_chunk("".join(wikipedia_content)))
+    for chunk in chunks:
+        print(chunk)
     best_chunks = reranker(query, chunks)
     best_chunks = [clean_markdown_plain(i) for i in best_chunks]
 
