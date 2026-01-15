@@ -27,7 +27,8 @@ from pipecat.processors.aggregators.llm_response_universal import LLMContextAggr
 from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIObserver, RTVIProcessor
 from pipecat.runner.types import RunnerArguments
 from pipecat.runner.utils import create_transport
-from pipecat.services.openai.tts import OpenAITTSService
+# from pipecat.services.openai.tts import OpenAITTSService
+from tts import OpenAITTSService
 from stt import OpenAISTTService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import TransportParams
@@ -63,6 +64,8 @@ async def run_bot(webrtc_connection, session_id):
     tts = OpenAITTSService(
         model = "gpt-4o-mini-tts",
         api_key=os.getenv("OPENAI_API_KEY"),
+        base_url = "http://localhost:8001/v1",
+        voice = "dave"
     )
 
     llm = OpenAILLMService(model = "gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"))
@@ -83,8 +86,7 @@ async def run_bot(webrtc_connection, session_id):
     ]
 
     transcript = TranscriptProcessor()
-    with open("/teamspace/studios/this_studio/test", 'w') as f:
-        f.write(session_id)
+
     transcript_handler = TranscriptHandler(session_id = session_id)
     await transcript_handler.load_session()
     if transcript_handler.messages:

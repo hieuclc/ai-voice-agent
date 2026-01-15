@@ -1,9 +1,9 @@
 pipecat-ai[webrtc,silero,openai,local-smart-turn-v3,runner]
 pipecat-ai-cli
-dotenv
+python-dotenv
 fastmcp
 httpx
---index-url https://download.pytorch.org/whl/cu126
 torch
 torchaudio
 torchvision
+motor

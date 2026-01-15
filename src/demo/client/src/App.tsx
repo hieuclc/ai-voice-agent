@@ -166,8 +166,11 @@ export default function App() {
       },
 
       // ===== VAD tuning =====
-      positiveSpeechThreshold: 0.5,
-      negativeSpeechThreshold: 0.35,
+      positiveSpeechThreshold: 0.7,
+      negativeSpeechThreshold: 0.65,
+      minSpeechMs: 200,
+      redemptionMs: 800,
+
       // redemptionFrames: 8,
       // preSpeechPadFrames: 1,
       submitUserSpeechOnPause: false,
