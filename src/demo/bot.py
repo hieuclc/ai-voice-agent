@@ -25,10 +25,15 @@ from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
 from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIObserver, RTVIProcessor
-from pipecat.runner.types import RunnerArguments
-from pipecat.runner.utils import create_transport
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
+)
+from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
+
 # from pipecat.services.openai.tts import OpenAITTSService
-from tts import OpenAITTSService
+from ttsv2 import OpenAITTSService
 from stt import OpenAISTTService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import TransportParams
@@ -50,8 +55,7 @@ async def run_bot(webrtc_connection, session_id):
             audio_in_enabled=True,
             audio_out_enabled=True,
             vad_analyzer=SileroVADAnalyzer(),
-            turn_analyzer=LocalSmartTurnAnalyzerV3(params=VADParams(stop_secs=0.2)),
-            audio_out_10ms_chunks=2,
+            # audio_out_10ms_chunks=2,
         ),
     )
     logger.info(f"Starting bot")
@@ -65,7 +69,7 @@ async def run_bot(webrtc_connection, session_id):
         model = "gpt-4o-mini-tts",
         api_key=os.getenv("OPENAI_API_KEY"),
         base_url = "http://localhost:8001/v1",
-        voice = "dave"
+        voice = "alloy"
     )
 
     llm = OpenAILLMService(model = "gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"))
@@ -77,11 +81,30 @@ async def run_bot(webrtc_connection, session_id):
 
     tools = await mcp.register_tools(llm)
     print("tools", tools)
+    prompt = r'''
+    Bạn là một trợ lý giọng nói Tiếng Việt chuyên tư vấn cho người dùng.
+
+    Hãy làm theo những chỉ dẫn sau:
+
+    1. Giới thiệu bản thân trong 15 từ.
+
+    2. Luôn trả lời bằng tiếng Việt và câu trả lời phải là văn bản thuần, giống như đang nói chuyện trực tiếp với người dùng. Không dùng ký tự đặc biệt và không dùng chữ số, mọi con số phải viết bằng chữ.
+
+    3. Chỉ trả về nội dung trả lời, không giải thích thêm, không định dạng đặc biệt.
+
+    4. Khi tư vấn cho người dùng, luôn thực hiện các bước sau:
+    - So sánh với ít nhất một mốc, nguồn hoặc tình huống liên quan nếu có
+    - Nhận xét xu hướng hoặc sự khác biệt chính
+    - Đưa ra gợi ý hành động có điều kiện, tránh trả lời chung chung hoặc trung lập
+
+    5. Không sử dụng các câu trả lời né tránh như “tùy bạn”, “phụ thuộc vào bạn”, hoặc chỉ liệt kê thông tin mà không có nhận xét.
+
+    '''
 
     messages = [
         {
             "role": "system",
-            "content": "Bạn là một trợ lý ảo Tiếng Việt chuyên tư vấn cho người dùng. Hãy làm theo những chỉ dẫn sau:\n1. Giới thiệu bản thân trong 15 từ.\n2. Luôn trả lời bằng tiếng Việt và câu trả lời phải bằng văn bản thuần. Không sử dụng kí tự đặc biệt, hay các con số mà phải chuyển đổi về dạng văn bản.\n",
+            "content": prompt,
         },
     ]
 
@@ -97,7 +120,14 @@ async def run_bot(webrtc_connection, session_id):
             })
 
     context = LLMContext(messages, tools = tools)
-    context_aggregator = LLMContextAggregatorPair(context)
+    context_aggregator = LLMContextAggregatorPair(
+        context,
+        user_params=LLMUserAggregatorParams(
+            user_turn_strategies=UserTurnStrategies(
+                stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
+            ),
+        ),
+    )
 
     rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
 

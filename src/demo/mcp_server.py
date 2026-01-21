@@ -7,6 +7,9 @@ import requests
 import re
 from bs4 import BeautifulSoup
 import markdown as md
+import requests
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 dotenv.load_dotenv(override=True)
 mcp = FastMCP("mcp-server")
@@ -125,8 +128,22 @@ import google.genai as genai
 import dotenv
 dotenv.load_dotenv(override = True)
 from google.genai.types import GenerateContentConfig
+import itertools
 
-client = genai.Client() 
+GOOGLE_API_KEYS = [
+    k.strip()
+    for k in os.getenv("GOOGLE_API_KEYS").split(",")
+    if k.strip()
+]
+
+clients = [
+    genai.Client(api_key=key)
+    for key in GOOGLE_API_KEYS
+]
+
+_client_cycle = itertools.cycle(clients)
+def get_gemini_client():
+    return next(_client_cycle)
 
 MODEL_ID = "gemini-2.5-flash"
 
@@ -137,11 +154,8 @@ async def gemini_search(query: str):
     Args:
         query: The user's query. It should be reformatted as a question
     """
-    # response = client.models.generate_content(
-    #     model=MODEL_ID,
-    #     contents=f"Tìm kiếm thông tin trên google và trả lời câu hỏi sau: {query}. Chỉ tập trung vào câu hỏi, không trả lời lan man.",
-    #     config={"tools": [{"google_search": {}}]},
-    # )
+
+    client = get_gemini_client()
     system_instruction = """Bạn là một trợ lý tìm kiếm và tổng hợp thông tin
     QUY TẮC BẮT BUỘC:
     - Luôn gọi tool tìm kiếm google (google_search) cho yêu cầu của người dùng.
@@ -150,10 +164,31 @@ async def gemini_search(query: str):
             system_instruction=[system_instruction],
             tools = [{"google_search": {}}]
     )
-    query = "Trường đại học công nghệ đại học quốc gia hà nội có hiệu trưởng là ai"
+
+    prompt = f"""
+    Bạn là bộ máy TÌM KIẾM NHANH.
+
+    NHIỆM VỤ:
+    Tìm kiếm và tổng hợp thông tin liên quan đến truy vấn: "{query}"
+
+    QUY TẮC:
+    - BẮT BUỘC dùng công cụ tìm kiếm.
+    - Ưu tiên TỐC ĐỘ, KHÔNG kiểm chứng chéo sâu. Phải trả về response thật nhanh.
+    - Tổng hợp TỐI ĐA 5-7 summary_facts.
+
+    CHỈ xuất JSON, KHÔNG chữ khác.
+
+    FORMAT:
+    {{
+    "summary_facts": [
+        {{ "id": "s1", "summary": "string" }}
+    ],
+    }}
+    """
+
     response = client.models.generate_content(
             model=MODEL_ID,
-            contents=f"{query}",
+            contents=prompt,
             config=config,
         )
     text_arr = []
@@ -243,6 +278,64 @@ async def google_search(query: str, top_k = 3):
         result += context
 
     return result
+
+
+
+timezone_name = 'Asia/Ho_Chi_Minh'
+
+def get_latest_by_name(locations, wanted=("PNJ", "SJC")):
+    result = {}
+
+    for item in locations:
+        name = item.get("name")
+        if name not in wanted:
+            continue
+
+        records = item.get("data", [])
+        if not records:
+            continue
+
+        latest = records[-1]
+
+        result[name] = str(int(latest.get("gia_ban").replace(".", "")) / 1000) + " triệu đồng"
+
+    return result
+
+@mcp.tool()
+def get_gold_price(previous_days = [0]):
+    """
+    Get gold prices for specified days relative to the current date. If user want to compare multiple days, you MUST select multiple days instead of just one.
+
+    Args:
+        previous_days (list[int]): List of day offsets relative to today.
+            - 0 means today
+            - 1 means yesterday
+            - 2 means two days ago
+            Example: [0, 1, 2]
+
+    Returns:
+        list[dict]: Gold price data for each requested day.
+ 
+    """
+    current_time = datetime.now(ZoneInfo(timezone_name))
+    output = []
+
+    for prev in previous_days:
+        current_day = current_time - timedelta(prev)
+        day, month, year = current_day.day, current_day.month, current_day.year
+        if current_day.weekday() == 6:
+            current_day = current_day - timedelta(1)
+        response = requests.get(
+            url = f"https://edge-api.pnj.io/ecom-frontend/v1/get-gold-price-history?date={current_day.strftime("%Y%m%d")}"
+        )
+        content = response.json().get("locations")[0]
+        raw_result = get_latest_by_name(content.get("gold_type"))
+        search_result = []
+        for key, value in raw_result.items():
+            search_result.append(f"{key} là {value}")
+        result = f"Giá vàng ngày {day} tháng {month} năm {year}: {", ".join(search_result)}"
+        output.append(result)
+    return output
 
 if __name__ == "__main__":
     mcp.run(transport='http', port = 8000)
