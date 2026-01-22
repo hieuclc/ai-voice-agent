@@ -238,7 +238,7 @@ class MCPClient(BaseObject):
             ):
                 async with self._session(read_stream, write_stream) as session:
                     await session.initialize()
-                    await params.llm.push_frame(LLMTextFrame("Tôi đang thực hiện tìm kiếm thông tin, vui lòng chờ trong giây lát..."))
+                    await params.llm.push_frame(LLMTextFrame("Tôi đang thực hiện tìm kiếm thông tin, vui lòng chờ trong giây lát"))
                     silence = b"\x00" * 24000 * 1
                     frame = TTSAudioRawFrame(
                         audio=silence, sample_rate=24000, num_channels=1

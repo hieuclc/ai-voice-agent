@@ -77,8 +77,8 @@ async def infer_stream_custom_async(text, voice, frame_size=1200):
     global _prev_need_pause
 
     sample_rate = 24000
-    pause_ms = 500
-    fade_ms = 10
+    pause_ms = 100
+    fade_ms = 20
 
     pause_len = int(sample_rate * pause_ms / 1000)
     fade_len = int(sample_rate * fade_ms / 1000)
@@ -145,73 +145,6 @@ async def infer_stream_custom_async(text, voice, frame_size=1200):
                 frame_buffer = frame_buffer[frame_size:]
 
             _prev_need_pause = True
-
-# async def infer_stream_custom_async(text, voice, frame_size=1200):
-#     fade_ms = 3          # fade rất ngắn (ms)
-#     sample_rate = 24000  # chỉnh theo server của bạn
-#     fade_len = int(sample_rate * fade_ms / 1000)
-
-#     prev_last_sample = 0  # giữ sample cuối của chunk trước
-
-#     async with aiohttp.ClientSession() as session:
-#         async with session.post(
-#             "http://localhost:8001/synthesize",
-#             json={
-#                 "text": text,
-#                 "voice_id": voice,
-#                 "num_step": 16,
-#                 "speed": 1.0
-#             }
-#         ) as resp:
-#             remain = b""
-
-#             async for chunk in resp.content.iter_chunked(4096):
-#                 chunk = remain + chunk
-
-#                 n = (len(chunk) // 2) * 2
-#                 if n == 0:
-#                     remain = chunk
-#                     continue
-
-#                 pcm = np.frombuffer(chunk[:n], dtype=np.int16).astype(np.float32)
-#                 remain = chunk[n:]
-
-#                 # =========================
-#                 # 1. Remove DC offset
-#                 # =========================
-#                 pcm -= pcm.mean()
-
-#                 # =========================
-#                 # 2. Fade in đầu chunk
-#                 # =========================
-#                 if fade_len > 0 and len(pcm) >= fade_len:
-#                     fade_in = np.linspace(0.0, 1.0, fade_len)
-#                     pcm[:fade_len] *= fade_in
-
-#                 # =========================
-#                 # 3. Fade out cuối chunk
-#                 # =========================
-#                 if fade_len > 0 and len(pcm) >= fade_len:
-#                     fade_out = np.linspace(1.0, 0.0, fade_len)
-#                     pcm[-fade_len:] *= fade_out
-
-#                 # =========================
-#                 # 4. Ép continuity (chống jump)
-#                 # =========================
-#                 pcm[0] = prev_last_sample
-#                 prev_last_sample = pcm[-1]
-
-#                 # =========================
-#                 # 5. Convert lại PCM16 an toàn
-#                 # =========================
-#                 pcm = np.clip(pcm, -32768, 32767)
-#                 pcm = np.round(pcm).astype(np.int16)
-
-#                 yield pcm
-
-
-
-
 
 
 class OpenAITTSService(TTSService):
