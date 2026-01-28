@@ -301,8 +301,48 @@ def get_latest_by_name(locations, wanted=("PNJ", "SJC")):
 
     return result
 
+# @mcp.tool()
+# def get_gold_price(previous_days = [0]):
+#     """
+#     Get gold prices for specified days relative to the current date. If user want to compare multiple days, you MUST select multiple days instead of just one.
+
+#     Args:
+#         previous_days (list[int]): List of day offsets relative to today.
+#             - 0 means today
+#             - 1 means yesterday
+#             - 2 means two days ago
+#             Example: [0, 1, 2]
+
+#     Returns:
+#         list[dict]: Gold price data for each requested day.
+ 
+#     """
+#     current_time = datetime.now(ZoneInfo(timezone_name))
+#     output = []
+
+#     for prev in previous_days:
+#         current_day = current_time - timedelta(prev)
+#         day, month, year = current_day.day, current_day.month, current_day.year
+#         if current_day.weekday() == 6:
+#             current_day = current_day - timedelta(1)
+#         response = requests.get(
+#             url = f"https://edge-api.pnj.io/ecom-frontend/v1/get-gold-price-history?date={current_day.strftime("%Y%m%d")}"
+#         )
+#         content = response.json().get("locations")[0]
+#         raw_result = get_latest_by_name(content.get("gold_type"))
+#         search_result = []
+#         for key, value in raw_result.items():
+#             search_result.append(f"{key} là {value}")
+#         result = f"Giá vàng ngày {day} tháng {month} năm {year}: {", ".join(search_result)}"
+#         output.append(result)
+#     return output
+
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+import requests
+
 @mcp.tool()
-def get_gold_price(previous_days = [0]):
+def get_gold_price(previous_days: list[int] = None):
     """
     Get gold prices for specified days relative to the current date. If user want to compare multiple days, you MUST select multiple days instead of just one.
 
@@ -317,25 +357,56 @@ def get_gold_price(previous_days = [0]):
         list[dict]: Gold price data for each requested day.
  
     """
+    if previous_days is None:
+        previous_days = [0]
+
     current_time = datetime.now(ZoneInfo(timezone_name))
     output = []
 
     for prev in previous_days:
-        current_day = current_time - timedelta(prev)
-        day, month, year = current_day.day, current_day.month, current_day.year
+        current_day = current_time - timedelta(days=prev)
+
+        # nếu là Chủ nhật → lùi về thứ 7
         if current_day.weekday() == 6:
-            current_day = current_day - timedelta(1)
-        response = requests.get(
-            url = f"https://edge-api.pnj.io/ecom-frontend/v1/get-gold-price-history?date={current_day.strftime("%Y%m%d")}"
-        )
-        content = response.json().get("locations")[0]
-        raw_result = get_latest_by_name(content.get("gold_type"))
-        search_result = []
-        for key, value in raw_result.items():
-            search_result.append(f"{key} là {value}")
-        result = f"Giá vàng ngày {day} tháng {month} năm {year}: {", ".join(search_result)}"
-        output.append(result)
+            current_day -= timedelta(days=1)
+
+        day, month, year = current_day.day, current_day.month, current_day.year
+
+        try:
+            response = requests.get(
+                url=f"https://edge-api.pnj.io/ecom-frontend/v1/get-gold-price-history"
+                    f"?date={current_day.strftime('%Y%m%d')}",
+                timeout=10
+            )
+
+            data = response.json()
+            locations = data.get("locations", [])
+
+            if not locations:
+                output.append(f"Không có dữ liệu giá vàng ngày {day}/{month}/{year}")
+                continue
+
+            content = locations[0]
+            raw_result = get_latest_by_name(content.get("gold_type"))
+
+            search_result = [
+                f"{k} là {v}" for k, v in raw_result.items()
+            ]
+
+            result = (
+                f"Giá vàng ngày {day} tháng {month} năm {year}: "
+                f"{', '.join(search_result)}"
+            )
+
+            output.append(result)
+
+        except Exception as e:
+            output.append(
+                f"Lỗi khi lấy giá vàng ngày {day}/{month}/{year}: {str(e)}"
+            )
+
     return output
+
 
 if __name__ == "__main__":
     mcp.run(transport='http', port = 8000)

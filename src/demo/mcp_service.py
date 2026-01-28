@@ -16,7 +16,7 @@ from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from pipecat.pipeline.llm_switcher import LLMSwitcher
 from pipecat.services.llm_service import FunctionCallParams, LLMService
 from pipecat.utils.base_object import BaseObject
-from pipecat.frames.frames import LLMTextFrame, TTSAudioRawFrame
+from pipecat.frames.frames import LLMTextFrame, TTSAudioRawFrame, TTSSpeakFrame
 try:
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.session import ClientSession
@@ -230,6 +230,8 @@ class MCPClient(BaseObject):
         """Wrapper for mcp tool calls to match Pipecat's function call interface."""
         logger.debug(f"Executing tool '{params.function_name}' with call ID: {params.tool_call_id}")
         logger.trace(f"Tool arguments: {json.dumps(params.arguments, indent=2)}")
+        await params.llm.push_frame(TTSSpeakFrame("Tôi đang thực hiện tìm kiếm thông tin, vui lòng chờ trong giây lát. \n"))
+
         try:
             async with self._client(**self._server_params.model_dump()) as (
                 read_stream,
@@ -238,12 +240,11 @@ class MCPClient(BaseObject):
             ):
                 async with self._session(read_stream, write_stream) as session:
                     await session.initialize()
-                    await params.llm.push_frame(LLMTextFrame("Tôi đang thực hiện tìm kiếm thông tin, vui lòng chờ trong giây lát"))
-                    silence = b"\x00" * 24000 * 1
-                    frame = TTSAudioRawFrame(
-                        audio=silence, sample_rate=24000, num_channels=1
-                    )
-                    await params.llm.push_frame(frame)
+                    # silence = b"\x00" * 24000 * 1
+                    # frame = TTSAudioRawFrame(
+                    #     audio=silence, sample_rate=24000, num_channels=1
+                    # )
+                    # await params.llm.push_frame(frame)
                     
                     await self._call_tool(
                         session, params.function_name, params.arguments, params.result_callback
