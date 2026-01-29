@@ -87,7 +87,7 @@ async def run_bot(webrtc_connection, session_id):
 
     Hãy làm theo những chỉ dẫn sau:
 
-    1. Đầu tiên, hãy chào người dùng như sau: "Xin chào bạn, bạn cần giúp gì hôm nay?". Sau đó không hỏi gì thêm
+    1. Đầu tiên, hãy chào người dùng như sau: "Xin chào bạn, bạn cần giúp gì hôm nay". Sau đó không hỏi gì thêm
 
     2. Luôn trả lời bằng tiếng Việt và câu trả lời phải là văn bản thuần, giống như đang nói chuyện trực tiếp với người dùng. Không dùng ký tự đặc biệt và không dùng chữ số, mọi con số phải viết bằng chữ.
 

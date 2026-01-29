@@ -151,7 +151,7 @@ class SmallWebRTCClientApp {
       //const transport = new DailyTransport();
       const PipecatConfig: PipecatClientOptions = {
         transport: new SmallWebRTCTransport({
-          webrtcUrl: 'http://localhost:7860/api/offer',
+          webrtcUrl: `${import.meta.env.VITE_SMALLWEBRTC_URL}/api/offer`,
           iceServers: [
             {
               urls:"stun:ss-turn1.xirsys.com",

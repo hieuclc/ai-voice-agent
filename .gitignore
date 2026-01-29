@@ -3,3 +3,4 @@ __pycache__
 zipformer
 *.ipynb
 src/debug/*
+node_modules/

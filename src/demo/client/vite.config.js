@@ -7,14 +7,17 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [react()],
         server: {
+            host: '0.0.0.0',      // ⭐ BẮT BUỘC
+            port: 5173,           // ⭐ RÕ RÀNG
+            strictPort: true,     // (khuyên dùng)
             proxy: {
                 '/connect': {
-                    target: env.VITE_BACKEND_URL,   // dùng env
+                    target: env.VITE_API_BASE,
                     changeOrigin: true,
                 },
             },
             allowedHosts: true,
-            cors: true
+            cors: true,
         },
     };
 });

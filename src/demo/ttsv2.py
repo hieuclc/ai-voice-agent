@@ -41,6 +41,77 @@ import aiohttp
 
 _prev_need_pause = False
 
+import re
+
+# 1️⃣ Detect acronym: từ viết HOA toàn bộ, dài >= 2
+ACRONYM_RE = re.compile(r"\b[A-Z]{2,}\b")
+
+# 2️⃣ Map ưu tiên cao (domain-specific / phổ biến)
+SPECIAL_MAP = {
+    "SJC": "ét di xi",
+    "PNJ": "pi en di",
+    "FIFA": "phi pha",
+    "USD": "đô la mỹ",
+    "VND": "việt nam đồng",
+}
+
+# 3️⃣ Map từng chữ cái EN → cách đọc VI (cho TTS)
+LETTER_MAP = {
+    "A": "ây",
+    "B": "bi",
+    "C": "xi",
+    "D": "đi",
+    "E": "i",
+    "F": "ép",
+    "G": "gi",
+    "H": "ết",
+    "I": "ai",
+    "J": "dây",
+    "K": "cây",
+    "L": "eo",
+    "M": "em",
+    "N": "en",
+    "O": "ô",
+    "P": "pi",
+    "Q": "kiu",
+    "R": "a",
+    "S": "ét",
+    "T": "ti",
+    "U": "iu",
+    "V": "vi",
+    "W": "đắp bồ liu",
+    "X": "ích",
+    "Y": "oai",
+    "Z": "dét",
+}
+
+def read_acronym(word: str) -> str:
+    """
+    Đọc 1 acronym:
+    - Ưu tiên map đặc biệt
+    - Fallback: đọc từng chữ cái
+    """
+    if word in SPECIAL_MAP:
+        return SPECIAL_MAP[word]
+
+    return " ".join(
+        LETTER_MAP.get(ch, ch.lower())
+        for ch in word
+    )
+
+def normalize_sentence(text: str) -> str:
+    """
+    Normalize cả câu:
+    - Chỉ đụng vào các cụm ALL CAPS
+    - Giữ nguyên phần còn lại
+    """
+    def replacer(match):
+        return read_acronym(match.group(0))
+
+    return ACRONYM_RE.sub(replacer, text)
+
+
+
 
 async def infer_stream(text, frame_size=1200):
     global _prev_need_pause
@@ -64,7 +135,7 @@ async def infer_stream(text, frame_size=1200):
                     "name": "target_text",
                     "shape": [1, 1],
                     "datatype": "BYTES",
-                    "data": [[text]]
+                    "data": [[normalize_sentence(text)]]
                 }
             ]
         }

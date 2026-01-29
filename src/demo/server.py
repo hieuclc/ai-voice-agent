@@ -148,7 +148,7 @@ async def create_chat_session():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="WebRTC demo")
     parser.add_argument(
-        "--host", default="localhost", help="Host for HTTP server (default: localhost)"
+        "--host", default="0.0.0.0", help="Host for HTTP server (default: localhost)"
     )
     parser.add_argument(
         "--port", type=int, default=7860, help="Port for HTTP server (default: 7860)"
