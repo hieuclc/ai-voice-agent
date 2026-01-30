@@ -67,3 +67,93 @@ def split_text_into_chunks(text: str, max_chars: int = 256) -> List[str]:
             buffer = ""
 
     return [c.strip() for c in final_chunks if c.strip()]
+
+SPECIAL_MAP = {
+    "sjc": "ét di xi",
+    "pnj": "pi en di",
+    "fifa": "phi pha",
+    "usd": "đô la mỹ",
+    "vnd": "việt nam đồng",
+    "vietcombank": "việt com bank",
+    "vietinbank": "việt tin bank",
+    "vcb": "việt com bank",
+    "tcb": "tech com bank",
+    "huyndai": "huyn đai",
+    "phẩy": "phảy",
+    "cccd": "căn cước công dân",
+    "bhxh": "bảo hiểm xã hội",
+    "bhyt": "bảo hiểm y tế",
+    "hđnd": "hội đồng nhân dân",
+    "ubnd": "ủy ban nhân dân",
+    "json": "di sơn",
+    "xml": "ích em eo",
+    "html": "ết ti em eo",
+    "css": "xê ét ét",
+    "iot": "ai ô ti",
+    "zalo": "da lô"
+}
+
+LETTER_MAP = {
+    "A": "ây",
+    "B": "bi",
+    "C": "xi",
+    "D": "đi",
+    "E": "i",
+    "F": "ép",
+    "G": "di",
+    "H": "ết",
+    "I": "ai",
+    "J": "dây",
+    "K": "cây",
+    "L": "eo",
+    "M": "em",
+    "N": "en",
+    "O": "ô",
+    "P": "pi",
+    "Q": "kiu",
+    "R": "a",
+    "S": "ét",
+    "T": "ti",
+    "U": "iu",
+    "V": "vi",
+    "W": "đắp bồ liu",
+    "X": "ích",
+    "Y": "oai",
+    "Z": "dét",
+}
+
+
+
+ACRONYM_RE = re.compile(r"\b[A-Z]{2,}\b")
+
+def normalize_special_terms(text: str) -> str:
+    for key, spoken in SPECIAL_MAP.items():
+        text = re.sub(
+            key,
+            spoken,
+            text,
+            flags=re.IGNORECASE
+        )
+    return text
+
+def read_acronym(word: str) -> str:
+    w = word.lower()
+
+    if w in SPECIAL_MAP:
+        return SPECIAL_MAP[w]
+
+    return " ".join(
+        LETTER_MAP.get(ch, ch)
+        for ch in word
+    )
+
+def normalize_acronyms(text: str) -> str:
+    def replacer(match):
+        return read_acronym(match.group(0))
+
+    return ACRONYM_RE.sub(replacer, text)
+
+def normalize_sentence(text: str) -> str:
+    text = normalize_special_terms(text)
+    text = normalize_acronyms(text)
+    return text.strip().lower() + "  "

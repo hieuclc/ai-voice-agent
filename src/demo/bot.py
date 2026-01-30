@@ -54,7 +54,7 @@ async def run_bot(webrtc_connection, session_id):
         params=TransportParams(
             audio_in_enabled=True,
             audio_out_enabled=True,
-            audio_out_bitrate=24000,
+            audio_out_bitrate=8000,
             vad_analyzer=SileroVADAnalyzer(),
             # audio_out_10ms_chunks=2,
         ),
@@ -91,7 +91,7 @@ async def run_bot(webrtc_connection, session_id):
 
     2. Luôn trả lời bằng tiếng Việt và câu trả lời phải là văn bản thuần, giống như đang nói chuyện trực tiếp với người dùng. Không dùng ký tự đặc biệt và không dùng chữ số, mọi con số phải viết bằng chữ.
 
-    3. Chỉ trả về nội dung trả lời, không giải thích thêm, không định dạng đặc biệt.
+    3. Chỉ trả về nội dung trả lời, không giải thích thêm, không định dạng đặc biệt. Các cụm từ viết tắt phải được viết **in hoa**. Mỗi câu phải có từ 4 từ trở lên.
 
     4. Khi người dùng hỏi theo hướng tư vấn hoặc ra quyết định:
     - Luôn so sánh với ít nhất một mốc thời gian hoặc tình huống liên quan.
