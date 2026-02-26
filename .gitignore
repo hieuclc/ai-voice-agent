@@ -4,3 +4,5 @@ zipformer
 *.ipynb
 src/debug/*
 node_modules/
+lightrag_data/
+lightrag_data.zip

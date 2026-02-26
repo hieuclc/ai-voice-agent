@@ -1,0 +1,3011 @@
+[
+  {
+    "tour_id": "1",
+    "title": "TOUR MIỀN BẮC MÙA XUÂN 5N4Đ | TAM CHÚC - NINH BÌNH - HẠ LONG",
+    "duration": {
+      "days": 5,
+      "nights": 4
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Hà Nội",
+      "Tam Chúc",
+      "Ninh Bình",
+      "Hạ Long",
+      "Fansipan",
+      "Tràng An",
+      "Hà Nam",
+      "Tuyệt Tình Cốc",
+      "Hang Múa",
+      "Yên Tử"
+    ],
+    "transport": [
+      "Xe du lịch",
+      "Máy bay"
+    ],
+    "price_range": {
+      "min_price": 10399000,
+      "max_price": 12999000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "TP.HCM – HÀ NỘI",
+        "meals": [
+          "trưa"
+        ],
+        "overnight": "Hà Nội",
+        "locations": [
+          "Sân bay Tân Sơn Nhất",
+          "Sân bay Nội Bài",
+          "Lăng Chủ tịch Hồ Chí Minh",
+          "Phủ Chủ Tịch",
+          "Chùa Một Cột",
+          "Bảo Tàng Hồ Chí Minh",
+          "Chùa Trấn Quốc",
+          "Hồ Tây",
+          "Hồ Trúc Bạch",
+          "Hồ Hoàn Kiếm",
+          "Bảo tàng quân sự Việt Nam"
+        ],
+        "description": "Đại diện công ty đón khách tại sân bay Tân Sơn Nhất đi Hà Nội. Tham quan Lăng Bác, Phủ Chủ Tịch, ao cá, nhà sàn, Chùa Một Cột, Bảo Tàng Hồ Chí Minh, Chùa Trấn Quốc, Hồ Tây, Hồ Hoàn Kiếm và Bảo tàng quân sự Việt Nam. Tối tự do khám phá ẩm thực Hà Nội."
+      },
+      {
+        "day": 2,
+        "title": "HÀ NỘI – CHÙA TAM CHÚC",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Ninh Bình",
+        "locations": [
+          "Hà Nam",
+          "Chùa Tam Chúc"
+        ],
+        "description": "Khởi hành đi Hà Nam tham quan Chùa Tam Chúc - ngôi chùa lớn nhất thế giới với diện tích 5.000 ha, 1.200 bức tượng bằng dung nham núi lửa. Sau đó di chuyển về Ninh Bình nghỉ đêm."
+      },
+      {
+        "day": 3,
+        "title": "TRÀNG AN – TUYỆT TÌNH CỐC – HANG MÚA",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Hạ Long",
+        "locations": [
+          "Khu du lịch Tràng An",
+          "Hang sáng",
+          "Hang tối",
+          "Hang nấu rượu",
+          "Hang Múa",
+          "Hạ Long"
+        ],
+        "description": "Đi đò tham quan quần thể Tràng An qua các hang động. Chinh phục Hang Múa ngắm toàn cảnh Tam Cốc từ trên cao. Sau đó khởi hành đi Hạ Long, tự do tham quan Sunworld Hạ Long Park hoặc chợ đêm."
+      },
+      {
+        "day": 4,
+        "title": "HẠ LONG – TRẢI NGHIỆM BUFFET 5 SAO TRÊN VỊNH HẠ LONG",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Hạ Long",
+        "locations": [
+          "Bảo Tàng Quảng Ninh",
+          "Cảng Quốc Tế Hạ Long",
+          "Vịnh Hạ Long",
+          "Hòn Đầu Người",
+          "Hang Sửng Sốt",
+          "Hang Luồn",
+          "Đảo Titov"
+        ],
+        "description": "Tham quan Bảo Tàng Quảng Ninh. Lên du thuyền khám phá Vịnh Hạ Long, dùng buffet 5 sao, tham quan hang Sửng Sốt, chèo kayak tại Hang Luồn, tắm biển hoặc leo đỉnh Titov. Tham gia Sunset Party trên tàu trước khi về khách sạn."
+      },
+      {
+        "day": 5,
+        "title": "HẠ LONG - YÊN TỬ – HÀ NỘI – HỒ CHÍ MINH",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Núi Yên Tử",
+          "Chùa Hoa Yên",
+          "Bảo Tháp",
+          "Trúc Lâm Tam Tổ",
+          "Thiền Viện Trúc Lâm",
+          "Hà Nội",
+          "Sân bay Nội Bài"
+        ],
+        "description": "Khởi hành đi Yên Tử, tham quan hệ thống chùa tháp và Thiền Viện Trúc Lâm. Sau đó đoàn trở về Hà Nội, tiễn sân bay Nội Bài đáp chuyến bay về TP.HCM."
+      }
+    ],
+    "departures": [
+      {
+        "date": "27/02/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 10999000,
+        "available_slots": 10
+      },
+      {
+        "date": "27/02/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 12999000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/02/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 10999000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/02/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 12999000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 10999000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 12999000,
+        "available_slots": 10
+      },
+      {
+        "date": "01/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 10399000,
+        "available_slots": 10
+      },
+      {
+        "date": "01/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 11999000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Vé máy bay khứ hồi TP.HCM – HÀ NỘI – TP.HCM (Vietjet Air, …); Xe tham quan tùy theo số lượng khách; Khách sạn 3-4 sao theo tiêu chuẩn đăng ký; Ăn uống theo chương trình (2 buffet sáng, 6 bữa chính 150.000đ, 1 buffet 5 sao Hạ Long); Vé tham quan; HDV tiếng Việt; Bảo hiểm du lịch tối đa 100.000.000đ; Quà tặng nón, nước, khăn lạnh; Thuế VAT.",
+      "excluded": "Đồ uống trong bữa ăn; Chi phí cá nhân; Cáp Treo Yên tử 350.000 vnd/ khách."
+    },
+    "policies": {
+      "children_policy": "Dưới 02 tuổi: Miễn giá tour, vé máy bay theo hãng; 02 - dưới 05 tuổi: Miễn giá tour, 100% vé máy bay; 05 - dưới 11 tuổi: 60% giá tour, 100% vé máy bay; Từ 11 tuổi: 100% giá tour như người lớn.",
+      "cancellation_policy": "Hủy sau đăng ký: mất cọc (30% giá tour + 100% vé máy bay); Hủy từ 11-15 ngày: phí 50% tour + 100% vé máy bay; Hủy từ 8-10 ngày: phí 70% tour + 100% vé máy bay; Hủy từ 7 ngày: phí 100% tour + 100% vé máy bay.",
+      "payment_policy": "Đặt cọc ít nhất 60% khi đăng ký, thanh toán 100% trước khởi hành 15 ngày.",
+      "notes": "Đoàn ghép khách lẻ khởi hành từ 10 khách người lớn. Mang theo CCCD/Passport/Giấy khai sinh bản chính. Giờ bay có thể thay đổi."
+    },
+    "tour_type": "tour miền bắc"
+  },
+  {
+    "tour_id": "2",
+    "title": "TOUR ĐỒNG THÁP - LÀNG HOA SA ĐÉC - CẦN THƠ 2N1Đ | Về Xứ Hoa Kiểng Miền Tây",
+    "duration": {
+      "days": 2,
+      "nights": 1
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Đồng Tháp",
+      "Làng Hoa Sa Đéc",
+      "Cần Thơ",
+      "Chùa Phước Kiển",
+      "Làng hoa kiểng Tân Quy Đông",
+      "Bến Ninh Kiều",
+      "Cầu Tình Yêu",
+      "Chợ nổi Cái Răng",
+      "Làng hủ tiếu truyền thống",
+      "Nhà Cổ Bình Thủy",
+      "Làng du lịch Mỹ Khánh"
+    ],
+    "transport": [
+      "Xe du lịch"
+    ],
+    "price_range": {
+      "min_price": 2099000,
+      "max_price": 2399000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "TP. HCM – LÀNG HOA SA DEC – CẦN THƠ",
+        "meals": [
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Cần Thơ",
+        "locations": [
+          "TP. HCM",
+          "Đồng Tháp",
+          "Cầu Mỹ Thuận",
+          "Xứ Nha Mân",
+          "Chùa Phước Kiển",
+          "Làng hoa kiểng Tân Quy Đông",
+          "Làng Hoa Sa Đéc",
+          "Cần Thơ",
+          "Bến Ninh Kiều",
+          "Cầu Tình Yêu"
+        ],
+        "description": "Xe và HDV đón khách khởi hành đi Đồng Tháp. Tham quan Chùa Phước Kiển với ao sen khổng lồ, Làng hoa Sa Đéc với nghề truyền thống hơn 100 năm. Dùng cơm trưa tại nhà hàng. Di chuyển đến Cần Thơ nhận phòng. Buổi tối dạo Bến Ninh Kiều, Cầu Tình Yêu và ăn tối trên Du thuyền Ninh Kiều 5 sao."
+      },
+      {
+        "day": 2,
+        "title": "CHỢ NỔI – KDL MỸ KHÁNH – TP.HCM",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Chợ nổi Cái Răng",
+          "Làng hủ tiếu truyền thống",
+          "Nhà Cổ Bình Thủy",
+          "Làng du lịch Mỹ Khánh",
+          "TP.HCM"
+        ],
+        "description": "Tham quan Chợ nổi Cái Răng, Làng hủ tiếu truyền thống. Trở về khách sạn dùng buffet sáng và trả phòng. Tham quan Nhà Cổ Bình Thủy và Làng du lịch Mỹ Khánh (xem đua chó, đua heo, vườn trái cây). Dùng bữa trưa đặc sản miền tây và khởi hành về TP.HCM."
+      }
+    ],
+    "departures": [
+      {
+        "date": "28/02/2026",
+        "hotel_standard": "Ks 3*",
+        "price": 2099000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/02/2026",
+        "hotel_standard": "Ks 4*",
+        "price": 2399000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/03/2026",
+        "hotel_standard": "Ks 3*",
+        "price": 2099000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/03/2026",
+        "hotel_standard": "Ks 4*",
+        "price": 2399000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/03/2026",
+        "hotel_standard": "Ks 3*",
+        "price": 2099000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/03/2026",
+        "hotel_standard": "Ks 4*",
+        "price": 2399000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/03/2026",
+        "hotel_standard": "Ks 3*",
+        "price": 2099000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/03/2026",
+        "hotel_standard": "Ks 4*",
+        "price": 2399000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/03/2026",
+        "hotel_standard": "Ks 3*",
+        "price": 2099000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/03/2026",
+        "hotel_standard": "Ks 4*",
+        "price": 2399000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/04/2026",
+        "hotel_standard": "Ks 3*",
+        "price": 2099000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/04/2026",
+        "hotel_standard": "Ks 4*",
+        "price": 2399000,
+        "available_slots": 10
+      },
+      {
+        "date": "11/04/2026",
+        "hotel_standard": "Ks 3*",
+        "price": 2099000,
+        "available_slots": 10
+      },
+      {
+        "date": "11/04/2026",
+        "hotel_standard": "Ks 4*",
+        "price": 2399000,
+        "available_slots": 10
+      },
+      {
+        "date": "18/04/2026",
+        "hotel_standard": "Ks 3*",
+        "price": 2099000,
+        "available_slots": 10
+      },
+      {
+        "date": "18/04/2026",
+        "hotel_standard": "Ks 4*",
+        "price": 2399000,
+        "available_slots": 10
+      },
+      {
+        "date": "25/04/2026",
+        "hotel_standard": "Ks 3*",
+        "price": 2099000,
+        "available_slots": 10
+      },
+      {
+        "date": "25/04/2026",
+        "hotel_standard": "Ks 4*",
+        "price": 2399000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Xe tham quan tùy theo số lượng khách. Ăn uống theo chương trình (3 bữa chính + 2 bữa sáng). Khách sạn tiêu chuẩn 3* (Hậu Giang, Holiday Two, International, Ninh Kiều 2…) hoặc 4* tùy gói. Vé tham quan + tàu thuyền. Hướng dẫn viên tiếng Việt. Bảo hiểm mức 100.000.000 đồng/trường hợp. Quà tặng nón, nước. Thuế VAT.",
+      "excluded": "Bia, nước ngọt trong bữa ăn. Bữa sáng ngày đầu. Tham quan ngoài chương trình. Chi phí cá nhân. Phụ phí người nước ngoài. Phụ phí phòng đơn. Vé tham quan căn nhà màu tím (60.000 vnd/vé)."
+    },
+    "policies": {
+      "children_policy": "Trẻ em dưới 05 tuổi: miễn giá tour (1 kèm 1). Trẻ em từ 05 – dưới 10 tuổi: 75% giá tour (ngủ chung gia đình). Từ 10 tuổi trở lên: 100% giá tour.",
+      "cancellation_policy": "Sau khi đặt cọc hoặc trước 15 ngày: phí 35%. Hủy 10 ngày trước khởi hành: phí 50%. Hủy 07 ngày trước khởi hành: phí 70%. Hủy 05 ngày trước khởi hành: phí 100%. Không tính thứ 7, Chủ Nhật.",
+      "payment_policy": "Thanh toán ít nhất 50% tiền cọc và 100% trước 15 ngày khởi hành. Không thanh toán đúng hạn xem như tự ý hủy tour.",
+      "notes": "Đoàn ghép khách lẻ khởi hành từ 20 khách người lớn. Mang theo giấy tờ tùy thân và hành lý gọn nhẹ. Nhận phòng sau 14h, trả phòng trước 12h."
+    },
+    "tour_type": "tour miền nam"
+  },
+  {
+    "tour_id": "3",
+    "title": "TOUR ĐÀ NẴNG MÙA XUÂN 3N2Đ | BÀ NÀ - BÁN ĐẢO SƠN TRÀ - NGŨ HÀNH SƠN - HỘI AN",
+    "duration": {
+      "days": 3,
+      "nights": 2
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Đà Nẵng",
+      "Bà Nà",
+      "Bán Đảo Sơn Trà",
+      "Ngũ Hành Sơn",
+      "Hội An",
+      "Cầu Vàng",
+      "Mỹ Khê",
+      "Kim Sơn",
+      "Chùa Quan Thế Âm",
+      "Động Quan Âm",
+      "Bảo tàng văn hóa Phật Giáo",
+      "Làng nghề điêu khắc đá Non Nước",
+      "Chùa Cầu Nhật Bản",
+      "Hội Quán Phúc Kiến",
+      "Nhà Cổ Phùng Hưng",
+      "Công Viên Fantasy",
+      "Chùa Linh Ứng",
+      "Đền Lĩnh Chúa Linh Từ",
+      "Tháp Linh Phong Tự",
+      "Tượng Thích Ca Mâu Ni",
+      "Lầu Chuông",
+      "Nhà Bia",
+      "Miếu Bà",
+      "Trú Vũ Trà Quán",
+      "Cầu Sông Hàn",
+      "Cầu Rồng"
+    ],
+    "transport": [
+      "Xe du lịch",
+      "Máy bay"
+    ],
+    "price_range": {
+      "min_price": 5599000,
+      "max_price": 6399000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "TP.HCM – NGŨ HÀNH SƠN – HỘI AN",
+        "meals": [
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Đà Nẵng",
+        "locations": [
+          "Sân bay Tân Sơn Nhất",
+          "Sân bay Đà Nẵng",
+          "Ngũ Hành Sơn",
+          "Kim Sơn",
+          "Chùa Quan Thế Âm",
+          "Động Quan Âm",
+          "Bảo tàng văn hóa Phật Giáo",
+          "Làng nghề điêu khắc đá Non Nước",
+          "Phố Cổ Hội An",
+          "Chùa Cầu Nhật Bản",
+          "Hội Quán Phúc Kiến",
+          "Nhà Cổ Phùng Hưng"
+        ],
+        "description": "Quý khách tập trung tại sân bay Tân Sơn Nhất bay đi Đà Nẵng. Tham quan Ngũ Hành Sơn, các hang động và chùa chiền, làng đá Non Nước. Dùng bữa trưa. Tham quan Phố Cổ Hội An với các di sản văn hóa. Buổi tối trải nghiệm Show diễn Ký Ức Hội An (tự túc)."
+      },
+      {
+        "day": 2,
+        "title": "ĐÀ NẴNG – BÀ NÀ",
+        "meals": [
+          "sáng",
+          "tối"
+        ],
+        "overnight": "Đà Nẵng",
+        "locations": [
+          "Bà Nà Hills",
+          "Cầu Vàng",
+          "Công Viên Fantasy",
+          "Hầm rượu",
+          "Vườn hoa tình yêu",
+          "Bảo Tàng Sáp",
+          "Chùa Linh Ứng",
+          "Đền Lĩnh Chúa Linh Từ",
+          "Tháp Linh Phong Tự",
+          "Tượng Thích Ca Mâu Ni",
+          "Cầu Sông Hàn",
+          "Cầu Rồng"
+        ],
+        "description": "Khởi hành đi Bà Nà Hills, trải nghiệm cáp treo, vui chơi tại Fantasy Park, check-in Cầu Vàng và tham quan các điểm tâm linh. Tự túc ăn trưa. Buổi tối tự do khám phá Đà Nẵng về đêm."
+      },
+      {
+        "day": 3,
+        "title": "ĐÀ NẴNG – BÁN ĐẢO SƠN TRÀ - TP.HCM",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Biển Mỹ Khê",
+          "Bán đảo Sơn Trà",
+          "Linh Ứng Tự",
+          "Sân bay Đà Nẵng"
+        ],
+        "description": "Tự do tắm biển Mỹ Khê hoặc mua sắm đặc sản. Tham quan bán đảo Sơn Trà, viếng chùa Linh Ứng. Dùng cơm trưa sau đó ra sân bay về lại TP.HCM."
+      }
+    ],
+    "departures": [
+      {
+        "date": "28/02/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/02/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "03/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "03/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "10/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "10/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "17/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "17/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "24/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "24/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "26/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "26/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "31/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5799000,
+        "available_slots": 10
+      },
+      {
+        "date": "31/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6099000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Vé máy bay khứ hồi TP.HCM – ĐÀ NẴNG. Xe tham quan đời mới. Khách sạn tiêu chuẩn 3 sao hoặc 4 sao (2 khách/phòng). Ăn uống gồm 2 bữa sáng buffet và 4 bữa chính (130.000đ/bữa). Vé tham quan theo chương trình. HDV tiếng Việt. Bảo hiểm du lịch tối đa 100.000.000đ. Quà tặng: nón, nước, khăn lạnh. Thuế VAT.",
+      "excluded": "Bia, nước ngọt trong bữa ăn. Tham quan ngoài chương trình. Chi phí cá nhân (điện thoại, giặt ủi). Vé cáp treo Bà Nà, công viên Châu Á. 01 bữa trưa ngày thứ 2. Chi phí bãi biển (dù, võng, tắm nước ngọt)."
+    },
+    "policies": {
+      "children_policy": "Dưới 2 tuổi: miễn giá tour, vé máy bay theo hãng. 2-5 tuổi: 100% vé máy bay, miễn giá tour. 5-11 tuổi: 100% vé máy bay, 60% giá tour (ngủ chung gia đình). Từ 11 tuổi: 100% giá tour như người lớn.",
+      "cancellation_policy": "Ngay sau khi đăng ký hoặc trước 15 ngày: phí 30% tiền tour + 100% vé máy bay. Hủy 10 ngày trước: 50% tiền tour + 100% vé máy bay. Hủy 7 ngày trước: 70% tiền tour + 100% vé máy bay. Hủy 5 ngày trước: 100% tiền tour + 100% vé máy bay.",
+      "payment_policy": "Thanh toán ít nhất 50% tiền cọc khi giữ chỗ, đủ 100% trước 15 ngày khởi hành.",
+      "notes": "Mang theo giấy tờ tùy thân CCCD/Passport/Giấy khai sinh bản chính. Giờ bay có thể thay đổi. Đoàn ghép từ 10 khách người lớn mới khởi hành. Nhận phòng sau 14h, trả phòng trước 12h."
+    },
+    "tour_type": "tour miền trung"
+  },
+  {
+    "tour_id": "4",
+    "title": "TOUR MIỀN BẮC MÙA XUÂN 4N3Đ | MAI CHÂU - MỘC CHÂU - NINH BÌNH",
+    "duration": {
+      "days": 4,
+      "nights": 3
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Hà Nội",
+      "Mai Châu",
+      "Mộc Châu",
+      "Ninh Bình",
+      "Bảo Tàng Quân Sự Việt Nam",
+      "Bản Lác",
+      "Cầu Kính Bạch Long",
+      "Tràng An",
+      "Bái Đính",
+      "Lăng Bác",
+      "Chùa Một Cột",
+      "Chùa Trấn Quốc",
+      "Hồ Tây",
+      "Hồ Hoàn Kiếm"
+    ],
+    "transport": [
+      "Xe du lịch",
+      "Máy bay"
+    ],
+    "price_range": {
+      "min_price": 8599000,
+      "max_price": 8999000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "TP.HCM – MAI CHÂU – MỘC CHÂU",
+        "meals": [
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Mộc Châu",
+        "locations": [
+          "Sân bay Tân Sơn Nhất",
+          "Sân bay Nội Bài",
+          "Mai Châu",
+          "Nhà máy thủy điện sông Đà",
+          "Đèo Thung Khe",
+          "Bản Lác",
+          "Cao Nguyên Mộc Châu"
+        ],
+        "description": "Quý khách bay từ TP.HCM đến Hà Nội, sau đó di chuyển đi Mai Châu. Tham quan Bản Lác và khởi hành đến Mộc Châu nghỉ đêm."
+      },
+      {
+        "day": 2,
+        "title": "MỘC CHÂU - CẦU KÍNH BẠCH LONG – NINH BÌNH",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Ninh Bình",
+        "locations": [
+          "Cầu Kính Bạch Long",
+          "Đồi chè Mộc Châu",
+          "Ninh Bình",
+          "Tràng An"
+        ],
+        "description": "Tham quan Cầu Kính Bạch Long và Đồi chè Mộc Châu. Sau đó khởi hành đi Ninh Bình, khám phá danh thắng Tràng An."
+      },
+      {
+        "day": 3,
+        "title": "NINH BÌNH – TRÀNG AN – BÁI ĐÍNH",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Hà Nội",
+        "locations": [
+          "Khu du lịch Tràng An",
+          "Hang sáng",
+          "Hang tối",
+          "Hang nấu rượu",
+          "Chùa Bái Đính",
+          "Hà Nội"
+        ],
+        "description": "Đi thuyền thăm Khu du lịch Tràng An với các hang động. Tham quan chùa Bái Đính trước khi trở về Hà Nội."
+      },
+      {
+        "day": 4,
+        "title": "HÀ NỘI- BẢO TÀNG QUÂN SỰ VIỆT NAM  – TP. HCM",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Lăng Bác",
+          "Phủ Chủ Tịch",
+          "Nhà sàn Bác Hồ",
+          "Chùa Một Cột",
+          "Bảo Tàng Hồ Chí Minh",
+          "Chùa Trấn Quốc",
+          "Hồ Tây",
+          "Hồ Trúc Bạch",
+          "Hồ Hoàn Kiếm",
+          "Bảo tàng quân sự Việt Nam",
+          "Sân bay Nội Bài"
+        ],
+        "description": "Viếng Lăng Bác và các điểm di tích tại Thủ đô. Tham quan Bảo tàng quân sự Việt Nam và các hồ tại Hà Nội trước khi ra sân bay về lại TP.HCM."
+      }
+    ],
+    "departures": [
+      {
+        "date": "01/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "15/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "22/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "29/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8599000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8599000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8599000,
+        "available_slots": 10
+      },
+      {
+        "date": "10/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8599000,
+        "available_slots": 10
+      },
+      {
+        "date": "17/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8599000,
+        "available_slots": 10
+      },
+      {
+        "date": "24/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "31/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      },
+      {
+        "date": "26/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8999000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Vé máy bay khứ hồi TP.HCM – HÀ NỘI – TP.HCM (Vietjet Air), Xe tham quan, Khách sạn 3 sao (Hà Nội, Ninh Bình, Mộc Châu), Ăn uống theo chương trình (4 bữa sáng, 7 bữa chính), Vé tham quan, Hướng dẫn viên, Bảo hiểm (tối đa 100tr), Quà tặng.",
+      "excluded": "Bia hay nước ngọt trong bữa ăn, Vé tham quan Cầu kính Bạch Long, Chi phí cá nhân (điện thoại, giặt ủi…), Thuế VAT."
+    },
+    "policies": {
+      "children_policy": "Dưới 02 tuổi: miễn giá tour, vé máy bay theo hãng. Từ 02 – dưới 05 tuổi: miễn giá tour, 100% vé máy bay. Từ 05 – dưới 11 tuổi: 50% giá tour, 100% vé máy bay. Từ 11 tuổi trở lên: 100% giá tour.",
+      "cancellation_policy": "Hủy sau đăng ký: mất 10% giá tour + 100% vé máy bay. Hủy từ 10-8 ngày: phí 50% giá tour + 100% vé máy bay. Hủy từ 8-6 ngày: phí 70% giá tour + 100% vé máy bay. Hủy từ 5 ngày hoặc trễ giờ: phí 100% giá tour + 100% vé máy bay.",
+      "payment_policy": "Sau khi đăng ký, thanh toán ít nhất 50% tiền cọc và đóng hết 100% trước khởi hành 10 ngày.",
+      "notes": "Mang theo giấy tờ tùy thân (CMND/Passport/Giấy khai sinh cho trẻ em). Nhận phòng sau 14h, trả phòng trước 12h. Công ty khởi hành khi đủ 10 khách người lớn."
+    },
+    "tour_type": "tour miền bắc"
+  },
+  {
+    "tour_id": "5",
+    "title": "TOUR MIỀN BẮC MÙA XUÂN 3N2Đ | HÀ NỘI - CHÙA TAM CHÚC - NINH BÌNH - TRÀNG AN",
+    "duration": {
+      "days": 3,
+      "nights": 2
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Hà Nội",
+      "Chùa Tam Chúc",
+      "Ninh Bình",
+      "Tràng An",
+      "Tuyệt Tình Cốc",
+      "Chùa Bái Đính",
+      "Hang Múa",
+      "Hồ Hoàn Kiếm",
+      "Tam Cốc"
+    ],
+    "transport": [
+      "Xe du lịch",
+      "Máy bay"
+    ],
+    "price_range": {
+      "min_price": 7999000,
+      "max_price": 9599000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "TP.HCM – HÀ NỘI – CHÙA TAM CHÚC",
+        "meals": [
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Ninh Bình",
+        "locations": [
+          "Hà Nội",
+          "Ninh Bình",
+          "Tràng An",
+          "Chùa Tam Chúc"
+        ],
+        "description": "Quý khách tập trung tại sân bay Tân Sơn Nhất, bay đi Hà Nội. Đến sân bay Nội Bài, khởi hành đến Ninh Bình tham quan danh thắng Tràng An. Dùng cơm trưa. Tham quan Chùa Tam Chúc. Dùng bữa tối và nghỉ đêm tại Ninh Bình."
+      },
+      {
+        "day": 2,
+        "title": "TRÀNG AN – TUYỆT TÌNH CỐC – HANG MÚA",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Ninh Bình",
+        "locations": [
+          "Khu du lịch Tràng An",
+          "Hang Sáng",
+          "Hang Tối",
+          "Hang Nấu Rượu",
+          "Tuyệt Tình Cốc",
+          "Động Am Tiêm",
+          "Hang Múa",
+          "Tam Cốc"
+        ],
+        "description": "Dùng buffet sáng tại khách sạn. Tham quan Khu du lịch Tràng An, đi đò thăm Hang Sáng, Hang Tối, Hang Nấu Rượu. Dùng cơm trưa. Tham quan Tuyệt Tình Cốc và Động Am Tiêm. Tham quan Hang Múa và ngắm cảnh Tam Cốc từ trên cao. Dùng bữa tối và nghỉ đêm tại Ninh Bình."
+      },
+      {
+        "day": 3,
+        "title": "CHÙA BÁI ĐÍNH – HÀ NỘI – TP.HCM",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Chùa Bái Đính",
+          "Hà Nội",
+          "Hồ Hoàn Kiếm",
+          "Sân bay Nội Bài"
+        ],
+        "description": "Dùng buffet sáng tại khách sạn. Tham quan Chùa Bái Đính. Trở về Hà Nội, dùng bữa trưa và tự do tham quan Hồ Hoàn Kiếm. Ra sân bay Nội Bài đáp chuyến bay về TP.HCM. Kết thúc chương trình."
+      }
+    ],
+    "departures": [
+      {
+        "date": "01/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "01/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "15/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "15/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "22/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "22/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "29/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "29/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7999000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7999000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7999000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "10/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7999000,
+        "available_slots": 10
+      },
+      {
+        "date": "10/05/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "17/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7999000,
+        "available_slots": 10
+      },
+      {
+        "date": "17/05/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "24/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "24/05/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "31/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "31/05/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/06/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/06/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/06/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/06/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/07/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/07/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/07/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "26/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 8799000,
+        "available_slots": 10
+      },
+      {
+        "date": "26/07/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 9599000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Vé máy bay khứ hồi TP.HCM – HÀ NỘI – TP.HCM (Vietjet Air, …); Xe tham quan; Khách sạn 3 sao hoặc 4 sao tại Ninh Bình; Ăn uống theo chương trình (2 bữa buffet sáng, 5 bữa chính 130.000 đồng/bữa); Vé tham quan; Hướng dẫn viên tiếng Việt; Bảo hiểm tối đa 100.000.000 đồng/trường hợp; Quà tặng; Thuế VAT.",
+      "excluded": "Bia hoặc nước ngọt trong các bữa ăn; Chi phí cá nhân; Chi phí tham quan, mua sắm ngoài chương trình."
+    },
+    "policies": {
+      "children_policy": "Trẻ dưới 02 tuổi: miễn phí tour, giá vé máy bay theo quy định hãng. Trẻ 02 – dưới 05 tuổi: 100% vé máy bay, miễn giá tour. Trẻ 05 – dưới 11 tuổi: 100% vé máy bay, 50% giá tour. Từ 11 tuổi trở lên: 100% giá tour như người lớn.",
+      "cancellation_policy": "Hủy ngay sau khi đặt cọc hoặc trước 15 ngày: 30% tiền tour + 100% vé máy bay. Hủy 10 ngày trước khởi hành: 50% tiền tour + 100% vé máy bay. Hủy 7 ngày trước: 70% tiền tour + 100% vé máy bay. Hủy 5 ngày trước: 100% tiền tour + 100% vé máy bay. Đến trễ giờ khởi hành tính như hủy 5 ngày trước.",
+      "payment_policy": "Thanh toán ít nhất 50% khi đặt cọc và thanh toán đủ 100% trước 10 ngày khởi hành. Không thanh toán đúng hạn xem như hủy tour và mất tiền cọc.",
+      "notes": "Giờ bay có thể thay đổi; nhận phòng sau 14h00, trả phòng trước 12h00; khách phải cung cấp giấy tờ tùy thân hợp lệ; quy định riêng cho khách nước ngoài và trẻ em; các thay đổi do bất khả kháng hoặc hãng vận chuyển sẽ được thông báo và xử lý theo thực tế."
+    },
+    "tour_type": "tour miền bắc"
+  },
+  {
+    "tour_id": "6",
+    "title": "TOUR MIỀN TÂY 2N1Đ | CÁI BÈ - ĐỒNG THÁP - CHỢ QUÊ TÂN THUẬN ĐÔNG",
+    "duration": {
+      "days": 2,
+      "nights": 1
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Cái Bè",
+      "Đồng Tháp",
+      "Tân Thuận Đông",
+      "Cù lao Tân Phong",
+      "Cao Lãnh",
+      "Gáo Giồng"
+    ],
+    "transport": [
+      "Xe du lịch"
+    ],
+    "price_range": {
+      "min_price": 2199000,
+      "max_price": 2199000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "TP. HCM – CÁI BÈ – CHỢ QUÊ TÂN THUẬN ĐÔNG",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": "Đồng Tháp",
+        "locations": [
+          "Chợ nổi Cái Bè",
+          "Cù lao Tân Phong",
+          "Nhà cổ Ông 3 Đức",
+          "Chợ Quê Tân Thuận Đông",
+          "Cao Lãnh"
+        ],
+        "description": "Xe và hướng dẫn viên đón quý khách khởi hành đi Cái Bè. Tham quan và mua sắm trên chợ nổi Cái Bè, tìm hiểu văn hóa sông nước. Di chuyển lên cù lao Tân Phong tham quan làng nghề, điểm nuôi ong, nhà cổ Ông 3 Đức. Thưởng thức trái cây và Đờn Ca Tài Tử. Buổi chiều tham quan Chợ Quê Tân Thuận Đông với các gian hàng mộc mạc và đặc sản địa phương. Nghỉ đêm tại Cao Lãnh, Đồng Tháp."
+      },
+      {
+        "day": 2,
+        "title": "MỘ CỤ PHÓ BẢNG – KDL GÁO GIỒNG – TP.HCM",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Khu Di tích Cụ Phó bảng Nguyễn Sinh Sắc",
+          "Làng Hòa An",
+          "Khu Du Lịch Sinh Thái Gáo Giồng"
+        ],
+        "description": "Tham quan Khu Di tích Cụ Phó bảng Nguyễn Sinh Sắc và làng Hòa An xưa. Tiếp tục đến Khu Du Lịch Sinh Thái Gáo Giồng, bơi xuồng qua rừng tràm quan sát vườn chim tự nhiên, ngắm cảnh từ đài quan sát. Thưởng thức đặc sản Đồng Tháp Mười. Khởi hành về TP. Hồ Chí Minh."
+      }
+    ],
+    "departures": [
+      {
+        "date": "28/02/2026",
+        "hotel_standard": "3*",
+        "price": 2199000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/03/2026",
+        "hotel_standard": "3*",
+        "price": 2199000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/03/2026",
+        "hotel_standard": "3*",
+        "price": 2199000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/03/2026",
+        "hotel_standard": "3*",
+        "price": 2199000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/03/2026",
+        "hotel_standard": "3*",
+        "price": 2199000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/04/2026",
+        "hotel_standard": "3*",
+        "price": 2199000,
+        "available_slots": 10
+      },
+      {
+        "date": "11/04/2026",
+        "hotel_standard": "3*",
+        "price": 2199000,
+        "available_slots": 10
+      },
+      {
+        "date": "18/04/2026",
+        "hotel_standard": "3*",
+        "price": 2199000,
+        "available_slots": 10
+      },
+      {
+        "date": "25/04/2026",
+        "hotel_standard": "3*",
+        "price": 2199000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Xe tham quan theo số lượng khách. Ăn uống theo chương trình (2 bữa chính + 2 bữa sáng). Khách sạn tiêu chuẩn 3* (2 khách/phòng). Vé tham quan + tàu thuyền. Hướng dẫn viên tiếng Việt. Bảo hiểm mức 100.000.000 đồng. Quà tặng nón du lịch, nước. Thuế VAT.",
+      "excluded": "Bia, nước ngọt trong bữa ăn. Bữa sáng ngày đầu. Tham quan ngoài chương trình. Chi phí cá nhân (điện thoại, giặt ủi). Phụ phí người nước ngoài. Phụ phí phòng đơn."
+    },
+    "policies": {
+      "children_policy": "Dưới 05 tuổi: miễn giá tour (cha mẹ tự lo). Từ 05 – dưới 10 tuổi: 75% giá tour (ngủ chung gia đình). Từ 10 tuổi trở lên: 100% giá tour.",
+      "cancellation_policy": "Hủy sau khi đặt cọc hoặc trước 15 ngày: phí 35%. Hủy 10 ngày trước khởi hành: phí 50%. Hủy 07 ngày trước khởi hành: phí 70%. Hủy 05 ngày trước khởi hành: phí 100%.",
+      "payment_policy": "Thanh toán ít nhất 50% tiền cọc khi xác nhận. Thanh toán đủ 100% trước 15 ngày khởi hành.",
+      "notes": "Đoàn ghép khách lẻ khởi hành từ 20 khách người lớn. Thời gian tham quan linh hoạt. Quý khách mang theo giấy tờ tùy thân và hành lý gọn nhẹ."
+    },
+    "tour_type": "tour miền nam"
+  },
+  {
+    "tour_id": "7",
+    "title": "TOUR PHAN THIẾT 3N2Đ | ĐẢO PHÚ QUÝ - THIÊN ĐƯỜNG BIỂN XANH",
+    "duration": {
+      "days": 3,
+      "nights": 2
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Phan Thiết",
+      "Đảo Phú Quý",
+      "TP.HCM"
+    ],
+    "transport": [
+      "Tàu thủy",
+      "Xe du lịch"
+    ],
+    "price_range": {
+      "min_price": 4350000,
+      "max_price": 4350000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "TP.HCM – PHAN THIẾT – ĐẢO PHÚ QUÝ",
+        "meals": [
+          "Ăn sáng",
+          "Ăn trưa",
+          "Ăn chiều"
+        ],
+        "overnight": "Phú Quý",
+        "locations": [
+          "TP.HCM",
+          "Phan Thiết",
+          "Cảng Thương Chánh Phan Thiết",
+          "Phú Quý",
+          "Chùa Linh Quang",
+          "Vạn An Thạnh",
+          "Gành Hang",
+          "Bãi Nhỏ",
+          "Cột cờ chủ quyền",
+          "Vịnh Triều Dương",
+          "Hòn Tranh"
+        ],
+        "description": "Khởi hành từ TP.HCM đi Phan Thiết, di chuyển bằng tàu cao tốc ra Phú Quý. Tham quan Chùa Linh Quang, Vạn An Thạnh, Gành Hang, Bãi Nhỏ, Cột cờ chủ quyền, Vịnh Triều Dương và ngắm Hòn Tranh. Nghỉ đêm tại khách sạn ở Phú Quý."
+      },
+      {
+        "day": 2,
+        "title": "ĐẢO NGỌC HOANG SƠ",
+        "meals": [
+          "Ăn sáng",
+          "Ăn trưa",
+          "Ăn chiều"
+        ],
+        "overnight": "Phú Quý",
+        "locations": [
+          "Linh Sơn Tự",
+          "Núi Cao Cát",
+          "Mũi Dinh Thầy",
+          "Nhà bè",
+          "Chùa Linh Bửu",
+          "Núi Cấm",
+          "Khu điện gió",
+          "Miếu Bà Chúa"
+        ],
+        "description": "Tham quan Linh Sơn Tự trên Núi Cao Cát, Mũi Dinh Thầy, Nhà bè nuôi cá. Buổi chiều tham quan Chùa Linh Bửu, Núi Cấm, khu điện gió và Miếu Bà Chúa. Nghỉ đêm tại khách sạn ở Phú Quý."
+      },
+      {
+        "day": 3,
+        "title": "PHÚ QUÝ - PHAN THIẾT – TP.HCM",
+        "meals": [
+          "Ăn sáng",
+          "Ăn trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Phú Quý",
+          "Phan Thiết",
+          "TP.HCM",
+          "Cảng Phú Quý",
+          "Cảng Thương Chánh Phan Thiết"
+        ],
+        "description": "Tham quan hồ chứa nước ngọt và mua sắm hải sản tại Phú Quý. Di chuyển về Phan Thiết bằng tàu cao tốc, sau đó khởi hành về TP.HCM. Kết thúc chương trình."
+      }
+    ],
+    "departures": [
+      {
+        "date": "25/02/2026",
+        "hotel_standard": null,
+        "price": 4350000,
+        "available_slots": 9
+      },
+      {
+        "date": "28/02/2026",
+        "hotel_standard": null,
+        "price": 4350000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/03/2026",
+        "hotel_standard": null,
+        "price": 4350000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/03/2026",
+        "hotel_standard": null,
+        "price": 4350000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Xe du lịch máy lạnh; xe máy tham quan trên đảo; vé tàu cao tốc; nhà nghỉ 2, 3 hoặc 4 khách/phòng; 03 bữa sáng, 05 bữa chính; vé tham quan theo chương trình; hướng dẫn viên tiếng Việt; bảo hiểm tối đa 100.000.000 đồng/trường hợp; quà tặng; thuế VAT.",
+      "excluded": "Bia hoặc nước ngọt trong các bữa ăn; tham quan ngoài chương trình; chi phí ăn ngoài chương trình; chi phí cá nhân; chi phí bãi biển như dù, võng, tắm nước ngọt."
+    },
+    "policies": {
+      "children_policy": "Trẻ em dưới 05 tuổi miễn giá tour; từ 05 đến dưới 10 tuổi tính 80% giá tour; từ 10 tuổi trở lên tính 100% giá tour.",
+      "cancellation_policy": "Hủy ngay sau khi đặt cọc hoặc trước 15 ngày: 10%; trước 10 ngày: 50%; trước 7 ngày: 70%; trước 5 ngày: 100%.",
+      "payment_policy": "Thanh toán ít nhất 50% tiền cọc và đủ 100% trước 10 ngày khởi hành.",
+      "notes": "Lịch trình có thể thay đổi do thời tiết hoặc điều kiện thực tế; nhận phòng sau 14h và trả phòng trước 11h; đoàn khởi hành khi đủ tối thiểu 10 khách."
+    },
+    "tour_type": "tour miền nam"
+  },
+  {
+    "tour_id": "8",
+    "title": "TOUR NHA TRANG - ĐÀ LẠT 5N4Đ | 3 ĐẢO - VINWONDERS - ĐÀ LẠT VIEW",
+    "duration": {
+      "days": 5,
+      "nights": 4
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Nha Trang",
+      "Phan Thiết",
+      "Cà Nà",
+      "Hòn Miễu",
+      "Hòn Một",
+      "Bãi Tranh",
+      "Hòn Mun",
+      "Đà Lạt",
+      "Tháp Bà Ponagar",
+      "Chùa Long Sơn",
+      "Chợ Đầm",
+      "Thành Cổ Diên Khánh",
+      "MongoLand",
+      "Nhà thờ Domaine",
+      "Ga Đà Lạt",
+      "Quảng trường Lâm Viên",
+      "Bảo Lộc"
+    ],
+    "transport": [
+      "Xe du lịch"
+    ],
+    "price_range": {
+      "min_price": 5299000,
+      "max_price": 6499000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "TP.HCM – PHAN THIẾT – NHA TRANG",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Nha Trang",
+        "locations": [
+          "Phan Thiết",
+          "Dầu Giây",
+          "Biển Cà Nà",
+          "Nha Trang"
+        ],
+        "description": "Khởi hành đi Nha Trang từ TP.HCM. Dùng bữa sáng tại Dầu Giây. Qua Phan Thiết, ngắm cảnh biển Cà Nà. Đến Nha Trang nhận phòng nghỉ ngơi."
+      },
+      {
+        "day": 2,
+        "title": "DU NGOẠN 3 ĐẢO – VINWONDERS",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": "Nha Trang",
+        "locations": [
+          "Hòn Miễu",
+          "Hòn Một",
+          "Bãi Tranh",
+          "Hòn Mun",
+          "Vinwonders",
+          "Khu Tháp Bà"
+        ],
+        "description": "Du ngoạn 3 đảo, tham quan Thủy cung Hòn Miễu, tắm biển tại Hòn Một, Bãi Tranh hoặc lặn ngắm san hô tại Hòn Mun. Buổi chiều tự do chọn đi I.resort tắm bùn hoặc vui chơi tại Vinwonders. Tối tự túc ăn tối và khám phá Nha Trang."
+      },
+      {
+        "day": 3,
+        "title": "NHA TRANG – ĐÀ LẠT",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Đà Lạt",
+        "locations": [
+          "Tháp Bà Ponagar",
+          "Chùa Long Sơn",
+          "Chợ Đầm",
+          "Thành Cổ Diên Khánh",
+          "Đà Lạt"
+        ],
+        "description": "Tham quan Tháp Bà Ponagar, Chùa Long Sơn và mua sắm tại Chợ Đầm. Sau bữa trưa, khởi hành đi Đà Lạt qua Thành Cổ Diên Khánh và rừng thông. Đến Đà Lạt nhận phòng và ăn tối."
+      },
+      {
+        "day": 4,
+        "title": "MOGOLAND – GA XE LỬA ĐÀ LẠT - NHÀ THỜ DOMAINE",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": "Đà Lạt",
+        "locations": [
+          "MongoLand",
+          "Nhà thờ Domaine",
+          "Ga Đà Lạt",
+          "Quảng trường Lâm Viên"
+        ],
+        "description": "Khám phá Mongo Land – tiểu Mông Cổ thu nhỏ. Tham quan nhà thờ Domaine de Marie, Ga Đà Lạt cổ kính và Quảng trường Lâm Viên. Tối tự túc ăn tối và dạo chợ đêm Đà Lạt."
+      },
+      {
+        "day": 5,
+        "title": "ĐÀ LẠT – TP.HCM",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Chợ Đà Lạt",
+          "Vườn cà phê Phú An",
+          "Bảo Lộc",
+          "TP.HCM"
+        ],
+        "description": "Mua sắm tại chợ Đà Lạt. Tham quan vườn cà phê chồn và voi Phú An. Khởi hành về TP.HCM, dùng cơm trưa tại Bảo Lộc. Kết thúc hành trình tại TP.HCM."
+      }
+    ],
+    "departures": [
+      {
+        "date": "04/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5299000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6499000,
+        "available_slots": 10
+      },
+      {
+        "date": "11/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5299000,
+        "available_slots": 10
+      },
+      {
+        "date": "11/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6499000,
+        "available_slots": 10
+      },
+      {
+        "date": "18/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5299000,
+        "available_slots": 10
+      },
+      {
+        "date": "18/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6499000,
+        "available_slots": 10
+      },
+      {
+        "date": "25/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5299000,
+        "available_slots": 10
+      },
+      {
+        "date": "25/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6499000,
+        "available_slots": 10
+      },
+      {
+        "date": "01/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5299000,
+        "available_slots": 10
+      },
+      {
+        "date": "01/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6499000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5299000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6499000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Xe tham quan đời mới. Ăn uống theo chương trình (5 bữa sáng, 7 bữa chính). Khách sạn tiêu chuẩn 3*, 2 khách/phòng. Vé tham quan theo chương trình. Hướng dẫn viên tiếng Việt. Bảo hiểm mức 100.000.000 đồng/trường hợp. Quà tặng: nón, nước.",
+      "excluded": "Bia, nước ngọt trong bữa ăn. Tham quan ngoài chương trình. Chi phí cá nhân. Ghế, dù bãi biển. Vé tắm bùn, khoáng. Vé cáp treo Vinwonders. Bữa ăn chiều ngày 2 và 4. Thuế VAT."
+    },
+    "policies": {
+      "children_policy": "Trẻ dưới 05 tuổi: miễn giá tour (gia đình tự lo). Trẻ từ 06 – dưới 10 tuổi: 75% giá tour (ngủ chung gia đình). Trẻ từ 10 tuổi trở lên: 100% giá tour.",
+      "cancellation_policy": "Hủy ngay sau đặt cọc hoặc trước 15 ngày: phí 30%. Hủy 10 ngày trước khởi hành: phí 50%. Hủy 07 ngày trước khởi hành: phí 70%. Hủy 05 ngày trước khởi hành: phí 100%.",
+      "payment_policy": "Đặt cọc ít nhất 50% khi xác nhận. Thanh toán đủ 100% trước 10 ngày khởi hành.",
+      "notes": "Đoàn ghép khách từ 10 người lớn trở lên. Thời gian và thứ tự tham quan có thể thay đổi tùy thực tế. Khách cần mang theo giấy tờ tùy thân."
+    },
+    "tour_type": "tour miền trung"
+  },
+  {
+    "tour_id": "9",
+    "title": "TOUR ĐÔNG BẮC MÙA XUÂN 5N4Đ | HÀ NỘI - HÀ GIANG - ĐỒNG VĂN - BẢN GIỐC - SÔNG NHO QUẾ",
+    "duration": {
+      "days": 5,
+      "nights": 4
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Hà Nội",
+      "Hà Giang",
+      "Đồng Văn",
+      "Bản Giốc",
+      "Sông Nho Quế",
+      "Lũng Cú",
+      "Mèo Vạc",
+      "Cao Bằng",
+      "Thác Bản Giốc",
+      "Quản Bạ",
+      "Tam Sơn",
+      "Phố Cáo",
+      "Yên Minh",
+      "Phó Bảng",
+      "Sủng Là",
+      "Bảo Lạc",
+      "Động Ngườm Ngao",
+      "Hồ Ba Bể",
+      "Đảo Bà Góa"
+    ],
+    "transport": [
+      "Xe du lịch",
+      "Máy bay"
+    ],
+    "price_range": {
+      "min_price": 9599000,
+      "max_price": 9999000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "HÀ NỘI – HÀ GIANG",
+        "meals": [
+          "Ăn trưa",
+          "Ăn chiều"
+        ],
+        "overnight": "Hà Giang",
+        "locations": [
+          "Hà Nội",
+          "Hà Giang",
+          "Sân bay Nội Bài"
+        ],
+        "description": "Khởi hành từ TP.HCM đến Hà Nội, sau đó di chuyển đi Hà Giang, tham quan phong cảnh núi rừng Đông Bắc. Nghỉ đêm tại Hà Giang."
+      },
+      {
+        "day": 2,
+        "title": "QUẢN BẠ – LŨNG CÚ – ĐỒNG VĂN",
+        "meals": [
+          "Ăn sáng",
+          "Ăn trưa",
+          "Ăn chiều"
+        ],
+        "overnight": "Đồng Văn",
+        "locations": [
+          "Hà Giang",
+          "Quản Bạ",
+          "Tam Sơn",
+          "Phố Cáo",
+          "Yên Minh",
+          "Phó Bảng",
+          "Sủng Là",
+          "Lũng Cú",
+          "Đồng Văn"
+        ],
+        "description": "Tham quan Quản Bạ, Cổng Trời, Núi đôi, Phố Cáo, Sủng Là, dinh vua Mèo, cột cờ Lũng Cú và nghỉ đêm tại Đồng Văn."
+      },
+      {
+        "day": 3,
+        "title": "ĐỒNG VĂN – CAO BẰNG",
+        "meals": [
+          "Ăn sáng",
+          "Ăn trưa",
+          "Ăn chiều"
+        ],
+        "overnight": "Cao Bằng",
+        "locations": [
+          "Đồng Văn",
+          "Mèo Vạc",
+          "Đèo Mã Phì Lèng",
+          "Sông Nho Quế",
+          "Bảo Lạc",
+          "Cao Bằng"
+        ],
+        "description": "Tham quan đèo Mã Phì Lèng, du thuyền trên sông Nho Quế, tham quan Mèo Vạc và di chuyển đến Cao Bằng nghỉ đêm."
+      },
+      {
+        "day": 4,
+        "title": "THÁC BẢN GIỐC – ĐỘNG NGƯỜM NGAO",
+        "meals": [
+          "Ăn sáng",
+          "Ăn trưa",
+          "Ăn chiều"
+        ],
+        "overnight": "Hồ Ba Bể",
+        "locations": [
+          "Thác Bản Giốc",
+          "Động Ngườm Ngao",
+          "Hồ Ba Bể"
+        ],
+        "description": "Tham quan Thác Bản Giốc và Động Ngườm Ngao, nghỉ đêm tại khu du lịch Hồ Ba Bể."
+      },
+      {
+        "day": 5,
+        "title": "HỒ BA BỂ – HÀ NỘI – TP.HCM",
+        "meals": [
+          "Ăn sáng",
+          "Ăn trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Hồ Ba Bể",
+          "Đảo Bà Góa",
+          "Hà Nội",
+          "TP.HCM"
+        ],
+        "description": "Tham quan Hồ Ba Bể, Đảo Bà Góa, sau đó trở về Hà Nội và bay về TP.HCM."
+      }
+    ],
+    "departures": [
+      {
+        "date": "28/02/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/03/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/03/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 9
+      },
+      {
+        "date": "11/03/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/03/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "18/03/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/03/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "25/03/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/03/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "01/04/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/04/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/04/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "11/04/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "15/04/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "18/04/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "06/05/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "09/05/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "13/05/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "16/05/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "20/05/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "23/05/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "27/05/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "30/05/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "03/06/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "06/06/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "10/06/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "13/06/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "17/06/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "20/06/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "24/06/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "27/06/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "01/07/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/07/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/07/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "11/07/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "15/07/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "18/07/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "22/07/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "25/07/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "29/07/2026",
+        "hotel_standard": "Khách sạn 2*-3*-2 pax tặng 1 kiện hành lý 20kg",
+        "price": 9999000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Vé máy bay khứ hồi TP.HCM – Hà Nội – TP.HCM; xe tham quan; khách sạn tiêu chuẩn 2-3 sao; 4 bữa sáng và 9 bữa chính; vé tham quan theo chương trình; hướng dẫn viên tiếng Việt; bảo hiểm tối đa 100.000.000 đồng/trường hợp; quà tặng; thuế VAT.",
+      "excluded": "Bia, nước ngọt trong bữa ăn; chi phí cá nhân; phí vào ruộng hoa tam giác mạch; xe ôm và thuyền sông Nho Quế 250.000 VND/khách; phí xe điện; các chi phí không có trong mục bao gồm."
+    },
+    "policies": {
+      "children_policy": "Trẻ dưới 2 tuổi miễn phí tour, vé máy bay theo quy định hãng; 2-5 tuổi miễn tour, 100% vé máy bay; 5-11 tuổi 100% vé máy bay, 60% giá tour; từ 11 tuổi trở lên 100% giá tour.",
+      "cancellation_policy": "Hủy trước 15 ngày mất 30% giá tour + 100% vé máy bay; 10-8 ngày mất 50% + 100% vé máy bay; 8-6 ngày mất 70% + 100% vé máy bay; 5 ngày trước khởi hành mất 100% giá tour + 100% vé máy bay.",
+      "payment_policy": "Đặt cọc ít nhất 70% và thanh toán đủ 100% trước 15 ngày khởi hành.",
+      "notes": "Khởi hành khi đủ tối thiểu 10 khách; nhận phòng sau 14h, trả phòng trước 12h; khách tự bảo quản hành lý; cung cấp giấy tờ tùy thân hợp lệ khi đăng ký tour."
+    },
+    "tour_type": "tour miền bắc"
+  },
+  {
+    "tour_id": "10",
+    "title": "TOUR MIỀN BẮC MÙA XUÂN 3N2Đ | HÀ NỘI - SAPA - FANSIPAN",
+    "duration": {
+      "days": 3,
+      "nights": 2
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Hà Nội",
+      "Sapa",
+      "Fansipan",
+      "Lào Cai",
+      "Bản Cát Cát",
+      "Thung lũng Mường Hoa",
+      "Rừng quốc gia Hoàng Liên",
+      "Chùa Trình",
+      "Chùa Hạ",
+      "Nhà thờ đá Sapa",
+      "Chợ Cốc Lếu"
+    ],
+    "transport": [
+      "Xe du lịch",
+      "Máy bay"
+    ],
+    "price_range": {
+      "min_price": 6999000,
+      "max_price": 8499000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "TP.HCM – HÀ NỘI – CÁT CÁT – SAPA",
+        "meals": [
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Sapa",
+        "locations": [
+          "Sân bay Tân Sơn Nhất",
+          "Sân bay Nội Bài",
+          "Lào Cai",
+          "Thị trấn Sapa",
+          "Bản Cát Cát",
+          "Trạm thủy điện Cát Cát",
+          "Suối Mường Hoa"
+        ],
+        "description": "Quý khách bay từ TP.HCM đến Hà Nội. Xe đón đoàn khởi hành đi Lào Cai. Đến Sapa, tham quan bản Cát Cát, tìm hiểu nghề dệt nhuộm của người H’Mông và trạm thủy điện thời Pháp. Nghỉ đêm tại Sapa."
+      },
+      {
+        "day": 2,
+        "title": "SAPA – FANSIPAN",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Sapa",
+        "locations": [
+          "Đỉnh Fansipan",
+          "Dãy núi Hoàng Liên Sơn",
+          "Thung lũng Mường Hoa",
+          "Rừng quốc gia Hoàng Liên",
+          "Chùa Trình",
+          "Chùa Hạ",
+          "Nhà thờ đá Sapa"
+        ],
+        "description": "Chinh phục đỉnh Fansipan bằng cáp treo, ngắm nhìn thung lũng Mường Hoa từ trên cao. Tham quan khu du lịch tâm linh gồm Chùa Trình và Chùa Hạ. Tự do dạo phố, tham quan nhà thờ đá và thưởng thức đặc sản Sapa về đêm."
+      },
+      {
+        "day": 3,
+        "title": "LÀO CAI – HÀ NỘI – TP.HCM",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Lào Cai",
+          "Chợ Cốc Lếu",
+          "Hà Nội",
+          "Sân bay Nội Bài",
+          "TP.HCM"
+        ],
+        "description": "Tự do nghỉ ngơi, sau đó di chuyển về Lào Cai mua sắm tại chợ Cốc Lếu. Đoàn khởi hành về Hà Nội, hướng dẫn viên tiễn đoàn ra sân bay Nội Bài về lại TP.HCM."
+      }
+    ],
+    "departures": [
+      {
+        "date": "01/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "01/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "15/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "15/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "22/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "22/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "29/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "29/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 6999000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 7799000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 6999000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 7799000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 6999000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 7799000,
+        "available_slots": 10
+      },
+      {
+        "date": "10/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 6999000,
+        "available_slots": 10
+      },
+      {
+        "date": "10/05/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 7799000,
+        "available_slots": 10
+      },
+      {
+        "date": "17/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 6999000,
+        "available_slots": 10
+      },
+      {
+        "date": "17/05/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 7799000,
+        "available_slots": 10
+      },
+      {
+        "date": "24/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "24/05/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "31/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "31/05/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/06/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/06/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/06/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/06/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/07/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/07/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/07/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      },
+      {
+        "date": "26/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 7499000,
+        "available_slots": 10
+      },
+      {
+        "date": "26/07/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 8499000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Vé máy bay khứ hồi TP.HCM – HÀ NỘI – TP.HCM (Vietjet Air, …). Xe tham quan tùy theo số lượng khách. Khách sạn 3 sao (Mây Sapa, Mây Hồ, …) hoặc 4 sao (Sapa Cham, ...) đầy đủ tiện nghi 2 khách/phòng. Ăn uống: 2 bữa sáng buffet, 5 bữa chính 130.000đ/bữa. Vé tham quan theo chương trình. HDV tiếng Việt. Bảo hiểm tối đa 100tr/vụ. Quà tặng: nón, nước, khăn lạnh. Thuế VAT.",
+      "excluded": "Bia hay nước ngọt trong các bữa ăn. Chi phí cá nhân: điện thoại, giặt ủi… Chi phí cáp treo Fansipan, …"
+    },
+    "policies": {
+      "children_policy": "Dưới 02 tuổi: miễn phí tour, vé máy bay theo quy định. 02 – dưới 05 tuổi: 100% vé máy bay, miễn giá tour (tự túc ăn ngủ). 05 – dưới 11 tuổi: 100% vé máy bay, 50% giá tour (ngủ chung gia đình). Từ 11 tuổi trở lên: 100% giá tour.",
+      "cancellation_policy": "Sau khi đăng ký: 10% tiền tour + 100% vé máy bay. Trước 10 ngày: 50% tiền tour + 100% vé máy bay. Trước 07 ngày: 70% tiền tour + 100% vé máy bay. Trước 05 ngày: 100% tiền tour + 100% vé máy bay.",
+      "payment_policy": "Đặt cọc ít nhất 50% ngay khi xác nhận. Thanh toán đủ 100% trước 10 ngày khởi hành.",
+      "notes": "Đoàn tối thiểu 10 khách người lớn để khởi hành. Mang theo giấy tờ tùy thân bản chính (CMND/Passport trên 14 tuổi, Giấy khai sinh cho trẻ em). Giờ bay có thể thay đổi. Nhận phòng sau 14h, trả phòng trước 12h."
+    },
+    "tour_type": "tour miền bắc"
+  },
+  {
+    "tour_id": "11",
+    "title": "TOUR PHÚ QUỐC MÙA XUÂN 3N2Đ | GRAND WORLD - VINWONDERS - SAFARI - CÁP TREO HÒN THƠM",
+    "duration": {
+      "days": 3,
+      "nights": 2
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Phú Quốc",
+      "Grand World",
+      "Vinwonders",
+      "Safari",
+      "Cáp treo Hòn Thơm",
+      "Bãi Sao",
+      "An Thới",
+      "Chùa Hộ Quốc",
+      "Dinh Cậu",
+      "Phú Quốc UnitedCenter",
+      "Venice",
+      "Ngọc trai cao cấp Phú Quốc",
+      "Kiss Bridge"
+    ],
+    "transport": [
+      "Xe du lịch",
+      "Máy bay"
+    ],
+    "price_range": {
+      "min_price": 4999000,
+      "max_price": 6399000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "TP.HCM – PHÚ QUỐC",
+        "meals": [
+          "Ăn trưa",
+          "Ăn chiều"
+        ],
+        "overnight": "Phú Quốc",
+        "locations": [
+          "Phú Quốc",
+          "Dinh Cậu",
+          "Hồ tiêu Phú Quốc",
+          "Rượu sim",
+          "Nhà thùng nước mắm",
+          "Grand World Phú Quốc",
+          "Phú Quốc UnitedCenter",
+          "Venice"
+        ],
+        "description": "Đón tại sân bay Tân Sơn Nhất, bay đi Phú Quốc. Tham quan Dinh Cậu, làng nghề truyền thống: hồ tiêu, rượu sim, nhà thùng nước mắm. Khám phá Grand World Phú Quốc, check-in dòng sông Venice và Phú Quốc UnitedCenter. Nghỉ đêm tại Phú Quốc."
+      },
+      {
+        "day": 2,
+        "title": "PHÚ QUỐC – BÃI SAO – HÒN THƠM – KISS BRIDGE",
+        "meals": [
+          "Ăn sáng",
+          "Ăn trưa",
+          "Ăn tối"
+        ],
+        "overnight": "Phú Quốc",
+        "locations": [
+          "Ngọc trai cao cấp Phú Quốc",
+          "Chùa Hộ Quốc",
+          "Bãi Sao",
+          "An Thới",
+          "Cáp treo Hòn Thơm",
+          "Hòn Thơm",
+          "Kiss Bridge",
+          "Thị trấn Hoàng Hôn"
+        ],
+        "description": "Tham quan cơ sở nuôi cấy ngọc trai, viếng Chùa Hộ Quốc, tham quan Bãi Sao. Trải nghiệm cáp treo Hòn Thơm từ ga An Thới, khám phá đảo Hòn Thơm và check-in Cầu Hôn Kiss Bridge tại thị trấn Hoàng Hôn. Nghỉ đêm tại Phú Quốc."
+      },
+      {
+        "day": 3,
+        "title": "PHÚ QUỐC – TP.HCM",
+        "meals": [
+          "Ăn sáng",
+          "Ăn trưa tự túc"
+        ],
+        "overnight": null,
+        "locations": [
+          "VinWonders Phú Quốc",
+          "Vinpearl Safari",
+          "Sân bay Phú Quốc",
+          "TP.HCM"
+        ],
+        "description": "Tự do tắm biển, mua sắm hoặc lựa chọn tham quan VinWonders Phú Quốc hoặc Vinpearl Safari (chi phí tự túc). Tiễn đoàn ra sân bay Phú Quốc, bay về TP.HCM. Kết thúc chương trình."
+      }
+    ],
+    "departures": [
+      {
+        "date": "26/02/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 6
+      },
+      {
+        "date": "26/02/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6199000,
+        "available_slots": 10
+      },
+      {
+        "date": "01/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 2
+      },
+      {
+        "date": "01/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6199000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6199000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 10
+      },
+      {
+        "date": "08/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6199000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 10
+      },
+      {
+        "date": "12/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6199000,
+        "available_slots": 10
+      },
+      {
+        "date": "15/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 10
+      },
+      {
+        "date": "15/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6199000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 10
+      },
+      {
+        "date": "19/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6199000,
+        "available_slots": 10
+      },
+      {
+        "date": "22/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 10
+      },
+      {
+        "date": "22/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6199000,
+        "available_slots": 10
+      },
+      {
+        "date": "26/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 10
+      },
+      {
+        "date": "26/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6199000,
+        "available_slots": 10
+      },
+      {
+        "date": "29/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 5599000,
+        "available_slots": 10
+      },
+      {
+        "date": "29/03/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 6199000,
+        "available_slots": 10
+      },
+      {
+        "date": "02/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 4999000,
+        "available_slots": 10
+      },
+      {
+        "date": "02/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 5699000,
+        "available_slots": 10
+      },
+      {
+        "date": "02/04/2026",
+        "hotel_standard": "Khách sạn 5*",
+        "price": 6399000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 4999000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/04/2026",
+        "hotel_standard": "Khách sạn 4*",
+        "price": 5699000,
+        "available_slots": 10
+      },
+      {
+        "date": "05/04/2026",
+        "hotel_standard": "Khách sạn 5*",
+        "price": 6399000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Vé máy bay khứ hồi TP.HCM – PHÚ QUỐC – TP.HCM (Vietjet Air); Xe tham quan; Khách sạn tiêu chuẩn; Ăn sáng 2 bữa; 4 bữa chính 150.000 đồng/bữa; Vé tham quan theo chương trình; Hướng dẫn viên tiếng Việt; Bảo hiểm tối đa 100.000.000 đồng/trường hợp; Quà tặng; Thuế VAT.",
+      "excluded": "Bia hoặc nước ngọt trong bữa ăn; Vé tham quan Vinwonder, Safari, Grand World, cáp treo Hòn Thơm, Cầu Hôn; Tham quan ngoài chương trình; Chi phí cá nhân; Chi phí bãi biển."
+    },
+    "policies": {
+      "children_policy": "Trẻ em dưới 02 tuổi miễn giá tour, tính vé máy bay theo quy định; 02 – dưới 05 tuổi miễn giá tour, tính 100% vé máy bay; 05 – dưới 11 tuổi tính 50% giá tour và 100% vé máy bay; từ 11 tuổi trở lên tính 100% giá tour.",
+      "cancellation_policy": "Hủy ngay sau khi đặt cọc hoặc trước 15 ngày: 30% tiền tour + 100% vé máy bay; Hủy 10 ngày trước: 50% tiền tour + 100% vé máy bay; Hủy 7 ngày trước: 70% tiền tour + 100% vé máy bay; Hủy 5 ngày trước: 100% tiền tour + 100% vé máy bay.",
+      "payment_policy": "Thanh toán ít nhất 50% tiền cọc và thanh toán đủ 100% trước 15 ngày khởi hành.",
+      "notes": "Giờ bay có thể thay đổi theo quy định hàng không; nhận phòng sau 14h00, trả phòng trước 12h00; khách phải mang giấy tờ tùy thân hợp lệ; đoàn khởi hành khi đủ tối thiểu 10 khách."
+    },
+    "tour_type": "tour miền nam"
+  },
+  {
+    "tour_id": "12",
+    "title": "TOUR ĐÔNG TÂY BẮC MÙA XUÂN 5N4Đ | SAPA - HÀ GIANG - ĐỒNG VĂN - SÔNG NHO QUẾ",
+    "duration": {
+      "days": 5,
+      "nights": 4
+    },
+    "departure": {
+      "city": "Hồ Chí Minh"
+    },
+    "destinations": [
+      "Sapa",
+      "Hà Giang",
+      "Đồng Văn",
+      "Sông Nho Quế",
+      "Bản Cát Cát",
+      "Fansipan",
+      "Lào Cai",
+      "Hà Nội",
+      "Quản Bạ",
+      "Phố Cáo",
+      "Sủng Là",
+      "Lũng Cú",
+      "Mèo Vạc",
+      "Tuyên Quang",
+      "Tân Trào"
+    ],
+    "transport": [
+      "Xe du lịch",
+      "Máy bay"
+    ],
+    "price_range": {
+      "min_price": 9599000,
+      "max_price": 9999000,
+      "currency": "VND"
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "HÀ NỘI – LÀO CAI - SAPA",
+        "meals": [
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Sapa",
+        "locations": [
+          "Sân bay Tân Sơn Nhất",
+          "Hà Nội",
+          "Sân bay Nội Bài",
+          "Lào Cai",
+          "Sapa",
+          "Bản Cát Cát",
+          "Suối Mường Hoa",
+          "Nhà thờ đá Sapa"
+        ],
+        "description": "Đại diện công ty đón khách tại sân bay Tân Sơn Nhất bay đi Hà Nội. Đến Nội Bài, xe đón đoàn đi Lào Cai. Đến Sapa thăm bản Cát Cát, tìm hiểu nghề dệt của dân tộc H'Mông. Tối tự do dạo phố, tham quan nhà thờ đá."
+      },
+      {
+        "day": 2,
+        "title": "SAPA - FANSIPAN – HÀ GIANG",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Hà Giang",
+        "locations": [
+          "Fansipan",
+          "Hoàng Liên Sơn",
+          "Thung lũng Mường Hoa",
+          "Chùa Trình",
+          "Chùa Hạ",
+          "Hà Giang"
+        ],
+        "description": "Chinh phục đỉnh Fansipan bằng cáp treo (chi phí tự túc). Ngắm thung lũng Mường Hoa và tham quan khu du lịch tâm linh. Sau đó di chuyển tới Hà Giang."
+      },
+      {
+        "day": 3,
+        "title": "LŨNG CÚ – ĐỒNG VĂN",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Đồng Văn",
+        "locations": [
+          "Hà Giang",
+          "Quản Bạ",
+          "Dốc Bắc Sum",
+          "Cổng Trời Quản Bạ",
+          "Thị trấn Tam Sơn",
+          "Núi đôi Quản Bạ",
+          "Phố Cáo",
+          "Yên Minh",
+          "Đồng Văn",
+          "Sủng Là",
+          "Nhà vua mèo Vương Chí Sình",
+          "Cột cờ Lũng Cú",
+          "Phố cổ Đồng Văn"
+        ],
+        "description": "Ngắm cảnh dốc Bắc Sum, cổng trời Quản Bạ, núi đôi Cô Tiên. Ghé thăm Phố Cáo, thung lũng Sủng Là (nhà cổ trong phim Chuyện của Pao). Tham quan Dinh Thự Họ Vương và cột cờ Lũng Cú. Tối tự do dạo phố cổ Đồng Văn."
+      },
+      {
+        "day": 4,
+        "title": "SÔNG NHO QUẾ – HÀ GIANG",
+        "meals": [
+          "sáng",
+          "trưa",
+          "chiều"
+        ],
+        "overnight": "Hà Giang",
+        "locations": [
+          "Mèo Vạc",
+          "Đèo Mã Phì Lèng",
+          "Sông Nho Quế",
+          "Hẻm vực Tu Sản",
+          "Hà Giang"
+        ],
+        "description": "Chinh phục đèo Mã Phì Lèng, đi thuyền máy trên sông Nho Quế xuyên qua hẻm vực Tu Sản. Tham quan thị trấn Mèo Vạc (chợ phiên nếu vào chủ nhật). Sau đó trở về Hà Giang."
+      },
+      {
+        "day": 5,
+        "title": "HÀ GIANG – HÀ NỘI – TP.HCM",
+        "meals": [
+          "sáng",
+          "trưa"
+        ],
+        "overnight": null,
+        "locations": [
+          "Tuyên Quang",
+          "Khu di tích lịch sử Tân Trào",
+          "Cây đa Tân Trào",
+          "Lán Nà Lừa",
+          "Đình Tân Trào",
+          "Đình Hồng Thái",
+          "Sân bay Nội Bài",
+          "TP.HCM"
+        ],
+        "description": "Tự do đi chợ mua đặc sản. Khởi hành về Tuyên Quang thăm khu di tích lịch sử Tân Trào. Sau đó xe tiễn đoàn ra sân bay Nội Bài về lại TP.HCM."
+      }
+    ],
+    "departures": [
+      {
+        "date": "28/02/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "07/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "14/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "21/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "28/03/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "11/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "18/04/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "09/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "16/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9599000,
+        "available_slots": 10
+      },
+      {
+        "date": "23/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "30/05/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "06/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "13/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "20/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "27/06/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "04/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "11/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "18/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      },
+      {
+        "date": "25/07/2026",
+        "hotel_standard": "Khách sạn 3*",
+        "price": 9999000,
+        "available_slots": 10
+      }
+    ],
+    "services": {
+      "included": "Vé máy bay khứ hồi TP.HCM – HÀ NỘI – TP.HCM. Xe tham quan (16-29 chỗ). Khách sạn tương đương 2-3 sao (2 khách/phòng). Ăn uống: 04 bữa sáng, 09 bữa chính. Vé tham quan. Hướng dẫn viên. Bảo hiểm tối đa 100 triệu/vụ. Quà tặng: nón, nước, khăn lạnh.",
+      "excluded": "Bia/nước ngọt bữa ăn. Chi phí cá nhân. Xe ôm + thuyền máy sông Nho Quế, phí vào ruộng hoa. Cáp treo Fansipan. Thuế VAT."
+    },
+    "policies": {
+      "children_policy": "Dưới 2 tuổi: miễn phí tour, vé máy bay theo quy định. 2-5 tuổi: 100% vé máy bay, miễn phí tour (chung với bố mẹ). 5-11 tuổi: 100% vé máy bay, 50% tour (ngủ chung gia đình). Từ 11 tuổi: 100% giá tour.",
+      "cancellation_policy": "Hủy sau đăng ký: mất 30% giá tour + 100% vé máy bay. Hủy 10-8 ngày trước khởi hành: mất 50% giá tour + 100% vé máy bay. Hủy 8-6 ngày: mất 70% giá tour + 100% vé máy bay. Hủy từ 5 ngày: mất 100% giá trị.",
+      "payment_policy": "Thanh toán ít nhất 50% tiền cọc sau đăng ký, đóng hết 100% trước khởi hành 10 ngày.",
+      "notes": "Đoàn tối thiểu 10 khách người lớn để khởi hành. Mang theo giấy tờ tùy thân (CMND/Passport/Giấy khai sinh cho trẻ em). Giờ bay có thể thay đổi."
+    },
+    "tour_type": "tour miền bắc"
+  }
+]

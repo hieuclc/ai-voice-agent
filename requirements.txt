@@ -1,4 +1,4 @@
-pipecat-ai[webrtc,silero,openai,local-smart-turn-v3,runner]
+pipecat-ai[webrtc,silero,openai,local-smart-turn-v3,runner]==0.0.100
 pipecat-ai-cli
 python-dotenv
 fastmcp
@@ -7,3 +7,13 @@ torch
 torchaudio
 torchvision
 motor
+pydantic-settings
+langchain
+langchain-openai
+langgraph
+lightrag-hku
+sentence-transformers
+pdfplumber
+python-docx
+psycopg2-binary
+chromadb

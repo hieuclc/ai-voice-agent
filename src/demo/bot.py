@@ -73,15 +73,8 @@ async def run_bot(webrtc_connection, session_id):
         voice = "alloy"
     )
 
-    llm = OpenAILLMService(model = "gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"))
-    server_params = StreamableHttpParameters(
-        url = os.getenv("MCP_SERVER"),
-        timeout = 30
-    )
-    mcp = MCPClient(server_params=server_params)
+    llm = OpenAILLMService(model = "gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"), base_url = "http://localhost:8000/v1")
 
-    tools = await mcp.register_tools(llm)
-    print("tools", tools)
     prompt = r'''
     Bạn là một trợ lý giọng nói Tiếng Việt chuyên tư vấn cho người dùng.
 
@@ -127,7 +120,7 @@ async def run_bot(webrtc_connection, session_id):
                 "content": message.content
             })
 
-    context = LLMContext(messages, tools = tools)
+    context = LLMContext(messages)
     context_aggregator = LLMContextAggregatorPair(
         context,
         user_params=LLMUserAggregatorParams(
