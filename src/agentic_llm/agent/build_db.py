@@ -817,7 +817,7 @@ if __name__ == "__main__":
         name="admission",
         embedding_function=ef,
     )
-    # admission_parser = AdmissionConsultingParser(source_file=ADMISSION_PATH)
+    admission_parser = AdmissionConsultingParser(source_file=ADMISSION_PATH)
     # admission_chunks = admission_parser.parse(ADMISSION_PATH)
     admission_chunks = []
     with open("../data/admission.txt", "r", encoding="utf-8") as f:
