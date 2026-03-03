@@ -29,7 +29,6 @@ from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
@@ -37,6 +36,8 @@ from typing_extensions import TypedDict
 from agent import (
     preload_bge_model,
     stream_thinking_while_running,
+    build_sub_agent,
+    AgentState,
     # Tools
     search_law,
     search_admission,
@@ -45,9 +46,6 @@ from agent import (
     scan_all_tours,
     get_tour_detail,
     count_tour_meals,
-    # LLM globals setter
-    _grader_llm,
-    _rewriter_llm,
 )
 import agent as _agent_module
 
@@ -59,15 +57,27 @@ MAX_HOPS = 6
 # Output format chung — áp dụng cho tất cả sub-agent
 # ---------------------------------------------------------------------------
 
+
+# Tạm ẩn đi để eval rag trước
+# _OUTPUT_FORMAT = """\
+# QUY TẮC ĐỊNH DẠNG ĐẦU RA — BẮT BUỘC:
+# - Luôn trả lời bằng tiếng Việt.
+# - Văn bản thuần, tự nhiên như đang nói chuyện trực tiếp.
+# - Tuyệt đối không dùng markdown, bullet, số thứ tự, emoji, header, dấu gạch đầu dòng.
+# - Không dùng chữ số — mọi con số phải viết bằng chữ (ví dụ: "hai mươi bảy phẩy năm").
+# - Không giải thích cách suy nghĩ, không nói "Theo dữ liệu tôi tìm được...".
+# - Mỗi câu phải có ít nhất bốn từ.
+# - Viết tắt (THPT, UET, VND...) phải viết IN HOA.\
+# """
+
 _OUTPUT_FORMAT = """\
 QUY TẮC ĐỊNH DẠNG ĐẦU RA — BẮT BUỘC:
 - Luôn trả lời bằng tiếng Việt.
-- Văn bản thuần, tự nhiên như đang nói chuyện trực tiếp.
+- Không thêm câu tổng kết, lời chúc, hay lời mời hỏi thêm sau khi đã trả lời xong.
+- Không giải thích lại nội dung vừa nói bằng câu khác.
+- Dừng lại ngay sau khi đã trả lời đầy đủ câu hỏi.
 - Tuyệt đối không dùng markdown, bullet, số thứ tự, emoji, header, dấu gạch đầu dòng.
-- Không dùng chữ số — mọi con số phải viết bằng chữ (ví dụ: "hai mươi bảy phẩy năm").
-- Không giải thích cách suy nghĩ, không nói "Theo dữ liệu tôi tìm được...".
-- Mỗi câu phải có ít nhất bốn từ.
-- Viết tắt (THPT, UET, VND...) phải viết IN HOA.\
+- Không giải thích cách suy nghĩ, không nói "Theo dữ liệu tôi tìm được...".\
 """
 
 # ---------------------------------------------------------------------------
@@ -159,49 +169,6 @@ SAU KHI search_tours TRẢ VỀ KẾT QUẢ:
 Đọc nguyên văn từng dòng. Không bỏ cụm "mã số". Cuối cùng hỏi khách muốn biết thêm tour nào.
 "mã số" là ID thực tế trong hệ thống — KHÔNG phải số thứ tự trong danh sách.
 Ví dụ: "[mã 3] TOUR HẠ LONG" → gọi là "tour mã ba", không phải "tour thứ nhất" hay "tour số một"."""
-
-
-# ---------------------------------------------------------------------------
-# AgentState
-# ---------------------------------------------------------------------------
-
-class AgentState(TypedDict):
-    messages:          Annotated[list[BaseMessage], add_messages]
-    hop_count:         int
-    thinking_streamed: bool
-
-
-# ---------------------------------------------------------------------------
-# Hàm dựng graph cho một sub-agent
-# ---------------------------------------------------------------------------
-
-def _build_sub_agent(llm_with_tools, tools: list[BaseTool], system_prompt: str):
-    tool_node = ToolNode(tools)
-
-    async def call_model(state: AgentState) -> dict:
-        messages = list(state["messages"])
-        if not messages or not isinstance(messages[0], SystemMessage):
-            messages = [SystemMessage(content=system_prompt)] + messages
-        response = await llm_with_tools.ainvoke(messages)
-        return {"messages": [response], "hop_count": state["hop_count"]}
-
-    async def run_tools(state: AgentState) -> dict:
-        result = await tool_node.ainvoke(state)
-        return {**result, "hop_count": state["hop_count"] + 1, "thinking_streamed": False}
-
-    def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
-        last = state["messages"][-1]
-        if isinstance(last, AIMessage) and last.tool_calls and state["hop_count"] < MAX_HOPS:
-            return "tools"
-        return "__end__"
-
-    g = StateGraph(AgentState)
-    g.add_node("agent", call_model)
-    g.add_node("tools", run_tools)
-    g.set_entry_point("agent")
-    g.add_conditional_edges("agent", should_continue, {"tools": "tools", "__end__": END})
-    g.add_edge("tools", "agent")
-    return g.compile()
 
 
 # ---------------------------------------------------------------------------
@@ -342,7 +309,7 @@ def create_router_agent(
     # ── Law sub-agent ────────────────────────────────────────────────────
     law_tools = list(extra_tools or []) + [search_law]
     law_tool_lines = "\n".join(f"- {t.name}: {t.description.splitlines()[0]}" for t in law_tools)
-    law_graph = _build_sub_agent(
+    law_graph = build_sub_agent(
         streaming_llm.bind_tools(law_tools),
         law_tools,
         _law_system_prompt(law_tool_lines, date),
@@ -351,7 +318,7 @@ def create_router_agent(
     # ── Admission sub-agent ──────────────────────────────────────────────
     admission_tools = list(extra_tools or []) + [search_admission]
     adm_tool_lines = "\n".join(f"- {t.name}: {t.description.splitlines()[0]}" for t in admission_tools)
-    admission_graph = _build_sub_agent(
+    admission_graph = build_sub_agent(
         streaming_llm.bind_tools(admission_tools),
         admission_tools,
         _admission_system_prompt(adm_tool_lines, date),
@@ -366,7 +333,7 @@ def create_router_agent(
         count_tour_meals,
     ]
     tour_tool_lines = "\n".join(f"- {t.name}: {t.description.splitlines()[0]}" for t in tour_tools)
-    tour_graph = _build_sub_agent(
+    tour_graph = build_sub_agent(
         streaming_llm.bind_tools(tour_tools),
         tour_tools,
         _tour_system_prompt(tour_tool_lines, date),

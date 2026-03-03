@@ -21,3 +21,8 @@ transformers
 langchain-text-splitters
 langchain-qdrant
 FlagEmbedding
+ragas
+pandas
+openpyxl
+datasets
+tqdm

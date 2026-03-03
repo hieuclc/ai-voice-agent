@@ -1,0 +1,351 @@
+{
+  "items": [
+    {
+      "question": "Tour du lịch nào có thời gian dài nhất trong danh sách?",
+      "gold_answer": "Tour có thời gian dài nhất là Tour Miền Bắc Mùa Xuân: Tam Chúc - Ninh Bình - Hạ Long với thời gian 5 ngày 4 đêm.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "title: TOUR MIỀN BẮC MÙA XUÂN 5N4Đ | TAM CHÚC - NINH BÌNH - HẠ LONG. duration: { days: 5, nights: 4 }"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Trong Tour Đồng Tháp - Cần Thơ, chi phí tham quan Căn nhà màu tím là bao nhiêu và có bao gồm trong giá tour không?",
+      "gold_answer": "Vé tham quan Căn nhà màu tím là 60.000 VND/vé và đây là chi phí không bao gồm trong giá tour (thuộc phần dịch vụ tự túc).",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "Vé tham quan căn nhà màu tím (60.000 vnd/vé), không bao gồm trong giá tour"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Giá thấp nhất của tour Đồng Tháp - Cần Thơ là bao nhiêu?",
+      "gold_answer": "Giá thấp nhất là 2.099.000 VND.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "price_range: { min_price: 2099000, max_price: 2599000 }"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Tour Đà Nẵng 3 ngày 2 đêm khởi hành từ đâu?",
+      "gold_answer": "Tour khởi hành từ TP. Hồ Chí Minh.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "3",
+          "text": "departure: { city: \"Hồ Chí Minh\" }"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Trong tour Mai Châu - Mộc Châu, khách hàng sẽ nghỉ đêm ngày đầu tiên tại đâu?",
+      "gold_answer": "Khách hàng nghỉ đêm tại Mộc Châu ở ngày đầu tiên.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "4",
+          "text": "itinerary: [ { day: 1, overnight: \"Mộc Châu\" } ]"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Chùa Tam Chúc được giới thiệu có diện tích bao nhiêu?",
+      "gold_answer": "Chùa Tam Chúc có diện tích khoảng 5.000 ha.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "itinerary: [ { day: 2, description: \"Quần thể du lịch tâm linh chùa Tam Chúc... với diện tích khoảng 5.000 ha\" } ]"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Tour du lịch miền Tây có mã số 2 có bao nhiêu bữa buffet sáng tại khách sạn?",
+      "gold_answer": "Tour có 1 bữa buffet sáng vào ngày thứ 2.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "itinerary: [ { day: 2, meals: [\"sáng (buffet tại khách sạn)\"] } ]"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Chi phí cáp treo Yên Tử là bao nhiêu và có bao gồm trong giá tour không?",
+      "gold_answer": "Chi phí cáp treo là 350.000 VND/khách và không bao gồm trong giá tour.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "itinerary: [ { day: 4, description: \"Quý khách tự túc chi phí cáp treo (350.000đ/khách)\" } ]"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Giá tối đa của khách sạn trong tour Đà Nẵng là bao nhiêu?",
+      "gold_answer": "Giá tối đa là 6.399.000 VND.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "3",
+          "text": "schedules: [ { hotel_standard: \"Khách sạn 4*\", price: 6399000 } ]"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Chính sách hủy tour ngay sau khi đăng ký của Tour số 4 là gì?",
+      "gold_answer": "Phí hủy là 10% giá tour cộng với 100% chi phí vé máy bay (nếu có).",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "4",
+          "text": "policies: { cancellation_policy: \"Sau khi đăng ký hủy tour mất 10% giá tour + 100% tiền vé máy bay\" } "
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "So sánh số lượng bữa ăn chính trong Tour 1 (5N4Đ) và Tour 4 (4N3Đ).",
+      "gold_answer": "Tour 1 cung cấp 12 bữa ăn, còn Tour 4 cung cấp tổng cộng 10 bữa ăn.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "12 bữa ăn"
+        },
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "4",
+          "text": "10 bữa ăn"
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "So sánh điểm xuất phát (nơi tập trung) của Tour 1 và Tour 2. Chúng có giống nhau không?",
+      "gold_answer": "Cả hai tour đều có điểm xuất phát giống nhau là từ TP. Hồ Chí Minh.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "xuất phát từ TP. Hồ Chí Minh"
+        },
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "xuất phát từ TP. Hồ Chí Minh"
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "So sánh thời gian của Tour 2 và Tour 3, tour nào có thời gian đi dài hơn?",
+      "gold_answer": "Tour 2 có thời gian 2 ngày 1 đêm, còn Tour 3 có thời gian 3 ngày 2 đêm. Vậy Tour 3 dài hơn.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "tour số 2 có thời gian 2 ngày 1 đêm"
+        },
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "3",
+          "text": "tour cố 3 có thời gian 3 ngày 2 đêm"
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Cả Tour 1 và Tour 3 đều yêu cầu mang theo giấy tờ gì khi đi tour?",
+      "gold_answer": "Cả hai tour đều yêu cầu khách hàng mang theo căn cước công dân (cccd) hoặc hộ chiếu bản chính (trẻ em mang giấy khai sinh) để làm thủ tục.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "policies.notes: \"Quý khách mang theo CCCD/Passport/Giấy khai sinh bản chính\""
+        },
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "3",
+          "text": "policies.notes: \"Quý khách khi đi cần mang theo CMND/Passport/Giấy khai sinh (bản chính)\""
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "So sánh phương tiện di chuyển chính được sử dụng trong Tour 1 và Tour 2. Có điểm gì khác biệt?",
+      "gold_answer": "Tour 1 (tour miền bắc) sử dụng máy bay và xe du lịch, trong khi Tour 2 (tour miền nam) chỉ sử dụng xe du lịch để di chuyển.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "transport: [\"Xe du lịch\", \"Máy bay\"]"
+        },
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "transport: [\"Xe du lịch\"]"
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Điểm khác biệt về dịch vụ ăn uống bao gồm trong giá tour giữa Tour 2 (Miền Tây) và Tour 3 (Đà Nẵng) là gì?",
+      "gold_answer": "Tour 2 bao gồm 3 bữa chính và 2 bữa sáng (trong đó có ăn tối trên du thuyền Ninh Kiều 5 sao), trong khi Tour 3 bao gồm 4 bữa chính và 2 bữa sáng buffet.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "services.included: \"Ăn uống theo chương trình (3 bữa chính + 2 bữa sáng)\"; itinerary: \"ăn tối trên Du thuyền Ninh Kiều 5 sao\""
+        },
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "3",
+          "text": "services.included: \"Ăn uống gồm 2 bữa sáng buffet và 4 bữa chính\""
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Điểm chung về quà tặng đi kèm trong tất cả các tour là gì?",
+      "gold_answer": "Tất cả các tour đều tặng nón du lịch, nước uống và khăn lạnh cho du khách.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "all",
+          "text": "Mục services.included của tất cả các tour đều có: 'Quà tặng: nón, nước, khăn lạnh'"
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "So sánh chính sách cho trẻ em từ 2 đến dưới 5 tuổi giữa Tour số 1 và Tour số 2.",
+      "gold_answer": "Ở Tour số 1, trẻ từ 2-5 tuổi miễn phí tour nhưng đóng 100% vé máy bay. Ở Tour số 2, trẻ dưới 5 tuổi được miễn phí hoàn toàn giá tour nhưng không bao gồm vé máy bay.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "children_policy: \"2-5 tuổi: 100% vé máy bay, miễn phí tour\""
+        },
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "children_policy: \"Trẻ em dưới 05 tuổi: miễn giá tour\""
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Nếu muốn đi tour ngắn ngày nhất và có chi phí thấp nhất thì nên chọn tour nào?",
+      "gold_answer": "Nên chọn Tour số 2: Đồng Tháp - Sa Đéc - Cần Thơ (2 ngày 1 đêm) với giá từ 2.099.000 VND.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "Tour Đồng Tháp - Làng hoa Sa Đéc - Cần Thơ 2 ngày 1 đêm. min_price: 2099000. Đây là tour ngắn nhất và rẻ nhất danh sách."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Một nhóm khách 20 người muốn đi Tour 2 nhưng chỉ có thể thanh toán hết tiền tour vào 10 ngày trước khi đi. Việc này có vi phạm chính sách không?",
+      "gold_answer": "Có vi phạm. Chính sách thanh toán của Tour 2 yêu cầu thanh toán đủ 100% trước 15 ngày khởi hành. Nếu 10 ngày mới thanh toán sẽ bị xem là tự ý hủy tour.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "policies.payment_policy: \"Thanh toán... 100% trước 15 ngày khởi hành. Không thanh toán đúng hạn xem như tự ý hủy tour.\""
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Vì sao tour miền Tây Đồng Tháp - Sa Đéc - Cần Thơ không bao gồm vé máy bay?",
+      "gold_answer": "Vì tour khởi hành từ TP. Hồ Chí Minh và di chuyển bằng đường bộ đến các tỉnh lân cận, không cần sử dụng máy bay.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "departure: \"Hồ Chí Minh\". transport: [\"Xe du lịch\"]. destinations: [\"Đồng Tháp\", \"Cần Thơ\"]"
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Vì sao khách tham gia tour Yên Tử cần chuẩn bị thêm tiền mặt ngoài giá tour đã đóng?",
+      "gold_answer": "Vì phí cáp treo Yên Tử (350.000đ/khách) không bao gồm trong giá tour và khách phải tự thanh toán nếu có nhu cầu sử dụng.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "itinerary.day4: \"Quý khách tự túc chi phí cáp treo (350.000đ/khách)\". services.excluded: \"Cáp treo Yên Tử\""
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Nếu đăng ký tour Đồng Tháp khởi hành ngày 01/03, khách phải hoàn tất thanh toán 100% chậm nhất khi nào?",
+      "gold_answer": "Khách phải thanh toán đủ trước 15 ngày khởi hành, tức ngày 14/02 (hoặc 15/02 tùy năm nhuận).",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "policies.payment_policy: \"Thanh toán đủ 100% tiền tour trước 15 ngày khởi hành\""
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Tại sao Tour số 3 lại có hai mức giá khác nhau cho cùng một ngày khởi hành 03/07/2026?",
+      "gold_answer": "Sự khác biệt về giá (5.399.000đ và 6.399.000đ) là do tiêu chuẩn khách sạn khách lựa chọn (3 sao hoặc 4 sao).",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "3",
+          "text": "schedules: [{date: \"03/07/2026\", hotel: \"3*\", price: 5399000}, {date: \"03/07/2026\", hotel: \"4*\", price: 6399000}]"
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Một du khách ăn chay có gặp khó khăn gì về ăn uống khi tham gia Tour số 1 không?",
+      "gold_answer": "Du khách cần thông báo trước cho công ty du lịch. Mặc dù tour đã bao gồm các bữa chính nhưng thực đơn tiêu chuẩn thường là đồ mặn, việc báo trước giúp HDV sắp xếp thực đơn chay phù hợp.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "services.included: \"Ăn uống: 09 bữa chính (mức 150.000đ/bữa)\""
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Dựa trên lịch trình Tour 1, tại sao khách hàng cần mang theo giấy khai sinh bản chính cho trẻ em khi ra sân bay?",
+      "gold_answer": "Vì Tour 1 sử dụng phương tiện máy bay và theo quy định hàng không/lưu ý của tour, trẻ em phải mang theo giấy tờ tùy thân bản chính để làm thủ tục bay để bảo đảm áp đúng mức giá theo quy định.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "transport: [\"Máy bay\"]; policies.notes: \"Mang theo CCCD/Passport/Giấy khai sinh bản chính.\""
+        }
+      ],
+      "difficulty": "reasoning"
+    }
+  ]
+}

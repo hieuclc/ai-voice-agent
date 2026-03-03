@@ -29,7 +29,7 @@ from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, Sys
 from pydantic import BaseModel
 import asyncio
 
-from agent import create_agent, preload_bge_model
+from agent import preload_bge_model
 from agent_routing import create_router_agent
 
 # ---------------------------------------------------------------------------

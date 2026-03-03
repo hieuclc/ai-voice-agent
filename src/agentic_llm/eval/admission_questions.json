@@ -1,0 +1,484 @@
+{
+  "items": [
+    {
+      "question": "Địa chỉ trụ sở chính của Trường Đại học Công nghệ, ĐHQGHN ở đâu?",
+      "gold_answer": "Trụ sở chính đặt tại Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Thông tin chung",
+          "text": "Địa chỉ: Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Số điện thoại liên hệ của Trường Đại học Công nghệ, ĐHQGHN là gì?",
+      "gold_answer": "Số điện thoại liên hệ là 024 37 547 865.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Thông tin chung",
+          "text": "Điện thoại: 024 37 547 865."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Ngành Công nghệ thông tin có chỉ tiêu tuyển sinh năm 2025 là bao nhiêu?",
+      "gold_answer": "Chỉ tiêu của ngành Công nghệ thông tin năm 2025 là 420 chỉ tiêu.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Ngành Công nghệ thông tin",
+          "text": "Năm 2025: Chỉ tiêu 420, Nhập học 428, Điểm chuẩn 28.19"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Mức học phí dự kiến cho ngành Trí tuệ nhân tạo trong năm học 2026–2027 là bao nhiêu?",
+      "gold_answer": "Mức học phí dự kiến là 44.000.000 VNĐ/năm.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Học phí",
+          "text": "Mức học phí dự kiến cho năm học 2026-2027 là 44.000.000 VNĐ/năm đối với các ngành từ CN1 đến CN18."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Điều kiện của phương thức xét tuyển thẳng là gì?",
+      "gold_answer": "Thí sinh phải đoạt giải Nhất, Nhì hoặc Ba trong kỳ thi chọn học sinh giỏi quốc gia hoặc quốc tế, và thời gian đoạt giải không quá ba năm.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Phương thức xét tuyển",
+          "text": "Xét tuyển thẳng: Thí sinh đoạt giải Nhất, Nhì, Ba trong kỳ thi chọn HSG quốc gia, quốc tế; thời gian đoạt giải không quá 3 năm."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Điểm chuẩn theo phương thức xét điểm thi THPT năm 2024 của ngành Khoa học máy tính là bao nhiêu?",
+      "gold_answer": "Điểm chuẩn năm 2024 của ngành Khoa học máy tính là 27,58.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Ngành Khoa học máy tính",
+          "text": "Năm 2024: Chỉ tiêu 340, Nhập học 358, Điểm chuẩn: SAT 27.5, ĐGNL 23, IELTS 26.5, THPT 27.58"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Ngành Hệ thống thông tin (CN14) đào tạo những định hướng kiến thức chuyên sâu nào?",
+      "gold_answer": "Ngành đào tạo các định hướng về tích hợp dịch vụ, quản lý dữ liệu lớn, khoa học dữ liệu và phân tích kinh doanh, ứng dụng trí tuệ nhân tạo và tinh thần khởi nghiệp.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Đào tạo ngành Hệ thống thông tin",
+          "text": "Định hướng kiến thức chuyên sâu về: Tích hợp dịch vụ và quản lý dữ liệu lớn; Khoa học dữ liệu và phân tích kinh doanh; Ứng dụng trí tuệ nhân tạo và tinh thần khởi nghiệp."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Sinh viên năm thứ nhất của Trường Đại học Công nghệ dự kiến sẽ học tập tại cơ sở nào?",
+      "gold_answer": "Sinh viên năm thứ nhất dự kiến học tập tại cơ sở Hòa Lạc.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Cơ sở đào tạo",
+          "text": "Sinh viên năm thứ nhất dự kiến sẽ học tập tập trung tại cơ sở Hòa Lạc."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Tổ hợp môn X06 dùng để xét tuyển vào trường gồm những môn nào?",
+      "gold_answer": "Tổ hợp X06 gồm các môn Toán, Vật lý và Tin học.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Tổ hợp xét tuyển",
+          "text": "Tổ hợp môn xét tuyển: A00 (Toán, Lý, Hóa); A01 (Toán, Lý, Anh); X06 (Toán, Lý, Tin học)."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Địa chỉ giảng đường Kiều Mai của Trường Đại học Công nghệ, ĐHQGHN ở đâu?",
+      "gold_answer": "Giảng đường Kiều Mai đặt tại phường Phúc Diễn, quận Bắc Từ Liêm, Hà Nội.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Thông tin chung",
+          "text": "Các cơ sở: ... Giảng đường Kiều Mai tại Phường Phúc Diễn, Quận Bắc Từ Liêm, Hà Nội."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Năm 2024, ngành Kỹ thuật máy tính có điểm chuẩn THPT là bao nhiêu?",
+      "gold_answer": "Điểm chuẩn THPT năm 2024 của ngành Kỹ thuật máy tính là 26,97.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Ngành Kỹ thuật máy tính",
+          "text": "Năm 2024: Chỉ tiêu 250, Nhập học 271, Điểm chuẩn: SAT 26.5, ĐGNL 21, IELTS 26, THPT 26.97"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Ngành Công nghệ hàng không vũ trụ cấp bằng gì và thời gian đào tạo bao lâu?",
+      "gold_answer": "Ngành này đào tạo trong 4.5 năm và cấp bằng Kỹ sư.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Chương trình đào tạo Công nghệ hàng không vũ trụ",
+          "text": "Thời gian đào tạo: 4.5 năm. Bằng tốt nghiệp: Kỹ sư Công nghệ hàng không vũ trụ."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Chỉ tiêu diện dự bị đại học của ngành Mạng máy tính và truyền thông dữ liệu là bao nhiêu?",
+      "gold_answer": "Chỉ tiêu diện dự bị đại học của ngành này là 1.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Chỉ tiêu dự bị đại học",
+          "text": "Mạng máy tính và truyền thông dữ liệu (1 chỉ tiêu)."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Môn học nào được bổ sung trong tổ hợp xét tuyển của ngành Công nghệ nông nghiệp so với các ngành CNTT?",
+      "gold_answer": "Đó là môn Sinh học trong tổ hợp A02.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Tổ hợp xét tuyển ngành Công nghệ nông nghiệp",
+          "text": "Tổ hợp: A00, A01, X06, A02 (Toán, Lý, Sinh)."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Ngành nào có mức học phí 38.000.000 VNĐ/năm?",
+      "gold_answer": "Ngành Công nghệ vật liệu và Vi điện tử.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Học phí",
+          "text": "Riêng ngành Công nghệ vật liệu và Vi điện tử có mức học phí dự kiến là 38.000.000 VNĐ/năm."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Thời gian công bố chính thức công thức quy đổi điểm SAT 2026 là khi nào?",
+      "gold_answer": "Trường chưa có thông báo chính thức và sẽ công bố trong thời gian tới.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Lưu ý tuyển sinh",
+          "text": "Công thức quy đổi điểm SAT sẽ được nhà trường công bố chính thức trong thời gian tới."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "So sánh biến động điểm chuẩn THPT từ 2024 đến 2025 của ba ngành: Khoa học máy tính, Trí tuệ nhân tạo và Công nghệ thông tin.",
+      "gold_answer": "Khoa học máy tính tăng từ 27,58 lên 27,86; Trí tuệ nhân tạo tăng mạnh từ 27,12 lên 27,75; Công nghệ thông tin tăng từ 27,8 lên 28,19. Cả ba ngành đều có xu hướng tăng điểm.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Dữ liệu tuyển sinh 2024-2025",
+          "text": "CN1 (2024: 27.8, 2025: 28.19); CN8 (2024: 27.58, 2025: 27.86); CN12 (2024: 27.12, 2025: 27.75)."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Tổng hợp các phương thức tuyển sinh dự kiến năm 2026 và tỷ lệ phân bổ chỉ tiêu tương ứng.",
+      "gold_answer": "Trường có 2 phương thức chính: Xét tuyển thẳng (5%) và Xét tuyển theo kế hoạch Bộ GD&ĐT (95%) gồm thi THPT, ĐGNL (HSA) và chứng chỉ quốc tế SAT.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Phương thức tuyển sinh",
+          "text": "Trường tuyển sinh theo 2 phương thức chính: Xét tuyển thẳng (5% chỉ tiêu) và Xét tuyển theo kế hoạch chung của Bộ GD&ĐT (95% chỉ tiêu), bao gồm: xét điểm thi THPT, HSA và SAT."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Dựa vào dữ liệu việc làm, hãy liệt kê các vị trí mà sinh viên tốt nghiệp ngành Hệ thống thông tin và Mạng máy tính có thể cùng đảm nhiệm.",
+      "gold_answer": "Cả hai ngành đều đào tạo sinh viên có thể làm Giảng viên, Nghiên cứu viên CNTT, Chuyên viên R&D, Quản lý dự án và Chuyên gia an ninh hệ thống.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Vị trí việc làm Hệ thống thông tin/Mạng máy tính",
+          "text": "Vị trí công tác: Giảng viên, nghiên cứu viên; Chuyên viên R&D; Quản lý dự án; Chuyên gia an toàn hệ thống."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "So sánh sự khác biệt về loại bằng cấp và thời gian đào tạo giữa hai ngành: Khoa học máy tính và Kỹ thuật máy tính.",
+      "gold_answer": "Ngành Khoa học máy tính học trong 4 năm và nhận bằng Cử nhân; trong khi ngành Kỹ thuật máy tính học trong 4,5 năm và nhận bằng Kỹ sư.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Thông tin chương trình đào tạo",
+          "text": "Khoa học máy tính: 4 năm, Cử nhân. Kỹ thuật máy tính: 4.5 năm, Kỹ sư."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Thí sinh đoạt giải Nhì học sinh giỏi quốc gia môn Sinh học có những lựa chọn xét tuyển thẳng vào các ngành nào tại trường?",
+      "gold_answer": "Thí sinh này có thể xét tuyển thẳng vào ngành Công nghệ nông nghiệp (CN10) hoặc ngành Công nghệ kỹ thuật sinh học (CN20).",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Quy định tuyển thẳng",
+          "text": "Thí sinh đoạt giải Nhất, Nhì, Ba môn Sinh học được xét tuyển thẳng vào ngành Công nghệ nông nghiệp và Công nghệ kỹ thuật sinh học."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Phân tích sự khác biệt về tổ hợp môn xét tuyển giữa nhóm ngành Kỹ thuật và nhóm ngành Công nghệ sinh học/nông nghiệp.",
+      "gold_answer": "Nhóm ngành Kỹ thuật chủ yếu xét A00, A01, X06. Các ngành như Công nghệ nông nghiệp/sinh học ngoài 3 tổ hợp trên còn xét thêm A02 (Toán, Lý, Sinh).",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Tổ hợp môn",
+          "text": "Hầu hết các ngành: A00, A01, X06. Riêng CN10, CN20 bổ sung A02."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Tổng hợp chỉ tiêu diện dự bị đại học cho 4 ngành dẫn đầu về điểm chuẩn năm 2025.",
+      "gold_answer": "Bốn ngành có điểm chuẩn cao nhất là CNTT (3 chỉ tiêu), Khoa học máy tính (3), Trí tuệ nhân tạo (3) và Kỹ thuật máy tính (3). Tổng cộng là 12 chỉ tiêu.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Chỉ tiêu dự bị đại học và Điểm chuẩn 2025",
+          "text": "CNTT: 28.19 (3 chỉ tiêu); KHMT: 27.86 (3); TTNT: 27.75 (3); KTMT: 27.00 (3)."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Sự khác biệt trong mục tiêu đào tạo về phần cứng và hệ thống giữa ngành Kỹ thuật Robot và Kỹ thuật máy tính là gì?",
+      "gold_answer": "Kỹ thuật máy tính tập trung vào thiết kế vi mạch và hệ thống nhúng; Kỹ thuật Robot tập trung vào điều khiển tự động hóa, tay máy và giải pháp thông minh.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Mục tiêu đào tạo",
+          "text": "KTMT: Thiết kế phần cứng, vi mạch, hệ thống nhúng. Robot: Thiết kế vận hành hệ thống tự động hóa, tay máy robot."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Tính tổng chỉ tiêu tuyển sinh năm 2025 của 3 ngành: Công nghệ thông tin, Khoa học máy tính và Kỹ thuật máy tính.",
+      "gold_answer": "Tổng chỉ tiêu là 420 (CNTT) + 420 (KHMT) + 420 (KTMT) = 1.260 chỉ tiêu.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Chỉ tiêu 2025",
+          "text": "CN1: 420; CN8: 420; CN2: 420."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Ngành nào trong nhóm CNTT có chỉ tiêu tuyển sinh ít nhất và điểm chuẩn năm 2025 của ngành đó là bao nhiêu?",
+      "gold_answer": "Ngành Mạng máy tính và truyền thông dữ liệu có chỉ tiêu ít nhất (120 chỉ tiêu) và điểm chuẩn là 26,73.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Dữ liệu ngành Mạng máy tính",
+          "text": "Mã CN15: Chỉ tiêu 120, Điểm chuẩn 2025: 26.73."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "So sánh yêu cầu về ngưỡng điểm để xét tuyển dự bị đại học giữa ngành Trí tuệ nhân tạo và ngành Hệ thống thông tin.",
+      "gold_answer": "Cả hai ngành đều yêu cầu thí sinh đạt ngưỡng điểm trúng tuyển năm 2025, lần lượt là 27,75 cho Trí tuệ nhân tạo và 26,38 cho Hệ thống thông tin.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Dự bị đại học",
+          "text": "Thí sinh phải đạt ngưỡng điểm trúng tuyển 2025 (TTNT: 27.75, HTTT: 26.38)."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Liệt kê các địa điểm cơ sở đào tạo của trường và cho biết sinh viên năm nhất sẽ tập trung ở đâu?",
+      "gold_answer": "Trường có 4 cơ sở: Xuân Thủy, Tôn Thất Thuyết, Kiều Mai và Hòa Lạc. Sinh viên năm nhất học tại Hòa Lạc.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Thông tin chung",
+          "text": "Cơ sở: Xuân Thủy, Tôn Thất Thuyết, Kiều Mai, Hòa Lạc. SV năm nhất học tại Hòa Lạc."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Để theo đuổi định hướng về 'Dữ liệu lớn' (Big Data), thí sinh có thể chọn học những ngành nào tại trường?",
+      "gold_answer": "Thí sinh có thể chọn ngành Hệ thống thông tin (định hướng Quản lý dữ liệu lớn) hoặc Khoa học máy tính (định hướng Xử lý dữ liệu lớn).",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Mục tiêu đào tạo các ngành",
+          "text": "CN14: Định hướng dữ liệu lớn. CN8: Định hướng xử lý dữ liệu lớn."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Trong các phương thức xét tuyển 2026, phương thức nào chiếm tỷ trọng lớn nhất và bao gồm những hình thức xét tuyển nhỏ nào?",
+      "gold_answer": "Phương thức xét tuyển theo kế hoạch Bộ GD&ĐT chiếm lớn nhất (95%), bao gồm: điểm thi THPT, thi ĐGNL (HSA) và chứng chỉ SAT.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Phương thức tuyển sinh",
+          "text": "95% chỉ tiêu cho kế hoạch Bộ GD&ĐT (THPT, HSA, SAT)."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Em đạt 27 điểm thi THPT khối A01. Dựa trên điểm chuẩn 2025, em có cơ hội trúng tuyển ngành Kỹ thuật máy tính không? Nếu không, em nên chọn ngành nào trong nhóm CNTT để an toàn hơn?",
+      "gold_answer": "Với 27 điểm, em vừa đủ điểm chuẩn 2025 của Kỹ thuật máy tính (27.00). Để an toàn hơn, em có thể chọn Hệ thống thông tin (26.38) hoặc Kỹ thuật Robot (26.00).",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Điểm chuẩn 2025",
+          "text": "CN2: 27.00; CN14: 26.38; CN17: 26.00."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Nếu một thí sinh muốn tốt nghiệp sớm để đi làm kỹ sư sau 4 năm, việc chọn ngành Kỹ thuật máy tính có đáp ứng được không?",
+      "gold_answer": "Không, vì ngành Kỹ thuật máy tính có thời gian đào tạo là 4,5 năm để cấp bằng Kỹ sư. Nếu muốn tốt nghiệp sau 4 năm, thí sinh nên chọn các ngành cấp bằng Cử nhân như Khoa học máy tính.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Thời gian đào tạo",
+          "text": "KTMT: 4.5 năm (Kỹ sư). KHMT: 4 năm (Cử nhân)."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Tại sao thí sinh có chứng chỉ SAT 1500/1600 lại có lợi thế rất lớn khi xét tuyển vào ngành Công nghệ thông tin năm 2026?",
+      "gold_answer": "Vì SAT 1500 là mức điểm rất cao so với điểm chuẩn SAT 2024 (28/1600 quy đổi cũ hoặc tương đương) và trường dành tới 95% chỉ tiêu cho nhóm xét tuyển bao gồm SAT.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Dữ liệu ngành CNTT",
+          "text": "Điểm chuẩn SAT 2024 của CN1 là 28 (trên thang 30 quy đổi). SAT 1500/1600 là mức điểm cực kỳ cạnh tranh."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Thí sinh giỏi môn Vật lý và Tin học nhưng không giỏi môn Hóa học nên chọn tổ hợp nào để tối ưu điểm số khi xét tuyển vào trường?",
+      "gold_answer": "Thí sinh nên chọn tổ hợp X06 (Toán, Lý, Tin học) thay vì A00 (Toán, Lý, Hóa) để phát huy thế mạnh môn Tin.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Tổ hợp xét tuyển",
+          "text": "X06: Toán, Lý, Tin học. A00: Toán, Lý, Hóa."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Nếu mục tiêu nghề nghiệp là phát triển các ứng dụng phần mềm trên điện thoại, ngành Công nghệ thông tin hay Kỹ thuật Robot sẽ phù hợp hơn?",
+      "gold_answer": "Ngành Công nghệ thông tin phù hợp hơn vì tập trung vào phần mềm và ứng dụng, trong khi Kỹ thuật Robot tập trung nhiều vào điều khiển phần cứng và hệ thống tự động.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Định hướng đào tạo",
+          "text": "CN1: Chuyên sâu về phần mềm và ứng dụng. CN17: Thiết kế vận hành hệ thống tự động hóa, robot."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Học phí ngành Vi điện tử thấp hơn các ngành khác 6 triệu đồng/năm. Điều này có phản ánh chất lượng đào tạo thấp hơn không?",
+      "gold_answer": "Không, mức học phí 38 triệu/năm cho ngành Vi điện tử thường do chính sách khuyến khích đào tạo nguồn nhân lực chất lượng cao trong lĩnh vực bán dẫn, không phải do chất lượng thấp hơn.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Học phí",
+          "text": "Học phí CN19: 38 triệu. Các ngành khác: 44 triệu."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Một thí sinh đoạt giải Nhì HSG quốc gia môn Toán có được xét tuyển thẳng vào ngành Trí tuệ nhân tạo không?",
+      "gold_answer": "Được, vì giải Nhì môn Toán nằm trong điều kiện xét tuyển thẳng và Toán là môn nền tảng cho Trí tuệ nhân tạo.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Phương thức xét tuyển thẳng",
+          "text": "Thí sinh đoạt giải Nhất, Nhì, Ba HSG quốc gia các môn Toán, Lý... được xét tuyển thẳng."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Tại sao việc học tập tại Hòa Lạc trong năm thứ nhất lại là thông tin quan trọng thí sinh cần lưu ý?",
+      "gold_answer": "Vì nó ảnh hưởng trực tiếp đến việc chuẩn bị nơi ở, đi lại và sinh hoạt của sinh viên, do cơ sở này nằm xa trung tâm Hà Nội hơn các cơ sở khác.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Cơ sở đào tạo",
+          "text": "SV năm thứ nhất dự kiến học tập tập trung tại Hòa Lạc."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Dựa trên xu hướng điểm chuẩn từ 2024 đến 2025, thí sinh đạt 27,5 điểm THPT vào năm 2026 có nên tự tin đăng ký ngành Khoa học máy tính không?",
+      "gold_answer": "Không nên quá tự tin, vì điểm chuẩn ngành này đang tăng dần (27,58 năm 2024 lên 27,86 năm 2025). Mức 27,5 có rủi ro trượt cao nếu xu hướng này tiếp tục.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Điểm chuẩn KHMT",
+          "text": "2024: 27.58; 2025: 27.86."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Nếu thí sinh muốn làm việc trong lĩnh vực bảo mật thông tin nhưng không đỗ ngành công nghệ thông tin, ngành nào là lựa chọn thay thế tốt nhất?",
+      "gold_answer": "Ngành Hệ thống thông tin hoặc Mạng máy tính và truyền thông dữ liệu là lựa chọn thay thế tốt nhất vì đào tạo chuyên sâu về an ninh và an toàn hệ thống.",
+      "gold_contexts": [
+        {
+          "document_name": "admission.txt",
+          "article_or_clause": "Việc làm ngành Mạng máy tính",
+          "text": "Đào tạo chuyên gia an ninh và an toàn hệ thống."
+        }
+      ],
+      "difficulty": "reasoning"
+    }
+  ]
+}

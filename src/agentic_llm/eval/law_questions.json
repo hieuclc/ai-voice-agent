@@ -1,0 +1,460 @@
+{
+  "items": [
+    {
+      "question": "Theo Nghị định 168/2024/NĐ-CP, người điều khiển xe ô tô không chấp hành hiệu lệnh của đèn tín hiệu giao thông bị phạt bao nhiêu tiền?",
+      "gold_answer": "Phạt tiền từ 18.000.000 đồng đến 20.000.000 đồng.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 6 Khoản 9 Điểm b",
+          "text": "9. Phạt tiền từ 18.000.000 đồng đến 20.000.000 đồng đối với người điều khiển xe thực hiện một trong các hành vi vi phạm sau đây: ... b) Không chấp hành hiệu lệnh của đèn tín hiệu giao thông;"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Mức xử phạt đối với người điều khiển xe máy chuyên dùng không có bằng hoặc chứng chỉ điều khiển là bao nhiêu?",
+      "gold_answer": "Phạt tiền từ 4.000.000 đồng đến 6.000.000 đồng.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 19 Khoản 2",
+          "text": "2. Phạt tiền từ 4.000.000 đồng đến 6.000.000 đồng đối với người điều khiển xe máy chuyên dùng không có bằng (hoặc chứng chỉ) điều khiển xe máy chuyên dùng"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Thời hiệu xử phạt vi phạm hành chính về trật tự, an toàn giao thông đường bộ là bao lâu?",
+      "gold_answer": "Thời hiệu là 01 năm.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 4 Khoản 1",
+          "text": "1. Thời hiệu xử phạt vi phạm hành chính về trật tự, an toàn giao thông trong lĩnh vực giao thông đường bộ là 01 năm."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Theo Nghị định 160/2024/NĐ-CP, xe tập lái được định nghĩa như thế nào?",
+      "gold_answer": "Xe tập lái là xe ô tô dùng để đào tạo lái xe ô tô.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 160 năm 2024.docx",
+          "article_or_clause": "Điều 3 Khoản 1",
+          "text": "1. Xe tập lái là xe ô tô dùng để đào tạo lái xe ô tô."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Cơ quan nào có trách nhiệm đưa pháp luật về giao thông đường bộ vào chương trình giảng dạy trong nhà trường?",
+      "gold_answer": "Cơ quan quản lý nhà nước về giáo dục và đào tạo.",
+      "gold_contexts": [
+        {
+          "document_name": "2023_1215 + 1216_08-VBHN-VPQH.docx",
+          "article_or_clause": "Điều 7 Khoản 3",
+          "text": "3. Cơ quan quản lý nhà nước về giáo dục và đào tạo có trách nhiệm đưa pháp luật về giao thông đường bộ vào chương trình giảng dạy trong nhà trường và các cơ sở giáo dục khác phù hợp với từng ngành học, cấp học."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Mức phạt tiền đối với hành vi điều khiển xe ô tô chạy quá tốc độ từ 10 km/h đến 20 km/h là bao nhiêu?",
+      "gold_answer": "Phạt tiền từ 4.000.000 đồng đến 6.000.000 đồng.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 6 Khoản 5 Điểm đ",
+          "text": "5. Phạt tiền từ 4.000.000 đồng đến 6.000.000 đồng đối với người điều khiển xe thực hiện một trong các hành vi vi phạm sau đây: ... đ) Điều khiển xe chạy quá tốc độ quy định từ 10 km/h đến 20 km/h;"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Trung tâm sát hạch lái xe loại 3 được phép tổ chức sát hạch cho những hạng giấy phép lái xe nào?",
+      "gold_answer": "Các hạng A1, A và B1.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 160 năm 2024.docx",
+          "article_or_clause": "Điều 3 Khoản 4 Điểm c",
+          "text": "c) Trung tâm sát hạch lái xe loại 3: cung cấp dịch vụ để tổ chức sát hạch, cấp giấy phép lái xe các hạng A1, A và B1."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Diện tích tối thiểu để trung tâm sát hạch lái xe loại 1 được hoạt động là bao nhiêu?",
+      "gold_answer": "Không nhỏ hơn 35.000 m2.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 160 năm 2024.docx",
+          "article_or_clause": "Điều 24 Khoản 6",
+          "text": "6. Diện tích trung tâm sát hạch lái xe: trung tâm sát hạch lái xe loại 1 có diện tích không nhỏ hơn 35.000 m2;"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Mức phạt cho hành vi điều khiển xe máy không mang theo bảo hiểm bắt buộc là bao nhiêu?",
+      "gold_answer": "Phạt tiền từ 200.000 đồng đến 300.000 đồng.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 18 Khoản 2 Điểm a",
+          "text": "2. Phạt tiền từ 200.000 đồng đến 300.000 đồng đối với một trong các hành vi vi phạm sau đây: a) Người điều khiển xe mô tô, xe gắn máy, các loại xe tương tự xe mô tô và các loại xe tương tự xe gắn máy kinh doanh vận tải không mang theo chứng nhận bảo hiểm bắt buộc trách nhiệm dân sự của chủ xe cơ giới còn hiệu lực;"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Kết cấu hạ tầng giao thông đường bộ bao gồm những công trình nào?",
+      "gold_answer": "Gồm công trình đường bộ, bến xe, bãi đỗ xe, trạm dừng nghỉ và các công trình phụ trợ khác.",
+      "gold_contexts": [
+        {
+          "document_name": "2023_1215 + 1216_08-VBHN-VPQH.docx",
+          "article_or_clause": "Điều 3 Khoản 3",
+          "text": "3. Kết cấu hạ tầng giao thông đường bộ gồm công trình đường bộ, bến xe, bãi đỗ xe, trạm dừng nghỉ và các công trình phụ trợ khác."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Theo Nghị định 160/2024/NĐ-CP, việc đào tạo lý thuyết hạng A1 có bắt buộc phải tập trung không?",
+      "gold_answer": "Không, có thể áp dụng hình thức tự học.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 160 năm 2024.docx",
+          "article_or_clause": "Điều 4 Khoản 1",
+          "text": "1. Tự học áp dụng đối với các môn học lý thuyết để cấp giấy phép lái xe các hạng A1, A và B1."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Hình thức xử phạt 'Tịch thu phương tiện' được áp dụng trong trường hợp nào đối với hành vi điều khiển xe ô tô lạng lách?",
+      "gold_answer": "Áp dụng đối với người điều khiển xe tái phạm hành vi điều khiển xe lạng lách, đánh võng.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 6 Khoản 14",
+          "text": "14. Tịch thu phương tiện đối với người điều khiển xe tái phạm hành vi điều khiển xe lạng lách, đánh võng quy định tại khoản 12 Điều này."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Người điều khiển xe máy chuyên dùng phải có chứng chỉ gì về pháp luật khi tham gia giao thông?",
+      "gold_answer": "Chứng chỉ bồi dưỡng kiến thức pháp luật về giao thông đường bộ.",
+      "gold_contexts": [
+        {
+          "document_name": "2023_1215 + 1216_08-VBHN-VPQH.docx",
+          "article_or_clause": "Điều 62 Khoản 1",
+          "text": "1. Người điều khiển xe máy chuyên dùng tham gia giao thông phải đủ độ tuổi, sức khỏe phù hợp với ngành nghề lao động và có chứng chỉ bồi dưỡng kiến thức pháp luật về giao thông đường bộ"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Mức phạt tiền đối với hành vi xe ô tô sử dụng còi trong khu đông dân cư vào ban đêm (22 giờ đến 05 giờ) là bao nhiêu?",
+      "gold_answer": "Phạt tiền từ 400.000 đồng đến 600.000 đồng.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 6 Khoản 1 Điểm đ",
+          "text": "đ) Sử dụng còi trong thời gian từ 22 giờ ngày hôm trước đến 05 giờ ngày hôm sau trong khu đông dân cư, khu vực cơ sở khám bệnh, chữa bệnh, trừ các xe ưu tiên đang đi làm nhiệm vụ theo quy định."
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Tổng hợp trách nhiệm của các bộ và địa phương trong việc bảo vệ kết cấu hạ tầng giao thông đường bộ?",
+      "gold_answer": "Bộ Giao thông vận tải chủ trì phối hợp với Bộ Công an, Bộ Quốc phòng và UBND các cấp tổ chức bảo vệ công trình và hành lang an toàn.",
+      "gold_contexts": [
+        {
+          "document_name": "2023_1215 + 1216_08-VBHN-VPQH.docx",
+          "article_or_clause": "Điều 52 Khoản 4",
+          "text": "4. Trách nhiệm bảo vệ kết cấu hạ tầng giao thông đường bộ quy định như sau: a) Bộ Giao thông vận tải tổ chức và hướng dẫn thực hiện việc bảo vệ kết cấu hạ tầng giao thông đường bộ; kiểm tra, thanh tra việc thực hiện các quy định của pháp luật về quản lý, bảo vệ kết cấu hạ tầng giao thông đường bộ; b) Bộ Công an chỉ đạo, hướng dẫn lực lượng công an kiểm tra, xử lý vi phạm pháp luật về bảo vệ kết cấu hạ tầng giao thông đường bộ theo thẩm quyền; c) Ủy ban nhân dân các cấp tổ chức bảo vệ kết cấu hạ tầng giao thông đường bộ trong phạm vi địa phương; bảo vệ hành lang an toàn giao thông đường bộ theo quy định của pháp luật; d) Bộ, cơ quan ngang bộ trong phạm vi nhiệm vụ, quyền hạn của mình có trách nhiệm phối hợp bảo vệ kết cấu hạ tầng giao thông đường bộ; đ) Chính phủ quy định việc phối hợp giữa các bộ, cơ quan ngang bộ, Ủy ban nhân dân về bảo vệ kết cấu hạ tầng giao thông đường bộ."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Những thông tin nào về đối tượng vi phạm (cá nhân) phải có trong hồ sơ Cơ sở dữ liệu về trật tự, an toàn giao thông?",
+      "gold_answer": "Họ tên, ngày sinh, giới tính, số định danh cá nhân, quốc tịch, và nơi ở hiện tại.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 151 năm 2024.docx",
+          "article_or_clause": "Điều 11 Khoản 9 Điểm a",
+          "text": "Đối với cá nhân: họ, tên; ngày, tháng, năm sinh; giới tính; quốc tịch; nghề nghiệp; nơi ở hiện tại; số định danh cá nhân, hộ chiếu hoặc giấy tờ có giá trị đi lại quốc tế (đối với người nước ngoài); ngày, tháng, năm cấp, nơi cấp."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Phân biệt thẩm quyền cấp phép thiết bị phát tín hiệu ưu tiên giữa Bộ Công an và Bộ Quốc phòng?",
+      "gold_answer": "Bộ Công an cấp cho các xe ưu tiên thuộc các bộ ngành và địa phương; Bộ Quốc phòng quy định riêng cho xe quân sự làm nhiệm vụ khẩn cấp.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 151 năm 2024.docx",
+          "article_or_clause": "Điều 24 Khoản 1 và Khoản 2",
+          "text": "1. Bộ Công an chỉ đạo đơn vị chức năng thực hiện việc quản lý, lắp đặt, sử dụng thiết bị phát tín hiệu của xe ưu tiên; cấp, thu hồi giấy phép sử dụng thiết bị phát tín hiệu của xe ưu tiên quy định tại Nghị định này, trừ xe ưu tiên thuộc phạm vi quản lý của Bộ Quốc phòng. 2. Bộ Quốc phòng chỉ đạo đơn vị chức năng thực hiện việc quản lý, lắp đặt, sử dụng thiết bị phát tín hiệu của xe ưu tiên; cấp, thu hồi giấy phép sử dụng thiết bị phát tín hiệu của xe ưu tiên thuộc phạm vi quản lý của Bộ Quốc phòng."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Nội dung giáo dục giao thông được phân cấp như thế nào cho trẻ mầm non và học sinh trung học cơ sở?",
+      "gold_answer": "Trẻ mầm non tập trung nhận biết phương tiện và biển báo cơ bản; học sinh trung học cơ sở được học quy tắc giao thông đường bộ và kỹ năng lái xe an toàn.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 151 năm 2024.docx",
+          "article_or_clause": "Điều 4 Khoản 1",
+          "text": "a) Đối với trẻ em mầm non: nhận biết phương tiện giao thông đường bộ, đèn tín hiệu giao thông, ý nghĩa tín hiệu đèn, một số biển báo hiệu đường bộ thường gặp, an toàn khi đi bộ, đội mũ bảo hiểm đúng cách b) Đối với học sinh trung học cơ sở: quy tắc giao thông đường bộ, nhận biết và chấp hành báo hiệu đường bộ, đội mũ bảo hiểm đạt chuẩn, an toàn khi ngồi trên xe, cách điều khiển xe đạp và xe đạp điện an toàn, phòng ngừa rủi ro và hậu quả của tai nạn giao thông"
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Tổng hợp các môn học lý thuyết lái xe ô tô có thể đào tạo từ xa hoặc tự học có hướng dẫn?",
+      "gold_answer": "Gồm Pháp luật giao thông, Đạo đức và văn hóa giao thông, Phòng chống tác hại của rượu, bia khi tham gia giao thông, Cấu tạo sửa chữa thông thường, Kỹ năng phòng cháy chữa cháy và Kỹ thuật lái xe.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 160 năm 2024.docx",
+          "article_or_clause": "Điều 5 Khoản 1",
+          "text": "1. Đào tạo từ xa, tự học có hướng dẫn áp dụng đối với các môn học pháp luật về giao thông đường bộ, đạo đức, văn hóa giao thông và phòng chống tác hại của rượu, bia khi tham gia giao thông và học lý thuyết của các môn: cấu tạo và sửa chữa thông thường; kỹ năng phòng cháy, chữa cháy và cứu nạn, cứu hộ; kỹ thuật lái xe để cấp giấy phép lái xe hạng B, C1, C, D1, D2, D, BE, C1E, CE, D1E, D2E và DE."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Hệ thống văn bản quy định các đối tượng có trách nhiệm tuyên truyền giáo dục pháp luật giao thông?",
+      "gold_answer": "Bao gồm cơ quan thông tin, UBND, cơ quan quản lý nhà nước về giáo dục, Mặt trận Tổ quốc và các thành viên trong gia đình.",
+      "gold_contexts": [
+        {
+          "document_name": "2023_1215 + 1216_08-VBHN-VPQH.docx",
+          "article_or_clause": "Điều 7 Khoản 1, 2, 3, 4 và 5",
+          "text": "1. Cơ quan thông tin, tuyên truyền... 2. Ủy ban nhân dân các cấp... 3. Cơ quan quản lý nhà nước về giáo dục và đào tạo... 4. Mặt trận Tổ quốc Việt Nam... 5. Thành viên trong gia đình"
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Những loại giấy tờ nào người lái xe máy chuyên dùng phải mang theo để chứng minh đủ điều kiện tham gia giao thông và tình trạng kỹ thuật của xe?",
+      "gold_answer": "Đăng ký xe, chứng chỉ kiến thức pháp luật, chứng chỉ điều khiển xe máy chuyên dùng và Giấy chứng nhận kiểm định an toàn kỹ thuật bảo vệ môi trường.",
+      "gold_contexts": [
+        {
+          "document_name": "2023_1215 + 1216_08-VBHN-VPQH.docx",
+          "article_or_clause": "Điều 62 Khoản 2",
+          "text": "2. Người điều khiển xe máy chuyên dùng khi tham gia giao thông phải mang theo các giấy tờ sau đây: a) Đăng ký xe; b) Chứng chỉ bồi dưỡng kiến thức pháp luật về giao thông đường bộ, bằng hoặc chứng chỉ điều khiển xe máy chuyên dùng; c) Giấy chứng nhận kiểm định an toàn kỹ thuật và bảo vệ môi trường"
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Sự phối hợp giữa các lực lượng khi xảy ra tai nạn giao thông được quy định thế nào đối với người liên quan và cơ quan quản lý?",
+      "gold_answer": "Cơ quan công an có trách nhiệm cử người tới ngay hiện trường để điều tra vụ tai nạn, phối hợp với cơ quan quản lý đường bộ và Ủy ban nhân dân địa phương nhằm bảo đảm giao thông thông suốt và an toàn. Ủy ban nhân dân cấp xã nơi xảy ra tai nạn cũng có trách nhiệm thông báo kịp thời cho cơ quan công an và y tế để xử lý vụ tai nạn. Người điều khiển phương tiện và những người liên quan trực tiếp đến vụ tai nạn có trách nhiệm dừng ngay phương tiện, giữ nguyên hiện trường, cấp cứu người bị nạn và có mặt khi cơ quan có thẩm quyền yêu cầu. Họ cũng phải cung cấp thông tin xác thực về vụ tai nạn cho cơ quan có thẩm quyền.",
+      "gold_contexts": [
+        {
+          "document_name": "2023_1215 + 1216_08-VBHN-VPQH.docx",
+          "article_or_clause": "Điều 38 Khoản 1 và Điều 52 Khoản 1",
+          "text": "Người điều khiển phương tiện phải dừng ngay phương tiện, giữ nguyên hiện trường, cấp cứu người bị nạn và có mặt khi cơ quan thẩm quyền có yêu cầu. Ủy ban nhân dân cấp xã nơi xảy ra tai nạn cũng có trách nhiệm thông báo kịp thời cho cơ quan công an và y tế để xử lý vụ tai nạn, tổ chức cứu chữa. Cơ quan công an có trách nhiệm cử người tới ngay hiện trường để điều tra vụ tai nạn, phối hợp với cơ quan quản lý đường bộ và Ủy ban nhân dân địa phương nhằm bảo đảm giao thông thông suốt và an toàn."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Quy định về việc lưu trữ và công khai trạng thái giấy phép lái xe khi bị xử lý vi phạm trên môi trường điện tử?",
+      "gold_answer": "Thông tin tạm giữ hoặc tước quyền sử dụng được cập nhật trên cơ sở dữ liệu, căn cước điện tử và tài khoản định danh điện tử.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 49 và điều 50 khoản 3 điểm c",
+          "text": "Dữ liệu về điểm, trừ điểm, phục hồi điểm giấy phép lái xe được quản lý, lưu trữ trên môi trường điện tử, trong Cơ sở dữ liệu về xử lý vi phạm hành chính về trật tự, an toàn giao thông đường bộ do Bộ Công an xây dựng, quản lý, vận hành. ... Việc thông báo trừ điểm giấy phép lái xe thực hiện bằng văn bản theo mẫu quy định của Bộ trưởng Bộ Công an và được giao trực tiếp hoặc gửi qua dịch vụ bưu chính hoặc thực hiện thông báo bằng phương thức điện tử thông qua tài khoản của công dân đăng ký trên Cổng dịch vụ công,"
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Phân loại các trung tâm sát hạch lái xe dựa trên diện tích tối thiểu?",
+      "gold_answer": "Trung tâm loại 1 có diện tích không nhỏ hơn 35.000 m2), loại 2 có diện tích không nhỏ hơn 20.000 m2 và loại 3 có diện tích không nhỏ hơn 4.000 m2.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 160 năm 2024.docx",
+          "article_or_clause": "Điều 26 Khoản 6",
+          "text": "6. Trung tâm sát hạch lái xe có diện tích không nhỏ hơn 35.000 m2 đối với trung tâm loại 1; 20.000 m2 đối với trung tâm loại 2 và 4.000 m2 đối với trung tâm loại 3."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Các điều kiện bắt buộc để xe ô tô nước ngoài có tay lái ở bên phải tham gia giao thông tại Việt Nam?",
+      "gold_answer": "Phải có văn bản chấp thuận được tổ chức cho người nước ngoài đưa xe cơ giới về Việt Nam, thông qua đơn vị lữ hành quốc tế và phải có công hàm của cơ quan đại diện ngoại giao, cơ quan lãnh sự hoặc cơ quan đại diện của tổ chức quốc tế liên Chính phủ tại Việt Nam đề nghị.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 151 năm 2024.docx",
+          "article_or_clause": "Điều 32 Khoản 3",
+          "text": "a) Có văn bản chấp thuận được tổ chức cho người nước ngoài đưa xe cơ giới nước ngoài vào tham gia giao thông tại Việt Nam; b) Phải thông qua doanh nghiệp kinh doanh dịch vụ lữ hành quốc tế của Việt Nam làm thủ tục đề nghị chấp thuận đối với trường hợp quy định tại khoản 1 Điều này; c) Phải có công hàm của cơ quan đại diện ngoại giao, cơ quan lãnh sự hoặc cơ quan đại diện của tổ chức quốc tế liên Chính phủ tại Việt Nam đề nghị "
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Quy trình xử lý khi phát hiện hư hỏng kết cấu hạ tầng giao thông gây mất an toàn?",
+      "gold_answer": "Người dân thông báo cho ủy ban nhân dân, cơ quan quản lý đường bộ hoặc cơ quan công an gần nhất, trường hợp cần thiết báo ngay cho người tham gia giao thông biết; Cơ quan có trách nhiệm phải nhanh chóng xử lý, sửa chữa kịp thời.",
+      "gold_contexts": [
+        {
+          "document_name": "2023_1215 + 1216_08-VBHN-VPQH.docx",
+          "article_or_clause": "Điều 52 Khoản 1 và 2",
+          "text": "Người nào phát hiện công trình đường bộ bị hư hỏng hoặc bị xâm hại, hành lang an toàn đường bộ bị lấn chiếm phải kịp thời báo cho Ủy ban nhân dân, cơ quan quản lý đường bộ hoặc cơ quan công an nơi gần nhất để xử lý; trường hợp cần thiết có biện pháp báo hiệu ngay cho người tham gia giao thông biết. Khi nhận được tin báo, cơ quan có trách nhiệm phải nhanh chóng thực hiện các biện pháp khắc phục để bảo đảm giao thông thông suốt, an toàn; Đơn vị quản lý công trình đường bộ có trách nhiệm bảo đảm an toàn kỹ thuật của công trình, liên đới chịu trách nhiệm đối với tai nạn giao thông xảy ra do chất lượng quản lý, bảo trì công trình; trường hợp phát hiện công trình bị hư hỏng hoặc có nguy cơ gây mất an toàn giao thông thì phải xử lý, sửa chữa kịp thời, có biện pháp phòng, chống và khắc phục kịp thời hậu quả do thiên tai gây ra đối với công trình đường bộ."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Nếu một người đã có bằng lái hạng A1, muốn tự học lý thuyết B1 tại nhà có vi phạm quy định về đào tạo không?",
+      "gold_answer": "Quy định cho phép tự học các môn lý thuyết đối với hạng B1, nhưng người học phải đăng ký tại cơ sở được phép đào tạo để được quản lý theo quy định của Bộ Giao thông vận tại.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 160 năm 2024.docx",
+          "article_or_clause": "Điều 4 Khoản 1 và 2",
+          "text": "1. Tự học các môn lý thuyết áp dụng đối với người có nhu cầu cấp giấy phép lái xe các hạng A1, A và B1. 2. Người học phải đăng ký tại cơ sở được phép đào tạo để được quản lý theo quy định của Bộ Giao thông vận tải."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Tại sao việc cho thuê, cho mượn giấy phép sát hạch lái xe lại dẫn đến việc bị thu hồi giấy phép?",
+      "gold_answer": "Vì đây là hành vi vi phạm quy định về quản lý hoạt động sát hạch, ảnh hưởng đến tính khách quan và an toàn pháp lý.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 160 năm 2024.docx",
+          "article_or_clause": "Điều 21 Khoản 1 Điểm đ",
+          "text": "1. Giấy phép sát hạch bị thu hồi trong các trường hợp sau: ... đ) Cho thuê, cho mượn giấy phép sát hạch;"
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Trong trường hợp cảnh sát giao thông dừng xe nhưng người lái xe chỉ xuất trình giấy phép trên ứng dụng VNeID, hành vi này có bị xử phạt lỗi 'không mang theo giấy phép' không?",
+      "gold_answer": "Không bị xử phạt về hành vi không mang theo giấy tờ.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 52 Khoản 7",
+          "text": "Nếu người điều khiển phương tiện không xuất trình được giấy tờ, nhưng có thể cung cấp thông tin của các giấy tờ được tích hợp trong tài khoản định danh điện tử như VNeID, thì sẽ không bị xử phạt về hành vi không mang theo giấy tờ."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Anh A giao xe cho người chưa đủ tuổi điều khiển phương tiện, vậy anh A sẽ phải chịu trách nhiệm gì?",
+      "gold_answer": "Anh A sẽ bị phạt tiền từ 20.000.000 đồng đền 30.000.000 đồng",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 32 Khoản 14 ",
+          "text": "14. Phạt tiền từ 28.000.000 đồng đến 30.000.000 đồng đối với cá nhân giao xe cho người không đủ điều kiện"
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Tại sao xe ưu tiên khi không đi làm nhiệm vụ khẩn cấp mà vẫn bật còi, đèn ưu tiên thì bị xử phạt?",
+      "gold_answer": "Vì việc sử dụng tín hiệu ưu tiên không đúng mục đích gây mất trật tự giao thông và vi phạm quy định về sử dụng thiết bị phát tín hiệu, có thể bị xử phạt từ 800.000 đồng đến 1.000.000 đồng.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 7 Khoản 5 Điểm e",
+          "text": "Xử phạt từ 800.000 đến 1.000.000 đối với xe bật còi, sử dụng tín hiệu ưu tiên gây mất trật tự an toàn giao thông"
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Xe đạp chỉ được phép chở tối đa 2 người, nhưng anh D chở 3 người, không gây tai nạn. Anh có bị xử phạt không?",
+      "gold_answer": "Xe đạp được quy định chỉ chở không quá 2 người, vậy chở 3 người sẽ bị xử phạt. Anh D có thể bị xử phạt từ 100.000 đồng đến 200.000 đồng",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 7 Khoản 9",
+          "text": "Phạt tiền từ 100.000 đồng đến 200.000 đồng đối với người đi xe đạp chở quá số người quy định. Xe đạp chỉ được chở không quá hai người"
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Bạn C năm nay 16 tuổi, và được bố mẹ tặng quà sinh nhật là một chiếc xe máy có dung tích xi lanh là 120. Liệu bạn C có được điều khiển xe tham gia giao thông?",
+      "gold_answer": "Bạn C không đủ điều kiện điều khiển xe tham gia giao thông, vì chiếc xe có dung tích xi lanh là 120 cm3, trong khi quy định là người từ đủ 18 tuổi mới được điều khiển loại xe này.",
+      "gold_contexts": [
+        {
+          "document_name": "2023_1215 + 1216_08-VBHN-VPQH.docx",
+          "article_or_clause": "Điều 60 khoản b",
+          "text": "Người đủ 18 tuổi trở lên được lái xe mô tô hai bánh, xe mô tô ba bánh có dung tích xi-lanh từ 50 cm3 trở lên và các loại xe có kết cấu tương tự"
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Tại sao hành vi lạng lách, đánh võng bị phạt nặng hơn hành vi chạy quá tốc độ dưới 10km/h?",
+      "gold_answer": "Vì đây là hành vi gây nguy hiểm nghiêm trọng cho bản thân và những người khác khi tham gia giao thông, có thể bị phạt tiền và bị tịch thu phương tiện.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 168 năm 2024.docx",
+          "article_or_clause": "Điều 7 Khoản 12",
+          "text": "12. Phạt tiền từ 10.000.000 đồng đến 12.000.000 đồng đối với người điều khiển xe thực hiện một trong các hành vi vi phạm sau đây: a) Điều khiển xe lạng lách, đánh võng;"
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Ý nghĩa của việc yêu cầu xe chở học sinh mầm non phải có màu sơn nhận diện riêng biệt là gì?",
+      "gold_answer": "Để cảnh báo các phương tiện khác tăng cường chú ý và nhường đường, đảm bảo an toàn tối đa cho đối tượng yếu thế là trẻ em.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 151 năm 2024.docx",
+          "article_or_clause": "Điều 30",
+          "text": "Xe ô tô kinh doanh vận tải chở trẻ em mầm non, học sinh phải có màu sơn theo quy định của Bộ Giao thông vận tải để nhận diện khi tham gia giao thông."
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Một doanh nghiệp sử dụng xe ô tô có tay lái bên phải để chở khách du lịch nước ngoài tại Việt Nam mà không có xe dẫn đường của Cảnh sát giao thông có đúng quy định không?",
+      "gold_answer": "Không đúng, vì xe tay lái nghịch phải có xe dẫn đường (Cảnh sát giao thông hoặc doanh nghiệp lữ hành) theo phương án đảm bảo an toàn.",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 151 năm 2024.docx",
+          "article_or_clause": "Điều 30 Khoản 4",
+          "text": "4. Phải có xe dẫn đường; xe dẫn đường phải là xe ô tô hoặc xe mô tô do doanh nghiệp kinh doanh dịch vụ lữ hành quốc tế của Việt Nam hoặc cơ quan, tổ chức bố trí và được dán biểu trưng"
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Anh F va chạm nhẹ với xe khác, không có thương tích, nhưng do hoảng sợ nên rời khỏi hiện trường. Sau đó anh quay lại trình diện. Hành vi này có bị xử phạt không?",
+      "gold_answer": "Người gây tai nạn có nghĩa vụ dừng xe, giữ nguyên hiện trường, và ở lại giải quyết vụ việc. Việc rời khỏi hiện trường, dù sau đó quay lại, vẫn có thể bị coi là hành vi vi phạm nghĩa vụ sau tai nạn giao thông.",
+      "gold_contexts": [
+        {
+          "document_name": "Luật giao thông đường bộ.docx",
+          "article_or_clause": "Điều 38 Khoản 1",
+          "text": "Người điều khiển phương tiện và những người liên quan trực tiếp đến vụ tai nạn phải dừng ngay phương tiện; giữ nguyên hiện trường; cấp cứu người bị nạn và phải có mặt khi cơ quan có thẩm quyền yêu cầu, ở lại nơi xảy ra tai nạn cho đến khi người của cơ quan công an đến"
+        }
+      ],
+      "difficulty": "reasoning"
+    },
+    {
+      "question": "Xe cứu thương đang chở bệnh nhân nhưng không bật còi và đèn ưu tiên. Xe này vượt đèn đỏ có hợp pháp không?",
+      "gold_answer": "Xe cứu thương được quyền ưu tiên khi làm nhiệm vụ, nhưng nếu không bật còi và đèn ưu tiên thì sẽ vi phạm pháp luật nếu vượt đèn đỏ",
+      "gold_contexts": [
+        {
+          "document_name": "Nghị định 151 năm 2024.docx",
+          "article_or_clause": "Điều 18 Khoản 6",
+          "text": "Xe cứu thương được quyền ưu tiên khi làm nhiệm vụ nếu bật còi và đèn ưu tiên"
+        }
+      ],
+      "difficulty": "reasoning"
+    }
+  ]
+}
