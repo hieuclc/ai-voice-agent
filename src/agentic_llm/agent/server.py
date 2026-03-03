@@ -29,9 +29,8 @@ from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, Sys
 from pydantic import BaseModel
 import asyncio
 
-from agent import create_agent, get_lightrag, preload_bge_model
+from agent import create_agent, preload_bge_model
 from agent_routing import create_router_agent
-from embedding_service import get_embedding_service
 
 # ---------------------------------------------------------------------------
 # Extra tools  ← add your independently-implemented tools here
@@ -260,10 +259,6 @@ async def lifespan(app: FastAPI):
     """Pre-warm all models on startup so first request is fast."""
     logger.info("Startup: loading BGE-M3 embedding model…")
     await preload_bge_model()           # ← BGE model cho Qdrant hybrid search
-    logger.info("Startup: loading Vietnamese embedding service…")
-    await get_embedding_service()       # ← embedding cho LightRAG
-    logger.info("Startup: initializing LightRAG…")
-    await get_lightrag()
     logger.info("Startup: all services ready.")
     yield
     logger.info("Shutdown: bye.")

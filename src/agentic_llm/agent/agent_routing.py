@@ -39,7 +39,6 @@ from agent import (
     stream_thinking_while_running,
     # Tools
     search_law,
-    search_lightrag,
     search_admission,
     search_tours,
     search_tour_info,
@@ -84,9 +83,7 @@ CÔNG CỤ:
 {tool_lines}
 
 QUY TẮC TRA CỨU PHÁP LUẬT:
-Với mọi câu hỏi về luật, nghị định, mức phạt, điều khoản — bắt buộc tra cứu trước khi trả lời.
-Dùng search_law trước. Nếu không đủ hoặc cần quan hệ nhiều văn bản → dùng search_lightrag.
-Khi gọi search_lightrag: truyền nguyên văn câu hỏi gốc của người dùng.
+Với mọi câu hỏi về luật, nghị định, mức phạt, điều khoản — bắt buộc tra cứu trước khi trả lời. Sử dụng công cụ search_law.
 Nếu tra lại vẫn không có → trả lời: "Không tìm thấy thông tin phù hợp trong dữ liệu hiện có."
 
 QUY TẮC TRÍCH DẪN:
@@ -343,7 +340,7 @@ def create_router_agent(
     date = datetime.now().strftime("%d/%m/%Y")
 
     # ── Law sub-agent ────────────────────────────────────────────────────
-    law_tools = list(extra_tools or []) + [search_law, search_lightrag]
+    law_tools = list(extra_tools or []) + [search_law]
     law_tool_lines = "\n".join(f"- {t.name}: {t.description.splitlines()[0]}" for t in law_tools)
     law_graph = _build_sub_agent(
         streaming_llm.bind_tools(law_tools),

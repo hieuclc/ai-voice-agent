@@ -7,7 +7,6 @@ RAG tools:
   - search_admission : Qdrant hybrid search (dense + sparse) + reranker
   - search_tours     : Qdrant hybrid search (summary only)
   - get_tour_detail  : Qdrant exact-match tour detail
-  - search_lightrag  : LightRAG graph + vector search (pháp luật phức tạp)
 
 Agentic workflow cho search_law:
   retrieve → grade_documents → [done | rewrite → retrieve (loop ≤ MAX_REWRITE)]
@@ -56,18 +55,11 @@ from qdrant_client.http.models import (
 )
 from qdrant_client import models as qmodels
 
-# LightRAG
-from lightrag import LightRAG, QueryParam
-from lightrag.llm.openai import gpt_4o_mini_complete
-from lightrag.utils import setup_logger as lightrag_setup_logger
-from embedding_service import VIETNAMESE_EMBEDDING_FUNC, get_embedding_service
-
 # Reranker
 from reranker import LawReranker
 
 logger = logging.getLogger(__name__)
 load_dotenv(override=True)
-lightrag_setup_logger("lightrag", level="WARNING")
 
 # ---------------------------------------------------------------------------
 # Config
@@ -77,7 +69,6 @@ QDRANT_HOST          = os.environ.get("QDRANT_HOST", "localhost")
 QDRANT_PORT          = int(os.environ.get("QDRANT_PORT", "6333"))
 EMBEDDING_MODEL      = os.environ.get("EMBEDDING_MODEL_NAME", "AITeamVN/Vietnamese_Embedding_v2")
 DEVICE               = os.environ.get("DEVICE", "cpu")
-LIGHTRAG_WORKING_DIR = os.environ.get("LIGHTRAG_WORKING_DIR", "./lightrag_data")
 
 LAW_COLLECTION       = "law"
 ADMISSION_COLLECTION = "admission"
@@ -324,33 +315,6 @@ async def _rerank(query: str, docs: list[dict], top_k: int = TOP_K) -> list[dict
         logger.warning("Reranker error (%s), falling back to top-%d", exc, top_k)
         return docs[:top_k]
 
-
-# ---------------------------------------------------------------------------
-# LightRAG singleton
-# ---------------------------------------------------------------------------
-
-_lightrag_instance: Optional[LightRAG] = None
-_lightrag_lock = asyncio.Lock()
-
-
-async def get_lightrag() -> LightRAG:
-    global _lightrag_instance
-    if _lightrag_instance is not None:
-        return _lightrag_instance
-    async with _lightrag_lock:
-        if _lightrag_instance is not None:
-            return _lightrag_instance
-        os.makedirs(LIGHTRAG_WORKING_DIR, exist_ok=True)
-        await get_embedding_service()
-        rag = LightRAG(
-            working_dir=LIGHTRAG_WORKING_DIR,
-            llm_model_func=gpt_4o_mini_complete,
-            embedding_func=VIETNAMESE_EMBEDDING_FUNC,
-        )
-        await rag.initialize_storages()
-        _lightrag_instance = rag
-        logger.info("LightRAG initialized. working_dir=%s", LIGHTRAG_WORKING_DIR)
-    return _lightrag_instance
 
 
 # ---------------------------------------------------------------------------
@@ -632,80 +596,7 @@ search_admission = StructuredTool.from_function(
     ),
     args_schema=_SearchInput,
 )
-
-
-# ---------------------------------------------------------------------------
-# Tool: search_lightrag
-# ---------------------------------------------------------------------------
-
-_REWRITER_SYSTEM_PROMPT = """\
-Bạn là công cụ chuyên biệt: chuyển câu hỏi tự nhiên thành keyword query \
-tối ưu cho hệ thống tìm kiếm đồ thị tri thức pháp luật (LightRAG).
-
-NHIỆM VỤ: Tách bỏ ngữ cảnh cá nhân, giữ nguyên nội dung pháp lý + loại thông tin cần tìm.
-
-QUY TẮC:
-1. Chỉ trả về keyword query, KHÔNG giải thích, KHÔNG câu hoàn chỉnh.
-2. Query ngắn gọn: 5–15 từ.
-3. GIỮ NGUYÊN mọi thực thể pháp lý trong câu hỏi gốc.
-4. KHÔNG giữ lại: "tôi", "của tôi", "hôm nay", "lỡ", câu chuyện cá nhân.
-5. KHÔNG thêm từ khóa không có trong câu hỏi gốc.
-
-Chỉ trả về keyword query, không có gì khác.\
-"""
-
 _rewriter_llm: Optional[ChatOpenAI] = None
-
-
-async def _rewrite_query_for_lightrag(natural_query: str) -> str:
-    if _rewriter_llm is None:
-        return natural_query
-    response = await _rewriter_llm.ainvoke([
-        SystemMessage(content=_REWRITER_SYSTEM_PROMPT),
-        HumanMessage(content=natural_query),
-    ])
-    rewritten = response.content.strip()
-    logger.info("LIGHTRAG QUERY REWRITE: %r → %r", natural_query, rewritten)
-    return rewritten
-
-
-async def _run_search_lightrag(query: str) -> str:
-    effective_query = await _rewrite_query_for_lightrag(query)
-    logger.info("LIGHTRAG INPUT: %s", effective_query)
-    try:
-        rag    = await get_lightrag()
-        answer = await rag.aquery(
-            effective_query,
-            param=QueryParam(
-                mode="mix",
-                top_k=20,
-                user_prompt=(
-                    "Hãy tìm thông tin chi tiết về truy vấn. "
-                    "Thông tin phải chính xác tuyệt đối và bám sát truy vấn, "
-                    "không được trả về câu trả lời sai lệch."
-                ),
-            ),
-        )
-        if not answer or not answer.strip():
-            return "Không tìm thấy thông tin phù hợp trong kho dữ liệu."
-        logger.info("LIGHTRAG RESULT (first 300):\n%s", answer[:300])
-        return answer
-    except Exception as exc:
-        logger.error("LightRAG query error: %s", exc)
-        return f"Lỗi truy xuất LightRAG: {exc}"
-
-
-search_lightrag = StructuredTool.from_function(
-    coroutine=_run_search_lightrag,
-    name="search_lightrag",
-    description=(
-        "Tìm kiếm thông tin chuyên sâu bằng đồ thị tri thức kết hợp tìm kiếm vector (hybrid). "
-        "Dùng khi cần tra cứu văn bản pháp luật, điều khoản, quy định, mức phạt, xử phạt hành chính. "
-        "QUAN TRỌNG: tham số query PHẢI là nguyên văn câu hỏi gốc của người dùng, "
-        "KHÔNG được tóm tắt, paraphrase hay rút gọn."
-    ),
-    args_schema=_SearchInput,
-)
 
 
 # ---------------------------------------------------------------------------
@@ -1352,7 +1243,6 @@ RAG_TOOLS: list[BaseTool] = [
     search_tour_info,
     scan_all_tours,
     get_tour_detail,
-    search_lightrag,
 ]
 
 
@@ -1402,9 +1292,7 @@ Các công cụ hiện có:
    bạn BẮT BUỘC phải sử dụng công cụ phù hợp TRƯỚC KHI trả lời.
 
 2. Với câu hỏi pháp luật, mức phạt, xử phạt hành chính, điều khoản cụ thể:
-   - Dùng search_law TRƯỚC (hybrid Qdrant + reranker, nhanh hơn).
-   - Nếu search_law không đủ hoặc cần tra cứu quan hệ nhiều văn bản → thử search_lightrag.
-   - Khi gọi search_lightrag: tham số query PHẢI là nguyên văn lời người dùng.
+   - Dùng search_law (hybrid Qdrant + reranker, nhanh hơn).
 
 3. Khi đã sử dụng công cụ, bạn PHẢI trả lời NGHIÊM NGẶT dựa trên dữ liệu truy xuất được.
    TUYỆT ĐỐI không được bổ sung, ước đoán hoặc suy diễn bất kỳ CON SỐ CỤ THỂ nào ngoài dữ liệu.
