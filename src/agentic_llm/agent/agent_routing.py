@@ -111,7 +111,10 @@ CÔNG CỤ:
 {tool_lines}
 
 QUY TẮC TRA CỨU:
-Câu hỏi về điểm chuẩn, học phí, chỉ tiêu, ngành học, mã ngành — không bao giờ là kiến thức phổ thông.
+Mọi thông tin liên quan đến UET — bao gồm nhưng không giới hạn ở: điểm chuẩn,
+học phí, chỉ tiêu, ngành học, mã ngành, địa chỉ, thông tin liên hệ, lịch thi,
+chương trình đào tạo, quy định tuyển sinh — đều phải tra cứu qua search_admission.
+Tuyệt đối không tự trả lời từ kiến thức có sẵn khi chưa gọi search_admission.
 Luôn dùng search_admission trước khi trả lời. Không ước tính hay suy diễn số liệu.
 
 QUY TẮC PHÂN TÍCH SAU KHI CÓ DỮ LIỆU:
