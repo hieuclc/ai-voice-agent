@@ -29,7 +29,8 @@ from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, Sys
 from pydantic import BaseModel
 import asyncio
 
-from agent import create_agent, get_lightrag
+from agent import create_agent, get_lightrag, preload_bge_model
+from agent_routing import create_router_agent
 from embedding_service import get_embedding_service
 
 # ---------------------------------------------------------------------------
@@ -223,7 +224,7 @@ async def stream_agent_response(
             if kind == "done":
                 break
             elif kind == "thinking":
-                yield _sse(_chunk_payload(completion_id, model, {"content": f"\n\n*{value}*\n\n"}))
+                yield _sse(_chunk_payload(completion_id, model, {"content": f"\n\n{value}\n\n"}))
             elif kind == "token":
                 yield _sse(_chunk_payload(completion_id, model, {"content": value}))
     finally:
@@ -256,9 +257,11 @@ async def get_full_response(graph, lc_messages: list, model: str) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Pre-warm embedding model and LightRAG on startup so first request is fast."""
-    logger.info("Startup: loading Vietnamese embedding model…")
-    await get_embedding_service()
+    """Pre-warm all models on startup so first request is fast."""
+    logger.info("Startup: loading BGE-M3 embedding model…")
+    await preload_bge_model()           # ← BGE model cho Qdrant hybrid search
+    logger.info("Startup: loading Vietnamese embedding service…")
+    await get_embedding_service()       # ← embedding cho LightRAG
     logger.info("Startup: initializing LightRAG…")
     await get_lightrag()
     logger.info("Startup: all services ready.")
@@ -277,7 +280,7 @@ app.add_middleware(
 )
 
 # Build the agent once at startup
-graph = create_agent(
+graph = create_router_agent(
     extra_tools=EXTRA_TOOLS,
     model=LLM_MODEL,
     openai_api_key=OPENAI_API_KEY,

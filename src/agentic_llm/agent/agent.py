@@ -1,12 +1,22 @@
 """
-LangGraph RAG Agent with multi-hop reasoning.
+agent.py — LangGraph RAG Agent với Qdrant hybrid retrieval, cross-encoder reranker,
+           và agentic workflow (route → retrieve → grade → rewrite → generate).
 
 RAG tools:
-  - search_law      : ChromaDB vector search (law domain)
-  - search_admission: ChromaDB vector search (admission domain)
-  - search_tours    : ChromaDB vector search (tour domain)
-  - get_tour_detail : ChromaDB exact-match tour detail
-  - search_lightrag : LightRAG hybrid (graph + vector) search  ← NEW
+  - search_law       : Qdrant hybrid search (dense + sparse) + reranker
+  - search_admission : Qdrant hybrid search (dense + sparse) + reranker
+  - search_tours     : Qdrant hybrid search (summary only)
+  - get_tour_detail  : Qdrant exact-match tour detail
+  - search_lightrag  : LightRAG graph + vector search (pháp luật phức tạp)
+
+Agentic workflow cho search_law:
+  retrieve → grade_documents → [done | rewrite → retrieve (loop ≤ MAX_REWRITE)]
+
+Kiến trúc async:
+  - BGE-M3 model được load SYNCHRONOUSLY tại startup (preload_bge_model)
+  - Encode query chạy trong executor (CPU-bound) → không block event loop
+  - Qdrant query dùng AsyncQdrantClient → hoàn toàn async, không dùng run_in_executor
+  - Không dùng QdrantVectorStore (vì nó gọi embed bên trong thread không có event loop)
 """
 
 from __future__ import annotations
@@ -16,8 +26,12 @@ import json
 import logging
 import os
 import random
+from typing import Annotated, List, Literal, Optional
+
+import numpy as np
+import torch
+from datetime import datetime
 from dotenv import load_dotenv
-from typing import Annotated, Literal, Optional
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.tools import BaseTool, StructuredTool
@@ -27,129 +41,66 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel
 from typing_extensions import TypedDict
-from datetime import datetime
 
-logger = logging.getLogger(__name__)
-load_dotenv(override=True)
-
-import chromadb
-from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-
-# ---------------------------------------------------------------------------
-# ChromaDB (LAW domain only)
-# ---------------------------------------------------------------------------
-
-CHROMA_LAW_PATH = os.environ.get("CHROMA_PATH")
-LAW_COLLECTION_NAME = "law"
-ADMISSION_COLLECTION_NAME = "admission"
-EMBEDDING_MODEL_NAME = os.environ.get("EMBEDDING_MODEL_NAME")
-DEVICE = os.environ.get("DEVICE")
-logger.info("Initializing LAW ChromaDB at path: %s", CHROMA_LAW_PATH)
-
-# Persistent client
-_client = chromadb.PersistentClient(path=CHROMA_LAW_PATH)
-
-# Embedding function (must match the one used when indexing!)
-_law_embedding_fn = SentenceTransformerEmbeddingFunction(
-    model_name=EMBEDDING_MODEL_NAME,
-    device=DEVICE,
+# Qdrant — dùng AsyncQdrantClient để tránh blocking
+from FlagEmbedding import BGEM3FlagModel
+from qdrant_client import AsyncQdrantClient
+from qdrant_client.http.models import (
+    NamedSparseVector,
+    NamedVector,
+    SparseVector,
+    SearchRequest,
+    FusionQuery,
+    Prefetch,
+    Query,
 )
+from qdrant_client import models as qmodels
 
-# Get collection
-_law_collection = _client.get_or_create_collection(
-    name=LAW_COLLECTION_NAME,
-    embedding_function=_law_embedding_fn,
-)
-
-_admission_collection = _client.get_or_create_collection(
-    name=ADMISSION_COLLECTION_NAME,
-    embedding_function=_law_embedding_fn,
-)
-
-try:
-    count = _law_collection.count()
-    logger.info(
-        "LAW collection '%s' loaded. Document count = %d",
-        LAW_COLLECTION_NAME,
-        count,
-    )
-    count = _admission_collection.count()
-    logger.info(
-        "Admission collection '%s' loaded. Document count = %d",
-        ADMISSION_COLLECTION_NAME,
-        count,
-    )
-except Exception as e:
-    logger.exception("Failed to load LAW collection: %s", e)
-
-
-# ---------------------------------------------------------------------------
-# LightRAG singleton — initialized once at startup
-# ---------------------------------------------------------------------------
-
+# LightRAG
 from lightrag import LightRAG, QueryParam
 from lightrag.llm.openai import gpt_4o_mini_complete
 from lightrag.utils import setup_logger as lightrag_setup_logger
 from embedding_service import VIETNAMESE_EMBEDDING_FUNC, get_embedding_service
 
+# Reranker
+from reranker import LawReranker
+
+logger = logging.getLogger(__name__)
+load_dotenv(override=True)
 lightrag_setup_logger("lightrag", level="WARNING")
 
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+QDRANT_HOST          = os.environ.get("QDRANT_HOST", "localhost")
+QDRANT_PORT          = int(os.environ.get("QDRANT_PORT", "6333"))
+EMBEDDING_MODEL      = os.environ.get("EMBEDDING_MODEL_NAME", "AITeamVN/Vietnamese_Embedding_v2")
+DEVICE               = os.environ.get("DEVICE", "cpu")
 LIGHTRAG_WORKING_DIR = os.environ.get("LIGHTRAG_WORKING_DIR", "./lightrag_data")
 
-# ---------------------------------------------------------------------------
-# LightRAG instance
-# ---------------------------------------------------------------------------
+LAW_COLLECTION       = "law"
+ADMISSION_COLLECTION = "admission"
+TOUR_COLLECTION      = "tours"
 
-_lightrag_instance: Optional[LightRAG] = None
-_lightrag_lock = asyncio.Lock()
-
-
-async def get_lightrag() -> LightRAG:
-    """Return (and lazily initialize) the shared LightRAG instance."""
-    global _lightrag_instance
-    if _lightrag_instance is not None:
-        return _lightrag_instance
-
-    async with _lightrag_lock:
-        # Double-checked locking
-        if _lightrag_instance is not None:
-            return _lightrag_instance
-
-        os.makedirs(LIGHTRAG_WORKING_DIR, exist_ok=True)
-
-        # Pre-warm the embedding model before LightRAG uses it
-        await get_embedding_service()
-
-        rag = LightRAG(
-            working_dir=LIGHTRAG_WORKING_DIR,
-            llm_model_func=gpt_4o_mini_complete,
-            embedding_func=VIETNAMESE_EMBEDDING_FUNC,
-        )
-        await rag.initialize_storages()
-        _lightrag_instance = rag
-        logger.info("LightRAG initialized. working_dir=%s", LIGHTRAG_WORKING_DIR)
-
-    return _lightrag_instance
-
+RETRIEVAL_K = 10   # candidates trước rerank
+TOP_K       = 5    # kết quả cuối sau rerank
+MAX_HOPS    = 6    # max tool calls cho agent chính
+MAX_REWRITE = 3    # max query rewrite trong agentic loop
 
 # ---------------------------------------------------------------------------
-# Thinking / waiting sentences
+# Thinking sentences (giữ nguyên từ bản cũ)
 # ---------------------------------------------------------------------------
 
-# Khoảng thời gian (giây) giữa các câu thông báo trong lúc tìm kiếm
 THINKING_INTERVAL_SECONDS: float = 10.0
-
-# Độ trễ (giây) trước khi trả LLM response — tạo cảm giác tự nhiên sau khi yield câu chờ
 THINKING_RESPONSE_DELAY_SECONDS: float = 0.5
 
-# 3 câu mở đầu — yield ngay khi tool bắt đầu lần đầu tiên trong mỗi lifecycle
 THINKING_SENTENCES_START: list[str] = [
     "Tôi đang thực hiện tìm kiếm thông tin, vui lòng chờ trong giây lát.",
     "Tôi sẽ tìm kiếm dữ liệu ngay bây giờ, vui lòng chờ đợi.",
     "Để trả lời chính xác, tôi cần tra cứu dữ liệu, xin vui lòng chờ.",
 ]
 
-# 5 câu ongoing — yield mỗi THINKING_INTERVAL_SECONDS nếu agent vẫn đang xử lý
 THINKING_SENTENCES_ONGOING: list[str] = [
     "Quá trình tìm kiếm vẫn đang tiếp tục, vui lòng chờ thêm.",
     "Hệ thống đang truy xuất dữ liệu liên quan, xin vui lòng đợi.",
@@ -162,155 +113,529 @@ THINKING_SENTENCES_ONGOING: list[str] = [
 def pick_thinking_start_sentence() -> str:
     return random.choice(THINKING_SENTENCES_START)
 
-
 def pick_thinking_ongoing_sentence() -> str:
     return random.choice(THINKING_SENTENCES_ONGOING)
 
-
 def pick_thinking_sentence() -> str:
-    """Backward-compatible: picks from the combined pool."""
     return random.choice(THINKING_SENTENCES_START + THINKING_SENTENCES_ONGOING)
 
 
 # ---------------------------------------------------------------------------
-# Agent state
+# BGE-M3 singleton — load SYNCHRONOUSLY, encode trong executor
+#
+# Lý do KHÔNG dùng async để load:
+#   LangChain ToolNode chạy tools trong event loop chính.
+#   Nếu model chưa load khi tool được gọi lần đầu, ta load sync trong executor.
+#   Sau lần đầu, _bge_model luôn có sẵn → encode chỉ cần executor (CPU-bound).
 # ---------------------------------------------------------------------------
 
-class AgentState(TypedDict):
-    messages: Annotated[list[BaseMessage], add_messages]
-    hop_count: int           # number of tool-execution rounds completed
-    thinking_streamed: bool  # bookkeeping used by the streaming server
+_bge_model: Optional[BGEM3FlagModel] = None
+_bge_init_lock = asyncio.Lock()
+
+
+def _load_bge_sync() -> BGEM3FlagModel:
+    """Load và warmup BGE model. Chạy synchronously trong thread executor."""
+    logger.info("Loading BGE-M3 model: %s on %s", EMBEDDING_MODEL, DEVICE)
+    m = BGEM3FlagModel(
+        EMBEDDING_MODEL,
+        use_fp16=(DEVICE == "cuda"),
+        device=DEVICE,
+    )
+    m.model.eval()
+    m.encode(["warmup"], batch_size=1, max_length=32)
+    logger.info("BGE-M3 ready.")
+    return m
+
+
+async def _ensure_bge() -> BGEM3FlagModel:
+    """Đảm bảo model đã load. Gọi từ async context an toàn."""
+    global _bge_model
+    if _bge_model is not None:
+        return _bge_model
+    async with _bge_init_lock:
+        if _bge_model is not None:
+            return _bge_model
+        loop = asyncio.get_running_loop()
+        _bge_model = await loop.run_in_executor(None, _load_bge_sync)
+    return _bge_model
+
+
+async def preload_bge_model() -> None:
+    """Preload tại startup để request đầu tiên không bị chậm."""
+    await _ensure_bge()
+
+
+def _encode_sync(texts: list[str]) -> tuple[np.ndarray, list[dict]]:
+    """
+    Encode texts → (dense_matrix, sparse_list).
+    Chạy synchronously — dùng trong run_in_executor.
+    Không gọi asyncio bên trong.
+    """
+    m = _bge_model  # đã được load trước khi gọi hàm này
+    assert m is not None, "BGE model not loaded"
+
+    tok      = m.tokenizer
+    specials = {tok.cls_token_id, tok.eos_token_id, tok.pad_token_id, tok.unk_token_id}
+
+    with torch.no_grad():
+        res = m.encode(
+            texts,
+            batch_size=min(16, len(texts)),
+            max_length=512,
+            return_dense=True,
+            return_sparse=True,
+            return_colbert_vecs=False,
+        )
+
+    dense = np.array(res["dense_vecs"], dtype=np.float32)
+
+    sparse_list = []
+    for lw in res["lexical_weights"]:
+        d: dict[int, float] = {}
+        for k, w in lw.items():
+            tid = int(k); fw = float(w)
+            if tid not in specials and fw > 0:
+                d[tid] = max(d.get(tid, 0.0), fw)
+        sparse_list.append(d)
+
+    return dense, sparse_list
+
+
+async def _encode_query(query: str) -> tuple[list[float], dict[int, float]]:
+    """
+    Encode một query string → (dense_vec, sparse_dict).
+    Chạy encode trong executor để không block event loop.
+    """
+    await _ensure_bge()
+    loop = asyncio.get_running_loop()
+    dense_mat, sparse_list = await loop.run_in_executor(None, _encode_sync, [query])
+    return dense_mat[0].tolist(), sparse_list[0]
 
 
 # ---------------------------------------------------------------------------
-# Shared input schema for all RAG tools
+# AsyncQdrantClient singleton
+# ---------------------------------------------------------------------------
+
+_async_qdrant: Optional[AsyncQdrantClient] = None
+
+
+def _get_async_qdrant() -> AsyncQdrantClient:
+    global _async_qdrant
+    if _async_qdrant is None:
+        _async_qdrant = AsyncQdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+        logger.info("AsyncQdrantClient connected: %s:%s", QDRANT_HOST, QDRANT_PORT)
+    return _async_qdrant
+
+
+# ---------------------------------------------------------------------------
+# Reranker singleton
+# ---------------------------------------------------------------------------
+
+_reranker: Optional[LawReranker] = None
+_reranker_lock = asyncio.Lock()
+
+
+async def _get_reranker() -> LawReranker:
+    global _reranker
+    if _reranker is not None:
+        return _reranker
+    async with _reranker_lock:
+        if _reranker is not None:
+            return _reranker
+        loop = asyncio.get_running_loop()
+        r = LawReranker()
+        await loop.run_in_executor(None, r.startup)
+        _reranker = r
+    return _reranker
+
+
+# ---------------------------------------------------------------------------
+# Core hybrid retrieval — AsyncQdrantClient trực tiếp
+# ---------------------------------------------------------------------------
+
+async def _hybrid_retrieve(collection: str, query: str, k: int = RETRIEVAL_K) -> list[dict]:
+    """
+    Hybrid search (dense + sparse → Qdrant RRF fusion) trực tiếp qua AsyncQdrantClient.
+
+    Không dùng QdrantVectorStore vì nó gọi embed_documents() bên trong thread
+    executor không có event loop.
+
+    Trả về list[dict] với key "text" + toàn bộ metadata.
+    """
+    client = _get_async_qdrant()
+
+    # 1. Encode query (CPU-bound trong executor)
+    dense_vec, sparse_dict = await _encode_query(query)
+
+    sparse_indices = sorted(sparse_dict.keys())
+    sparse_values  = [sparse_dict[i] for i in sparse_indices]
+
+    # 2. Qdrant hybrid query với Prefetch + Fusion (RRF)
+    #    Đây là cách chính thức của Qdrant để hybrid search
+    results = await client.query_points(
+        collection_name=collection,
+        prefetch=[
+            # Dense branch
+            qmodels.Prefetch(
+                query=dense_vec,
+                using="dense",
+                limit=k,
+            ),
+            # Sparse branch
+            qmodels.Prefetch(
+                query=qmodels.SparseVector(
+                    indices=sparse_indices,
+                    values=sparse_values,
+                ),
+                using="sparse",
+                limit=k,
+            ),
+        ],
+        # RRF fusion của 2 branches
+        query=qmodels.FusionQuery(fusion=qmodels.Fusion.RRF),
+        limit=k,
+        with_payload=True,
+    )
+
+    # 3. Parse kết quả
+    docs = []
+    for pt in results.points:
+        payload = pt.payload or {}
+        text    = payload.get("page_content", "")
+        meta    = payload.get("metadata", {})
+        # Flatten nếu metadata lồng nhau
+        if isinstance(meta, dict):
+            docs.append({"text": text, **meta})
+        else:
+            docs.append({"text": text})
+
+    return docs
+
+
+async def _rerank(query: str, docs: list[dict], top_k: int = TOP_K) -> list[dict]:
+    """Apply cross-encoder reranker async. Fallback nếu lỗi."""
+    if not docs:
+        return []
+    try:
+        reranker = await _get_reranker()
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, reranker.rerank, query, docs, top_k)
+    except Exception as exc:
+        logger.warning("Reranker error (%s), falling back to top-%d", exc, top_k)
+        return docs[:top_k]
+
+
+# ---------------------------------------------------------------------------
+# LightRAG singleton
+# ---------------------------------------------------------------------------
+
+_lightrag_instance: Optional[LightRAG] = None
+_lightrag_lock = asyncio.Lock()
+
+
+async def get_lightrag() -> LightRAG:
+    global _lightrag_instance
+    if _lightrag_instance is not None:
+        return _lightrag_instance
+    async with _lightrag_lock:
+        if _lightrag_instance is not None:
+            return _lightrag_instance
+        os.makedirs(LIGHTRAG_WORKING_DIR, exist_ok=True)
+        await get_embedding_service()
+        rag = LightRAG(
+            working_dir=LIGHTRAG_WORKING_DIR,
+            llm_model_func=gpt_4o_mini_complete,
+            embedding_func=VIETNAMESE_EMBEDDING_FUNC,
+        )
+        await rag.initialize_storages()
+        _lightrag_instance = rag
+        logger.info("LightRAG initialized. working_dir=%s", LIGHTRAG_WORKING_DIR)
+    return _lightrag_instance
+
+
+# ---------------------------------------------------------------------------
+# Agentic law retrieval: retrieve → grade → rewrite (loop ≤ MAX_REWRITE)
+# ---------------------------------------------------------------------------
+
+async def _grade_documents(query: str, docs: list[dict], llm: ChatOpenAI) -> list[dict]:
+    """Grade relevance của từng doc. Song song hoá để giảm latency."""
+    if not docs:
+        return []
+
+    prompt_tpl = (
+        "Bạn là bộ lọc tài liệu pháp lý.\n"
+        "Query: {query}\n\n"
+        "Tài liệu:\n{doc}\n\n"
+        "Tài liệu này có liên quan đến query không? Trả lời DUY NHẤT 'yes' hoặc 'no':"
+    )
+
+    async def _grade_one(doc: dict) -> bool:
+        try:
+            resp = await llm.ainvoke([
+                HumanMessage(content=prompt_tpl.format(
+                    query=query,
+                    doc=doc["text"][:1500],
+                ))
+            ])
+            return resp.content.strip().lower().startswith("yes")
+        except Exception:
+            return True  # fail-open
+
+    flags = await asyncio.gather(*[_grade_one(d) for d in docs])
+    return [d for d, keep in zip(docs, flags) if keep]
+
+
+async def _rewrite_query(original: str, current: str, llm: ChatOpenAI) -> str:
+    """Rewrite query để cải thiện retrieval."""
+    prompt = (
+        "Bạn là công cụ rewrite query cho hệ thống tìm kiếm pháp luật Việt Nam.\n"
+        "Query hiện tại không tìm được đủ tài liệu liên quan.\n\n"
+        f"Query gốc: {original}\n"
+        f"Query hiện tại: {current}\n\n"
+        "Viết lại query (5–12 từ, thuật ngữ pháp lý chính xác hơn).\n"
+        "Chỉ trả về query mới, không giải thích:"
+    )
+    try:
+        resp = await llm.ainvoke([HumanMessage(content=prompt)])
+        new_q = resp.content.strip()
+        logger.info("[Rewrite] %r → %r", current, new_q)
+        return new_q
+    except Exception:
+        return current
+
+
+def _format_law_chunk(doc: dict) -> str:
+    text        = doc.get("text", "")
+    source      = doc.get("source", doc.get("source_file", ""))
+    article     = doc.get("article", "")
+    clause      = doc.get("clause", "")
+    clause_full = doc.get("clause_full", "")
+
+    header = f"Văn bản: {source}"
+    if article: header += f" | Điều: {article}"
+    if clause:  header += f" | Khoản: {clause}"
+
+    parts = [header, "", text]
+    if clause_full and clause_full != text:
+        parts += ["", f"Toàn văn khoản:\n{clause_full}"]
+    return "\n".join(parts)
+
+
+async def _agentic_law_retrieve(
+    query: str,
+    grader_llm: ChatOpenAI,
+) -> tuple[str, list[dict]]:
+    """
+    Retrieve → grade → rewrite loop cho pháp luật.
+    Trả về (context_text, source_docs).
+    """
+    MIN_RELEVANT  = 2
+    current_query = query
+    rewrite_count = 0
+
+    while True:
+        # ── Retrieve + Rerank ──────────────────────────────────────────
+        raw    = await _hybrid_retrieve(LAW_COLLECTION, current_query, RETRIEVAL_K)
+        ranked = await _rerank(current_query, raw, TOP_K)
+
+        logger.info(
+            "[AgenticLaw] rewrite=%d retrieved=%d ranked=%d query=%r",
+            rewrite_count, len(raw), len(ranked), current_query,
+        )
+
+        if not ranked:
+            if rewrite_count >= MAX_REWRITE:
+                return "", []
+            rewrite_count += 1
+            current_query = await _rewrite_query(query, current_query, grader_llm)
+            continue
+
+        # ── Grade ──────────────────────────────────────────────────────
+        relevant = await _grade_documents(query, ranked, grader_llm)
+        logger.info("[AgenticLaw] relevant=%d/%d", len(relevant), len(ranked))
+
+        if len(relevant) >= MIN_RELEVANT or rewrite_count >= MAX_REWRITE:
+            final   = relevant if relevant else ranked
+            context = "\n\n---\n\n".join(_format_law_chunk(d) for d in final)
+            return context, final
+
+        # ── Rewrite ────────────────────────────────────────────────────
+        rewrite_count += 1
+        current_query = await _rewrite_query(query, current_query, grader_llm)
+
+
+# ---------------------------------------------------------------------------
+# Tool: search_law
 # ---------------------------------------------------------------------------
 
 class _SearchInput(BaseModel):
     query: str
 
-
-# ---------------------------------------------------------------------------
-# RAG Tools — ChromaDB (unchanged)
-# ---------------------------------------------------------------------------
-
-def law_rag_query(question: str, k: int = 3):
-    result = _law_collection.query(
-        query_texts=[question],
-        n_results=k,
-        include=["documents", "metadatas"],
-    )
-
-    answers = []
-    documents = result.get("documents", [[]])[0]
-    metadatas = result.get("metadatas", [[]])[0]
-
-    for meta, text in zip(metadatas, documents):
-        answers.append({
-            "text": text,
-            "article": meta.get("article", ""),
-            "clause": meta.get("clause", ""),
-            "article_full": meta.get("article_full", ""),
-            "clause_full": meta.get("clause_full", ""),
-            "source": meta.get("source", meta.get("source_file", ""))
-        })
-
-    return answers
-
-
-def admission_rag_query(question: str, k: int = 3):
-    result = _admission_collection.query(
-        query_texts=[question],
-        n_results=k,
-    )
-
-    answers = []
-    documents = result.get("documents", [[]])[0]
-    metadatas = result.get("metadatas", [[]])[0]
-
-    for meta, text in zip(metadatas, documents):
-        answers.append({
-            "text": text,
-            "metadata": meta
-        })
-
-    return answers
+_grader_llm: Optional[ChatOpenAI] = None
 
 
 async def _run_search_law(query: str) -> str:
-    loop = asyncio.get_event_loop()
-    try:
-        results: list[dict] = await loop.run_in_executor(
-            None, lambda: law_rag_query(query, k=5)
-        )
-    except Exception as exc:
-        logger.error("law_rag_query error: %s", exc)
-        return f"Retrieval error: {exc}"
+    if _grader_llm is None:
+        # Fallback nếu grader chưa init (không xảy ra sau create_agent)
+        raw    = await _hybrid_retrieve(LAW_COLLECTION, query, RETRIEVAL_K)
+        ranked = await _rerank(query, raw, TOP_K)
+        if not ranked:
+            return "Không tìm thấy thông tin pháp luật phù hợp."
+        return "\n\n-------------------\n\n".join(_format_law_chunk(d) for d in ranked)
 
-    if not results:
+    context, sources = await _agentic_law_retrieve(query, _grader_llm)
+
+    if not context:
         return "Không tìm thấy thông tin pháp luật phù hợp."
 
-    parts: list[str] = []
+    logger.info(
+        "===== LAW RESULT =====\n%d sources\n%s\n======================",
+        len(sources),
+        "\n".join(f"  [{i+1}] {d.get('source','?')} | {d.get('article','')}"
+                  for i, d in enumerate(sources)),
+    )
+    return context
 
-    for i, item in enumerate(results, 1):
-        text = item.get("text", "")
-        article = item.get("article", "")
-        clause = item.get("clause", "")
-        source = item.get("source", "")
-        clause_full = item.get("clause_full", "")
 
-        parts.append(
-            f"[Kết quả {i}]\n"
-            f"Văn bản: {source}\n"
-            f"Điều: {article}\n"
-            f"Khoản: {clause}\n\n"
-            f"Nội dung:\n{text}\n\n"
-            f"Toàn văn khoản:\n{clause_full}"
-        )
+search_law = StructuredTool.from_function(
+    coroutine=_run_search_law,
+    name="search_law",
+    description=(
+        "Tìm kiếm văn bản pháp luật, điều khoản, quy định, mức phạt, xử phạt hành chính. "
+        "Dùng khi câu hỏi liên quan đến luật, nghị định, thông tư, xử phạt, v.v. "
+        "Tham số: query (câu hỏi hoặc từ khóa pháp luật)."
+    ),
+    args_schema=_SearchInput,
+)
 
-    logger.info("===== LAW RETRIEVAL RESULT =====")
-    for i, item in enumerate(results, 1):
+
+# ---------------------------------------------------------------------------
+# Tool: search_admission
+# ---------------------------------------------------------------------------
+
+_ADMISSION_QUERY_REWRITER_SYSTEM_PROMPT = """\
+Bạn là công cụ chuyển câu hỏi tuyển sinh tự nhiên thành danh sách keyword query tối ưu \
+cho hệ thống tìm kiếm vector (Qdrant hybrid search).
+
+NHIỆM VỤ: Tách câu hỏi thành 1-3 keyword query ngắn gọn, tập trung vào thực thể chính.
+
+QUY TẮC:
+1. Mỗi query: 3–8 từ, chứa tên ngành/mã ngành/năm/loại thông tin cần tìm.
+2. LUÔN có một query chứa TÊN NGÀNH CHÍNH XÁC như trong câu hỏi gốc.
+3. Tách riêng: một query cho điểm chuẩn, một query cho học phí nếu cần cả hai.
+4. Bỏ hết ngữ cảnh cá nhân ("tôi đạt", "con tôi", "năm nay mình").
+5. Bỏ phần reasoning/điều kiện ("nếu đạt X thì", "có nên đăng ký không").
+6. GIỮ nguyên năm (2024, 2025, 2026) nếu có trong câu hỏi.
+7. KHÔNG thêm từ khóa không có trong câu hỏi gốc.
+
+Trả về JSON: {"queries": ["query1", "query2", ...]}
+Chỉ trả về JSON, không có gì khác.\
+"""
+
+
+async def _rewrite_query_for_admission(natural_query: str) -> list[str]:
+    """Tách câu hỏi tuyển sinh phức tạp thành danh sách keyword query tối ưu."""
+    if _rewriter_llm is None:
+        return [natural_query]
+    try:
+        response = await _rewriter_llm.ainvoke([
+            SystemMessage(content=_ADMISSION_QUERY_REWRITER_SYSTEM_PROMPT),
+            HumanMessage(content=natural_query),
+        ])
+        raw = response.content.strip().replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(raw)
+        queries = parsed.get("queries") or [natural_query]
         logger.info(
-            "Rank %s | Source: %s | Article: %s | Clause: %s",
-            i,
-            item.get("source"),
-            item.get("article"),
-            item.get("clause"),
+            "ADMISSION QUERY REWRITE: %r → %s",
+            natural_query, queries,
         )
-    logger.info("================================")
-    return "\n\n-------------------\n\n".join(parts)
+        return queries
+    except Exception as exc:
+        logger.warning("Admission query rewriter error (%s), fallback to original.", exc)
+        return [natural_query]
 
 
 async def _run_search_admission(query: str) -> str:
-    loop = asyncio.get_event_loop()
-    logger.info(query)
-    try:
-        results: list[dict] = await loop.run_in_executor(
-            None,
-            lambda: admission_rag_query(query, k=5)
-        )
-    except Exception as exc:
-        logger.error("admission_rag_query error: %s", exc)
-        return f"Retrieval error: {exc}"
+    # Rewrite query thành các keyword query tối ưu
+    sub_queries = await _rewrite_query_for_admission(query)
 
-    if not results:
+    # Retrieve song song cho từng sub-query, dedup theo text
+    seen_texts: set = set()
+    merged: list[dict] = []
+
+    async def _fetch_one(sq: str) -> list[dict]:
+        try:
+            return await _hybrid_retrieve(ADMISSION_COLLECTION, sq, RETRIEVAL_K)
+        except Exception as exc:
+            logger.error("admission retrieve error for sub-query %r: %s", sq, exc)
+            return []
+
+    all_batches = await asyncio.gather(*[_fetch_one(sq) for sq in sub_queries])
+    for batch in all_batches:
+        for doc in batch:
+            key = doc.get("text", "")[:120]
+            if key not in seen_texts:
+                seen_texts.add(key)
+                merged.append(doc)
+
+    # Rerank với query gốc
+    try:
+        ranked = await _rerank(query, merged, TOP_K)
+    except Exception as exc:
+        logger.error("admission rerank error: %s", exc)
+        return f"Retrieval error: {exc}"
+    if not ranked:
         return "Không tìm thấy thông tin tuyển sinh phù hợp."
 
-    parts: list[str] = []
-    for i, item in enumerate(results, 1):
+    logger.info(
+        "===== ADMISSION: query=%r → %d/%d results =====\n%s",
+        query, len(ranked), len(raw),
+        "\n".join(
+            f"  [{i+1}] score={d.get('_rerank_score', 0):.4f} | {d.get('text','')[:80].replace(chr(10),' ')}"
+            for i, d in enumerate(ranked)
+        ),
+    )
+
+    parts = []
+    for i, item in enumerate(ranked, 1):
         text = item.get("text", "")
-        meta = item.get("metadata", {})
+        meta = {k: v for k, v in item.items() if k not in ("text", "_rerank_score")}
         parts.append(
             f"[Kết quả {i}]\n"
             f"Metadata: {json.dumps(meta, ensure_ascii=False)}\n\n"
             f"Nội dung:\n{text}"
         )
 
-    return "\n\n-------------------\n\n".join(parts)
+    body = "\n\n-------------------\n\n".join(parts)
+
+    # Prefix nhắc LLM phải đối chiếu nghiêm ngặt, không xác nhận điều không có trong data
+    prefix = (
+        "[HƯỚNG DẪN ĐỐI CHIẾU — KHÔNG ĐỌC CHO USER]\n"
+        "Đây là TOÀN BỘ dữ liệu tuyển sinh tìm được. Khi trả lời BẮT BUỘC:\n"
+        "1. Chỉ nêu những gì THỰC SỰ CÓ trong dữ liệu dưới đây.\n"
+        "2. Nếu điều user nhắc đến (tổ hợp môn, ngành, mức học phí...) "
+        "KHÔNG XUẤT HIỆN trong dữ liệu → trả lời thẳng là KHÔNG CÓ, "
+        "rồi nêu những gì thực tế có.\n"
+        "3. TUYỆT ĐỐI không xác nhận hay đồng ý với thông tin user đề cập "
+        "nếu dữ liệu không chứa thông tin đó.\n"
+        "[KẾT THÚC HƯỚNG DẪN]\n\n"
+    )
+    return prefix + body
+
+
+search_admission = StructuredTool.from_function(
+    coroutine=_run_search_admission,
+    name="search_admission",
+    description=(
+        "Tìm kiếm thông tin tuyển sinh, điểm chuẩn, chỉ tiêu, học phí, ngành học. "
+        "Tham số: query (câu hỏi hoặc từ khóa tuyển sinh)."
+    ),
+    args_schema=_SearchInput,
+)
 
 
 # ---------------------------------------------------------------------------
-# Query Rewriter — dedicated LLM for converting natural language → retrieval keywords
+# Tool: search_lightrag
 # ---------------------------------------------------------------------------
 
 _REWRITER_SYSTEM_PROMPT = """\
@@ -322,36 +647,9 @@ NHIỆM VỤ: Tách bỏ ngữ cảnh cá nhân, giữ nguyên nội dung pháp 
 QUY TẮC:
 1. Chỉ trả về keyword query, KHÔNG giải thích, KHÔNG câu hoàn chỉnh.
 2. Query ngắn gọn: 5–15 từ.
-3. GIỮ NGUYÊN mọi thực thể pháp lý trong câu hỏi gốc:
-   - Tên đối tượng cụ thể: loại phương tiện, loại hàng hóa, loại người, tên tổ chức...
-   - Hành vi vi phạm hoặc chủ đề cần tra cứu
-   - Số tiền, số ngày, mức độ nếu có
-   Ví dụ: "ô tô", "xe máy", "doanh nghiệp", "người lao động", "hợp đồng lao động" đều là thực thể cần giữ.
-4. Xác định loại thông tin cần tìm từ ý định câu hỏi, thêm từ khóa tương ứng:
-   - Hỏi về phạt / xử phạt / hình phạt / bị gì / hậu quả → thêm "mức phạt tiền xử phạt hành chính"
-   - Hỏi về thủ tục / cách làm / quy trình → thêm "thủ tục"
-   - Hỏi về điều kiện / tiêu chuẩn / yêu cầu → thêm "điều kiện"
-   - Hỏi về quyền / nghĩa vụ / được làm gì → thêm "quyền nghĩa vụ"
-   - Hỏi về hợp đồng / tranh chấp dân sự → thêm "dân sự"
-   - Hỏi về tội phạm / truy cứu hình sự → thêm "hình sự"
-5. KHÔNG giữ lại: "tôi", "của tôi", "hôm nay", "lỡ", "nghiêm túc", câu chuyện cá nhân.
-6. KHÔNG thêm từ khóa không có trong câu hỏi gốc ngoài các từ khóa loại thông tin ở bước 4.
-
-VÍ DỤ (minh họa nguyên tắc, KHÔNG phải danh sách cần học thuộc):
-Input:  "tôi lỡ đi xe ô tô vượt đèn đỏ, sẽ bị xử phạt như nào"
-Output: ô tô vượt đèn đỏ mức phạt tiền xử phạt hành chính
-
-Input:  "công ty tôi chậm đóng bảo hiểm xã hội cho nhân viên thì bị gì"
-Output: doanh nghiệp chậm đóng bảo hiểm xã hội mức phạt tiền xử phạt hành chính
-
-Input:  "hợp đồng lao động không có thời hạn thì chấm dứt như thế nào"
-Output: chấm dứt hợp đồng lao động không xác định thời hạn điều kiện thủ tục
-
-Input:  "muốn mở cửa hàng kinh doanh thực phẩm cần giấy tờ gì"
-Output: điều kiện kinh doanh thực phẩm giấy phép thủ tục
-
-Input:  "người nước ngoài mua nhà tại Việt Nam được không"
-Output: người nước ngoài mua nhà bất động sản Việt Nam điều kiện quyền
+3. GIỮ NGUYÊN mọi thực thể pháp lý trong câu hỏi gốc.
+4. KHÔNG giữ lại: "tôi", "của tôi", "hôm nay", "lỡ", câu chuyện cá nhân.
+5. KHÔNG thêm từ khóa không có trong câu hỏi gốc.
 
 Chỉ trả về keyword query, không có gì khác.\
 """
@@ -360,56 +658,37 @@ _rewriter_llm: Optional[ChatOpenAI] = None
 
 
 async def _rewrite_query_for_lightrag(natural_query: str) -> str:
-    """Call the rewriter LLM to convert natural language → retrieval keywords."""
     if _rewriter_llm is None:
-        logger.warning("Rewriter LLM not initialized, using original query.")
         return natural_query
     response = await _rewriter_llm.ainvoke([
         SystemMessage(content=_REWRITER_SYSTEM_PROMPT),
         HumanMessage(content=natural_query),
     ])
     rewritten = response.content.strip()
-    logger.info(
-        "===== QUERY REWRITE =====\nOriginal : %s\nRewritten: %s\n=========================",
-        natural_query, rewritten,
-    )
+    logger.info("LIGHTRAG QUERY REWRITE: %r → %r", natural_query, rewritten)
     return rewritten
 
 
-# ---------------------------------------------------------------------------
-# RAG Tool — LightRAG hybrid search  ← NEW
-# ---------------------------------------------------------------------------
-
-
-
 async def _run_search_lightrag(query: str) -> str:
-    """
-    Query LightRAG with local mode (graph neighborhood + vector search).
-
-    Why local instead of hybrid:
-    - hybrid = local + global + naive → 3 internal LLM calls, slow (~8-15s)
-    - local = 1 internal LLM call, typically sufficient for specific legal Q&A
-    - top_k reduced from default 60 → 20 to shrink context and speed up synthesis
-
-    Query is sent as-is (no appended instructions) to preserve embedding accuracy.
-    Citation formatting is handled by the outer agent system prompt.
-    """
-    # Always rewrite through dedicated LLM before hitting LightRAG.
-    # This ensures query embeds into the correct subgraph regardless of how
-    # the agent phrased the tool call.
     effective_query = await _rewrite_query_for_lightrag(query)
-
-    logger.info("===== LIGHTRAG INPUT QUERY =====\n%s\n================================", effective_query)
-
+    logger.info("LIGHTRAG INPUT: %s", effective_query)
     try:
-        rag = await get_lightrag()
-        answer: str = await rag.aquery(
+        rag    = await get_lightrag()
+        answer = await rag.aquery(
             effective_query,
-            param=QueryParam(mode="mix", top_k=20, user_prompt = "Hãy tìm thông tin chi tiết về truy vấn. Lưu ý thông tin phải chính xác tuyệt đối và bám sát truy vấn, không được trả về câu trả lời sai lệch"),
+            param=QueryParam(
+                mode="mix",
+                top_k=20,
+                user_prompt=(
+                    "Hãy tìm thông tin chi tiết về truy vấn. "
+                    "Thông tin phải chính xác tuyệt đối và bám sát truy vấn, "
+                    "không được trả về câu trả lời sai lệch."
+                ),
+            ),
         )
         if not answer or not answer.strip():
             return "Không tìm thấy thông tin phù hợp trong kho dữ liệu."
-        logger.info("===== LIGHTRAG RESULT =====\n%s\n=====", answer)
+        logger.info("LIGHTRAG RESULT (first 300):\n%s", answer[:300])
         return answer
     except Exception as exc:
         logger.error("LightRAG query error: %s", exc)
@@ -423,208 +702,643 @@ search_lightrag = StructuredTool.from_function(
         "Tìm kiếm thông tin chuyên sâu bằng đồ thị tri thức kết hợp tìm kiếm vector (hybrid). "
         "Dùng khi cần tra cứu văn bản pháp luật, điều khoản, quy định, mức phạt, xử phạt hành chính. "
         "QUAN TRỌNG: tham số query PHẢI là nguyên văn câu hỏi gốc của người dùng, "
-        "KHÔNG được tóm tắt, paraphrase hay rút gọn — hệ thống sẽ tự tối ưu hóa bên trong."
+        "KHÔNG được tóm tắt, paraphrase hay rút gọn."
     ),
     args_schema=_SearchInput,
 )
 
 
 # ---------------------------------------------------------------------------
-# Tour domain tools (kept from original agent.py)
+# Tour Query Rewriter
 # ---------------------------------------------------------------------------
 
-TOUR_COLLECTION_NAME = "tours"
+_TOUR_QUERY_REWRITER_SYSTEM_PROMPT = """\
+Bạn là công cụ phân tích câu hỏi về tour du lịch để tạo ra các sub-query tìm kiếm hiệu quả.
 
-_tour_collection = _client.get_or_create_collection(
-    name=TOUR_COLLECTION_NAME,
-    embedding_function=_law_embedding_fn,
-)
+NHIỆM VỤ:
+Phân tích câu hỏi gốc và trả về JSON với cấu trúc sau:
+{
+  "sub_queries": ["query1", "query2", ...],
+  "clause_types": ["policies", "departures", "services", "summary", "day_1", ...]
+}
 
+QUY TẮC QUAN TRỌNG NHẤT — TÊN TOUR:
+Tên tour thường gồm nhiều tỉnh/thành phố nối nhau, ví dụ:
+  "Đồng Tháp, Sa Đéc, Cần Thơ", "Hà Nội, Hạ Long, Ninh Bình", "Đà Nẵng, Hội An, Huế"
+ĐÂY LÀ MỘT TOUR DUY NHẤT, KHÔNG PHẢI NHIỀU TOUR KHÁC NHAU.
+TUYỆT ĐỐI không tách tên tour thành từng tỉnh riêng lẻ khi tạo sub_queries.
+Luôn giữ nguyên tên tour đầy đủ trong mọi sub_query.
+Ngoài ra, tên tour cũng có thể là mã số. Ví dụ "Tour số 1" hay "tour có mã số 2", thì viết lại query là "Tour số 1" hoặc "Tour số 2".
+
+QUY TẮC PHÂN TÍCH:
+1. Câu hỏi chỉ hỏi về thông tin tour (lịch trình, địa điểm):
+   → sub_queries: [tên tour đầy đủ], clause_types: null
+
+2. Câu hỏi về hủy tour, phí hủy, hoàn tiền:
+   → clause_types: ["policies"]
+   → sub_queries: [tên tour đầy đủ nếu có, "chính sách hủy tour hoàn tiền phí", "điều kiện hủy tour trước ngày khởi hành"]
+   Lưu ý: câu hỏi "trước X ngày" cần tìm TOÀN BỘ bảng phí hủy để suy luận khoảng.
+
+3. Câu hỏi về thanh toán, đặt cọc, deadline thanh toán:
+   → clause_types: ["policies"]
+   → sub_queries: [tên tour đầy đủ nếu có, "chính sách thanh toán đặt cọc", "thời hạn hoàn tất thanh toán"]
+
+4. Câu hỏi về lịch khởi hành, ngày đi, còn chỗ:
+   → clause_types: ["departures"]
+   → sub_queries: [tên tour đầy đủ nếu có]
+
+5. Câu hỏi về dịch vụ tổng quát (bao gồm gì, không bao gồm gì, phương tiện, hướng dẫn viên):
+   → clause_types: ["services"]
+
+6. Câu hỏi về lịch trình ngày cụ thể:
+   → clause_types: ["day_1", "day_2", ...]
+
+7. Câu hỏi về một địa điểm/hoạt động cụ thể có bao gồm trong giá tour không,
+   hoặc chi phí của một dịch vụ/vé tham quan cụ thể:
+   → clause_types: ["services", "day_1", "day_2", "day_3", "day_4", "day_5"]
+   → sub_queries: [tên tour đầy đủ, tên địa điểm/hoạt động đó, "dịch vụ bao gồm không bao gồm"]
+   Lý do: thông tin "có bao gồm không" nằm trong services (included/excluded),
+   còn chi phí cụ thể có thể nằm trong mô tả từng ngày hoặc services.excluded.
+
+CHỈ trả về JSON hợp lệ, không có preamble hay giải thích.\
+"""
+
+
+async def _rewrite_query_for_tour(natural_query: str) -> dict:
+    """
+    Phân tích câu hỏi tour → {sub_queries: [...], clause_types: [...]}.
+    Fallback về query gốc nếu LLM chưa init hoặc lỗi.
+    """
+    if _rewriter_llm is None:
+        return {"sub_queries": [natural_query], "clause_types": None}
+    try:
+        response = await _rewriter_llm.ainvoke([
+            SystemMessage(content=_TOUR_QUERY_REWRITER_SYSTEM_PROMPT),
+            HumanMessage(content=natural_query),
+        ])
+        raw = response.content.strip()
+        # Strip markdown fences nếu có
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(raw)
+        sub_queries  = parsed.get("sub_queries") or [natural_query]
+        clause_types = parsed.get("clause_types") or None
+        logger.info(
+            "TOUR QUERY REWRITE: %r → sub_queries=%s clause_types=%s",
+            natural_query, sub_queries, clause_types,
+        )
+        return {"sub_queries": sub_queries, "clause_types": clause_types}
+    except Exception as exc:
+        logger.warning("Tour query rewriter error (%s), fallback to original.", exc)
+        return {"sub_queries": [natural_query], "clause_types": None}
+
+
+# ---------------------------------------------------------------------------
+# Tour tools
+# ---------------------------------------------------------------------------
 
 class _TourSearchInput(BaseModel):
     query: str
     tour_type: Optional[str] = None
 
+class _TourInfoInput(BaseModel):
+    query: str
+    tour_type: Optional[str] = None
 
 class _TourDetailInput(BaseModel):
     tour_id: str
 
 
-def _tour_detail_prose(summary_meta: dict, day_chunks: list) -> str:
-    lines = []
-    name = summary_meta.get("name", "")
-    tour_id = summary_meta.get("point", "")
-    duration = summary_meta.get("duration", "")
-    price = summary_meta.get("price", "")
-    departure = summary_meta.get("departure", "")
-    transport = summary_meta.get("transport", "")
-    highlights = summary_meta.get("highlights", "")
-    includes = summary_meta.get("includes", "")
-    excludes = summary_meta.get("excludes", "")
-    cancellation = summary_meta.get("cancellation", "")
-    children_policy = summary_meta.get("children_policy", "")
-    payment = summary_meta.get("payment", "")
+async def _hybrid_search_tours(
+    query: str,
+    clause_filter: Optional[list[str]],
+    tour_type: Optional[str],
+    prefetch_limit: int,
+    final_limit: int,
+) -> list[dict]:
+    """
+    Hàm hybrid search dùng chung cho cả 2 tour tools.
+    clause_filter=None → không filter clause (search toàn bộ chunk types).
+    clause_filter=[...] → chỉ lấy các clause type trong list.
+    """
+    dense_vec, sparse_dict = await _encode_query(query)
+    client = _get_async_qdrant()
 
-    lines.append(f"Tên tour: {name} (mã số {tour_id})")
-    if duration:
-        lines.append(f"Thời gian: {duration}")
-    if price:
-        lines.append(f"Giá: {price}")
-    if departure:
-        lines.append(f"Khởi hành từ: {departure}")
-    if transport:
-        lines.append(f"Phương tiện: {transport}")
-    if highlights:
-        lines.append(f"Điểm nổi bật: {highlights}")
-    if includes:
-        lines.append(f"Bao gồm: {includes}")
-    if excludes:
-        lines.append(f"Không bao gồm: {excludes}")
+    sparse_indices = sorted(sparse_dict.keys())
+    sparse_values  = [sparse_dict[i] for i in sparse_indices]
 
-    if day_chunks:
-        lines.append("\nLịch trình:")
-        for doc, meta in day_chunks:
-            day_label = meta.get("day_label", meta.get("clause", ""))
-            lines.append(f"  {day_label}: {doc}")
+    must_conditions = []
+    if clause_filter:
+        must_conditions.append(
+            qmodels.FieldCondition(
+                key="metadata.clause",
+                match=qmodels.MatchAny(any=clause_filter),
+            )
+        )
+    if tour_type:
+        must_conditions.append(
+            qmodels.FieldCondition(
+                key="metadata.chapter",
+                match=qmodels.MatchValue(value=tour_type),
+            )
+        )
 
-    if cancellation:
-        lines.append(f"\nChính sách hủy: {cancellation}")
-    if children_policy:
-        lines.append(f"Chính sách trẻ em: {children_policy}")
-    if payment:
-        lines.append(f"Thanh toán: {payment}")
+    q_filter = qmodels.Filter(must=must_conditions) if must_conditions else None
 
-    return "\n".join(lines)
+    results = await client.query_points(
+        collection_name=TOUR_COLLECTION,
+        prefetch=[
+            qmodels.Prefetch(
+                query=dense_vec,
+                using="dense",
+                limit=prefetch_limit,
+                filter=q_filter,
+            ),
+            qmodels.Prefetch(
+                query=qmodels.SparseVector(
+                    indices=sparse_indices,
+                    values=sparse_values,
+                ),
+                using="sparse",
+                limit=prefetch_limit,
+                filter=q_filter,
+            ),
+        ],
+        query=qmodels.FusionQuery(fusion=qmodels.Fusion.RRF),
+        limit=final_limit,
+        with_payload=True,
+    )
+
+    docs = []
+    for pt in results.points:
+        payload = pt.payload or {}
+        meta    = payload.get("metadata", {})
+        text    = payload.get("page_content", "")
+        docs.append({"text": text, **meta})
+    return docs
 
 
 async def _run_search_tours(query: str, tour_type: Optional[str] = None) -> str:
-    loop = asyncio.get_event_loop()
-    where_filter = {"clause": {"$eq": "summary"}}
-    if tour_type:
-        where_filter = {
-            "$and": [
-                {"clause": {"$eq": "summary"}},
-                {"tour_type": {"$eq": tour_type}},
-            ]
-        }
-
+    """
+    Tìm kiếm và liệt kê các tour phù hợp với query.
+    Chỉ search summary chunks → trả về danh sách tour (tên, mã, giá, thời gian).
+    """
     try:
-        results = await loop.run_in_executor(
-            None,
-            lambda: _tour_collection.query(
-                query_texts=[query],
-                n_results=5,
-                where=where_filter,
-                include=["documents", "metadatas"],
-            ),
+        candidates = await _hybrid_search_tours(
+            query=query,
+            clause_filter=["summary"],
+            tour_type=tour_type,
+            prefetch_limit=15,
+            final_limit=8,
         )
     except Exception as exc:
-        logger.error("tour search error: %s", exc)
+        logger.error("search_tours error: %s", exc)
         return f"Lỗi tìm kiếm tour: {exc}"
 
-    documents = results.get("documents", [[]])[0]
-    metadatas = results.get("metadatas", [[]])[0]
-
-    if not metadatas:
+    if not candidates:
         return "Không tìm thấy tour phù hợp."
 
-    lines = []
-    for meta in metadatas:
-        name = meta.get("name", "")
-        tour_id = meta.get("point", "")
-        duration = meta.get("duration", "")
-        price = meta.get("price", "")
-        departure = meta.get("departure", "")
-        lines.append(f"{name} — mã số {tour_id} — {duration} — {price} — khởi hành từ {departure}")
+    ranked = await _rerank(query, candidates, top_k=5)
 
+    lines = []
+    for item in ranked:
+        name    = item.get("section", "")
+        tour_id = item.get("point", item.get("article", ""))
+        try:
+            cf    = json.loads(item.get("clause_full", "{}"))
+            dur   = f"{cf.get('d','?')} ngày {cf.get('n','?')} đêm"
+            p0, p1 = cf.get("p0", 0), cf.get("p1", 0)
+            price = f"{p0:,}–{p1:,} VND".replace(",", ".")
+            dep   = cf.get("dc", "")
+        except Exception:
+            dur = price = dep = ""
+        lines.append(f"{name} — mã số {tour_id} — {dur} — {price} — khởi hành từ {dep}")
+
+    logger.info("===== SEARCH_TOURS: query=%r → %d results =====", query, len(lines))
     return "\n".join(lines)
 
 
+async def _run_search_tour_info(query: str, tour_type: Optional[str] = None) -> str:
+    """
+    Tìm kiếm thông tin cụ thể trong nội dung tour:
+    lịch trình, địa điểm, dịch vụ, chính sách, giá theo ngày.
+
+    Dùng Tour Query Rewriter để:
+    1. Decompose câu hỏi phức tạp thành nhiều sub-queries.
+    2. Xác định clause_types phù hợp để filter trước khi search.
+    3. Merge + dedup kết quả từ tất cả sub-queries.
+    """
+    # ── 1. Rewrite query → sub_queries + clause_types ──────────────────
+    rewrite_result = await _rewrite_query_for_tour(query)
+    sub_queries    = rewrite_result["sub_queries"]
+    clause_filter  = rewrite_result["clause_types"]  # None = search all
+
+    # ── 2. Retrieve cho từng sub-query song song ────────────────────────
+    async def _fetch_one(sq: str) -> list[dict]:
+        try:
+            return await _hybrid_search_tours(
+                query=sq,
+                clause_filter=clause_filter,
+                tour_type=tour_type,
+                prefetch_limit=20,
+                final_limit=10,
+            )
+        except Exception as exc:
+            logger.error("search_tour_info sub-query error (%r): %s", sq, exc)
+            return []
+
+    all_results_nested = await asyncio.gather(*[_fetch_one(sq) for sq in sub_queries])
+
+    # ── 3. Merge + dedup theo (tour_id, clause) ─────────────────────────
+    seen: set = set()
+    merged: list[dict] = []
+    for batch in all_results_nested:
+        for doc in batch:
+            key = (doc.get("point", doc.get("article", "")), doc.get("clause", ""), doc.get("text", "")[:80])
+            if key not in seen:
+                seen.add(key)
+                merged.append(doc)
+
+    if not merged:
+        return "Không tìm thấy thông tin tour phù hợp."
+
+    # ── 4. Rerank với query gốc ─────────────────────────────────────────
+    ranked = await _rerank(query, merged, top_k=8)
+
+    parts = []
+    for item in ranked:
+        tour_name = item.get("section", "")
+        tour_id   = item.get("point", item.get("article", ""))
+        clause    = item.get("clause", "")
+        text      = item.get("text", "")
+        parts.append(
+            f"[Tour: {tour_name} | mã {tour_id} | {clause}]\n{text}"
+        )
+
+    logger.info(
+        "===== SEARCH_TOUR_INFO: query=%r sub_queries=%s clause_filter=%s → %d merged → %d ranked =====",
+        query, sub_queries, clause_filter, len(merged), len(ranked),
+    )
+    return "\n\n---\n\n".join(parts)
+
+
 async def _run_get_tour_detail(tour_id: str) -> str:
-    loop = asyncio.get_event_loop()
+    """
+    Lấy toàn bộ thông tin của một tour theo mã tour (scroll tất cả chunks).
+    Render đầy đủ: tổng quan, lịch khởi hành, dịch vụ, chính sách, lịch trình.
+    """
+    client = _get_async_qdrant()
     try:
-        results = await loop.run_in_executor(
-            None,
-            lambda: _tour_collection.get(
-                where={"point": {"$eq": tour_id}},
-                include=["documents", "metadatas"],
+        results, _ = await client.scroll(
+            collection_name=TOUR_COLLECTION,
+            scroll_filter=qmodels.Filter(
+                must=[
+                    qmodels.FieldCondition(
+                        key="metadata.point",
+                        match=qmodels.MatchValue(value=tour_id),
+                    )
+                ]
             ),
+            limit=50,
+            with_payload=True,
+            with_vectors=False,
         )
     except Exception as exc:
-        logger.error("tour detail error: %s", exc)
+        logger.error("get_tour_detail error: %s", exc)
         return f"Lỗi truy vấn chi tiết tour: {exc}"
 
-    documents = results.get("documents", [])
-    metadatas = results.get("metadatas", [])
-
-    if not metadatas:
+    if not results:
         return f"Không tìm thấy tour với mã số {tour_id}."
 
-    summary_meta: dict | None = None
-    day_chunks: list = []
+    # Phân loại chunks theo clause
+    summary_meta: Optional[dict] = None
+    departures_text: str         = ""
+    services_text: str           = ""
+    policies_text: str           = ""
+    day_chunks: list             = []
 
-    for doc, meta in zip(documents, metadatas):
-        clause = meta.get("clause", "")
+    for pt in results:
+        payload = pt.payload or {}
+        meta    = payload.get("metadata", {})
+        text    = payload.get("page_content", "")
+        clause  = meta.get("clause", "")
+
         if clause == "summary":
             summary_meta = meta
+        elif clause == "departures":
+            departures_text = text
+        elif clause == "services":
+            services_text = text
+        elif clause == "policies":
+            policies_text = text
         elif clause.startswith("day_"):
-            day_chunks.append((doc, meta))
+            day_num = int(clause.replace("day_", "") or 0)
+            day_chunks.append((day_num, text))
 
     if not summary_meta:
         return f"Không tìm thấy thông tin tổng quan của tour {tour_id}."
 
-    day_chunks.sort(key=lambda x: int(x[1].get("clause", "day_0").replace("day_", "") or 0))
+    day_chunks.sort(key=lambda x: x[0])
 
-    return _tour_detail_prose(summary_meta, day_chunks)
+    # Render từ clause_full metadata
+    lines = []
+    name  = summary_meta.get("section", "")
+    try:
+        cf        = json.loads(summary_meta.get("clause_full", "{}"))
+        dur       = f"{cf.get('d','?')} ngày {cf.get('n','?')} đêm"
+        p0, p1    = cf.get("p0", 0), cf.get("p1", 0)
+        price     = f"{p0:,}–{p1:,} VND".replace(",", ".")
+        dep       = cf.get("dc", "")
+        transport = cf.get("tr", "")
+        dests     = ", ".join(cf.get("ds", []))
+    except Exception:
+        dur = price = dep = transport = dests = ""
 
+    lines.append(f"Tên tour: {name} (mã số {tour_id})")
+    if dur:       lines.append(f"Thời gian: {dur}")
+    if price:     lines.append(f"Giá từ: {price}")
+    if dep:       lines.append(f"Khởi hành từ: {dep}")
+    if transport: lines.append(f"Phương tiện: {transport}")
+    if dests:     lines.append(f"Điểm đến: {dests}")
+
+    if departures_text:
+        lines.append(f"\n{departures_text}")
+
+    if services_text:
+        lines.append(f"\n{services_text}")
+
+    if policies_text:
+        lines.append(f"\n{policies_text}")
+
+    if day_chunks:
+        lines.append("\nLịch trình chi tiết:")
+        for _, text in day_chunks:
+            lines.append(f"\n{text}")
+
+    return "\n".join(lines)
 
 # ---------------------------------------------------------------------------
-# StructuredTool wrappers
+# Tool: count_tour_meals  — đếm bữa ăn trực tiếp từ metadata.clause_full
 # ---------------------------------------------------------------------------
 
-search_law = StructuredTool.from_function(
-    coroutine=_run_search_law,
-    name="search_law",
+class _CountMealsInput(BaseModel):
+    tour_ids: list[str]
+
+
+async def _run_count_tour_meals(tour_ids: list[str]) -> str:
+    """
+    Scroll tất cả day_N chunks của các tour, đọc field 'meals' trong clause_full,
+    đếm và trả về bảng bữa ăn theo từng ngày và tổng cộng.
+    Không dùng embedding, không dùng reranker — chỉ exact-match metadata.
+    """
+    client = _get_async_qdrant()
+    try:
+        results, _ = await client.scroll(
+            collection_name=TOUR_COLLECTION,
+            scroll_filter=qmodels.Filter(
+                must=[
+                    qmodels.FieldCondition(
+                        key="metadata.point",
+                        match=qmodels.MatchAny(any=tour_ids),
+                    ),
+                ]
+            ),
+            limit=500,
+            with_payload=True,
+            with_vectors=False,
+        )
+    except Exception as exc:
+        logger.error("count_tour_meals error: %s", exc)
+        return f"Lỗi truy vấn: {exc}"
+
+    # Nhóm theo tour_id → list (day_num, meals, day_label)
+    from collections import defaultdict as _dd
+    tour_days: dict = _dd(list)
+    tour_names: dict = {}
+
+    for pt in results:
+        payload = pt.payload or {}
+        meta    = payload.get("metadata", {})
+        clause  = meta.get("clause", "")
+        tid     = meta.get("point", meta.get("article", ""))
+        section = meta.get("section", "")
+
+        if not clause.startswith("day_"):
+            continue
+
+        if tid not in tour_names and section:
+            tour_names[tid] = section
+
+        try:
+            day_num = int(clause.replace("day_", ""))
+        except ValueError:
+            continue
+
+        try:
+            cf = json.loads(meta.get("clause_full", "{}"))
+            meals = cf.get("meals", [])
+            day_label = cf.get("day_label", clause)
+        except Exception:
+            meals = []
+            day_label = clause
+
+        tour_days[tid].append((day_num, day_label, meals))
+
+    if not tour_days:
+        return "Không tìm thấy dữ liệu bữa ăn cho các tour yêu cầu."
+
+    lines = []
+    for tid in sorted(tour_days.keys(), key=lambda x: int(x) if x.isdigit() else 999):
+        name = tour_names.get(tid, f"Tour {tid}")
+        days = sorted(tour_days[tid], key=lambda x: x[0])
+
+        # Đếm từng bữa riêng lẻ (sum over individual meals, not days)
+        total_sang  = sum(m.count("sáng")  for _, _, m in days)
+        total_trua  = sum(m.count("trưa")  for _, _, m in days)
+        total_toi   = sum(m.count("tối")   for _, _, m in days)
+        total_chinh = total_trua + total_trua + total_toi
+
+        lines.append(f"[Tour {tid}: {name}]")
+        for day_num, day_label, meals in days:
+            lines.append(f"  {day_label}: {', '.join(meals) if meals else 'không có bữa ăn'}")
+        lines.append(f"  TỔNG: sáng={total_sang} | trưa={total_trua} | tối={total_toi}")
+        lines.append(f"  TỔNG BỮA CHÍNH (sáng + trưa + tối): {total_chinh}")
+        lines.append("")
+
+    logger.info("===== COUNT_TOUR_MEALS: tour_ids=%s =====", tour_ids)
+    return "\n".join(lines)
+
+
+count_tour_meals = StructuredTool.from_function(
+    coroutine=_run_count_tour_meals,
+    name="count_tour_meals",
     description=(
-        "Tìm kiếm văn bản pháp luật, điều khoản, quy định trong ChromaDB. "
-        "Dùng khi câu hỏi liên quan đến luật, nghị định, thông tư, xử phạt, v.v. "
-        "Tham số: query (câu hỏi hoặc từ khóa pháp luật)."
+        "Đếm số lượng bữa ăn (sáng, trưa, chiều, tối, bữa chính) của một hoặc nhiều tour. "
+        "Đọc trực tiếp từ metadata — kết quả chính xác 100%, không qua reranker. "
+        "Dùng cho mọi câu hỏi: 'tour X có bao nhiêu bữa', 'so sánh số bữa ăn tour 1 và tour 4', "
+        "'tour nào có nhiều bữa chính hơn'. "
+        "Tham số: tour_ids — danh sách mã tour, ví dụ ['1'] hoặc ['1','4']."
     ),
-    args_schema=_SearchInput,
+    args_schema=_CountMealsInput,
 )
 
-search_admission = StructuredTool.from_function(
-    coroutine=_run_search_admission,
-    name="search_admission",
-    description=(
-        "Tìm kiếm thông tin tuyển sinh, điểm chuẩn, chỉ tiêu trong ChromaDB. "
-        "Tham số: query (câu hỏi hoặc từ khóa tuyển sinh)."
-    ),
-    args_schema=_SearchInput,
-)
+
 
 search_tours = StructuredTool.from_function(
     coroutine=_run_search_tours,
     name="search_tours",
     description=(
-        "Tìm kiếm danh sách tour du lịch theo khu vực hoặc từ khóa. "
-        "Dùng khi khách hỏi có tour nào, tour miền nào, điểm đến cụ thể, "
-        "tour mấy ngày, giá khoảng bao nhiêu. "
-        "Tham số: query (từ khóa), tour_type (tuỳ chọn: tour miền bắc/nam/trung)."
+        "Tìm kiếm và liệt kê danh sách tour du lịch phù hợp với yêu cầu của khách. "
+        "Trả về tên tour, mã số, thời gian, giá và điểm khởi hành. "
+        "Dùng khi khách hỏi 'có tour nào đi X không', 'cho tôi xem danh sách tour'. "
+        "KHÔNG dùng khi đã biết mã số tour — dùng scan_all_tours hoặc get_tour_detail thay thế. "
+        "KHÔNG dùng với query rỗng. "
+        "Tham số: query (từ khóa địa điểm/loại tour, KHÔNG được rỗng), "
+        "tour_type (tuỳ chọn: 'tour miền bắc'/'tour miền nam'/'tour miền trung')."
     ),
     args_schema=_TourSearchInput,
+)
+
+search_tour_info = StructuredTool.from_function(
+    coroutine=_run_search_tour_info,
+    name="search_tour_info",
+    description=(
+        "Tìm kiếm thông tin chi tiết bên trong nội dung tour: "
+        "địa điểm tham quan, hoạt động theo ngày, dịch vụ bao gồm/không bao gồm, "
+        "chính sách hủy tour, chính sách trẻ em, lịch khởi hành và giá theo ngày. "
+        "Dùng khi khách hỏi thông tin cụ thể như 'Chùa Tam Chúc có diện tích bao nhiêu', "
+        "'tour có bao gồm vé máy bay không', 'chính sách hủy tour như thế nào', "
+        "'ngày nào còn chỗ'. "
+        "Khi so sánh 2 tour: gọi 2 lần với cùng query nhưng tour_type KHÁC NHAU. "
+        "Tham số: query (nội dung cần tìm), "
+        "tour_type (BẮT BUỘC khi đã biết loại tour: "
+        "'tour miền bắc' / 'tour miền nam' / 'tour miền trung' / 'tour miền tây')."
+    ),
+    args_schema=_TourInfoInput,
 )
 
 get_tour_detail = StructuredTool.from_function(
     coroutine=_run_get_tour_detail,
     name="get_tour_detail",
     description=(
-        "Lấy thông tin chi tiết của một tour theo mã tour (tour_id). "
-        "Dùng khi khách hỏi về lịch trình, giá theo ngày khởi hành, "
-        "dịch vụ, chính sách hủy, trẻ em, thanh toán của một tour cụ thể. "
-        "Sau khi gọi thành công, ghi nhớ đây là tour đang tư vấn cho đến khi khách đổi tour."
+        "Lấy toàn bộ thông tin của một tour cụ thể theo mã tour: "
+        "lịch trình từng ngày, lịch khởi hành và giá theo hạng khách sạn, "
+        "dịch vụ bao gồm/không bao gồm, chính sách hủy tour, trẻ em, thanh toán. "
+        "Dùng sau khi khách đã chọn được mã tour từ search_tours."
     ),
     args_schema=_TourDetailInput,
+)
+
+
+
+class _TourScanInput(BaseModel):
+    clause_types: list[str]
+    tour_ids: Optional[list[str]] = None
+
+
+async def _run_scan_all_tours(
+    clause_types: list[str],
+    tour_ids: Optional[list[str]] = None,
+) -> str:
+    """
+    Scroll toàn bộ collection để lấy chunks theo clause_types.
+    Dùng cho aggregation: liệt kê, tổng hợp, so sánh nhiều/tất cả tour.
+
+    clause_types: danh sách loại chunk cần lấy.
+      - "summary"    → tổng quan mỗi tour (tên, điểm đến, giá, phương tiện)
+      - "policies"   → chính sách (trẻ em, hủy tour, thanh toán, ghi chú)
+      - "services"   → dịch vụ bao gồm / không bao gồm
+      - "departures" → lịch khởi hành, giá theo ngày/hạng khách sạn
+      - "day_1".."day_5" → lịch trình từng ngày cụ thể
+    tour_ids: nếu có → chỉ lấy các tour này (ví dụ ["1","3","5"]).
+              nếu None → lấy tất cả tour.
+    """
+    client = _get_async_qdrant()
+    try:
+        must: list = [
+            qmodels.FieldCondition(
+                key="metadata.clause",
+                match=qmodels.MatchAny(any=clause_types),
+            )
+        ]
+        if tour_ids:
+            must.append(
+                qmodels.FieldCondition(
+                    key="metadata.point",
+                    match=qmodels.MatchAny(any=tour_ids),
+                )
+            )
+        results, _ = await client.scroll(
+            collection_name=TOUR_COLLECTION,
+            scroll_filter=qmodels.Filter(must=must),
+            limit=500,
+            with_payload=True,
+            with_vectors=False,
+        )
+    except Exception as exc:
+        import traceback
+        logger.error("scan_all_tours error: %s\n%s", exc, traceback.format_exc())
+        return f"Lỗi scan tour: {exc}"
+
+    if not results:
+        return "Không tìm thấy dữ liệu tour."
+
+    # Nhóm theo tour_id → section (tên tour) để dễ đọc
+    from collections import defaultdict as _dd
+    grouped: dict = _dd(list)
+    for pt in results:
+        payload = pt.payload or {}
+        meta    = payload.get("metadata", {})
+        text    = payload.get("page_content", "")
+        tid     = meta.get("point", meta.get("article", "?"))
+        clause  = meta.get("clause", "")
+        grouped[tid].append((clause, text))
+
+    # Sort mỗi group theo clause (summary trước, rồi departures, services, policies, day_N)
+    clause_order = {"summary": 0, "departures": 1, "services": 2, "policies": 3}
+    def _clause_key(x):
+        c = x[0]
+        if c in clause_order:
+            return (clause_order[c], c)
+        if c.startswith("day_"):
+            n = int(c.replace("day_", "") or 0)
+            return (10 + n, c)
+        return (99, c)
+
+    parts = []
+    for tid, items in sorted(grouped.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 999):
+        items.sort(key=_clause_key)
+        section_lines = []
+        for clause, text in items:
+            section_lines.append(text)
+        parts.append(f"[Tour mã {tid}]\n" + "\n\n".join(section_lines))
+
+    logger.info(
+        "===== SCAN_ALL_TOURS: clause_types=%s tour_ids=%s → %d tours =====",
+        clause_types, tour_ids, len(grouped),
+    )
+    return "\n\n" + ("\n\n" + "="*60 + "\n\n").join(parts)
+
+
+scan_all_tours = StructuredTool.from_function(
+    coroutine=_run_scan_all_tours,
+    name="scan_all_tours",
+    description=(
+        "Lấy dữ liệu từ NHIỀU hoặc TẤT CẢ tour cùng lúc để tổng hợp, liệt kê, so sánh. "
+        "Dùng khi câu hỏi liên quan đến nhiều tour: "
+        "'tour nào dùng máy bay', 'liệt kê tour có Tràng An', "
+        "'điểm chung giữa các tour', 'tổng hợp giấy tờ cần mang', "
+        "'so sánh chính sách trẻ em giữa tour miền Bắc và miền Tây'. "
+        "Tham số: "
+        "clause_types (BẮT BUỘC, danh sách loại chunk: "
+        "'summary' cho tổng quan/phương tiện/điểm đến, "
+        "'policies' cho chính sách trẻ em/hủy tour/ghi chú, "
+        "'services' cho dịch vụ bao gồm/quà tặng, "
+        "'departures' cho lịch khởi hành/tiêu chuẩn khách sạn, "
+        "'day_1'..'day_5' cho lịch trình ngày cụ thể); "
+        "tour_ids (tuỳ chọn, ví dụ ['1','3'] để chỉ lấy tour cụ thể, "
+        "bỏ trống để lấy tất cả)."
+    ),
+    args_schema=_TourScanInput,
 )
 
 # ---------------------------------------------------------------------------
@@ -635,17 +1349,29 @@ RAG_TOOLS: list[BaseTool] = [
     search_law,
     search_admission,
     search_tours,
+    search_tour_info,
+    scan_all_tours,
     get_tour_detail,
-    search_lightrag,   # ← LightRAG hybrid search
+    search_lightrag,
 ]
 
 
 # ---------------------------------------------------------------------------
-# System prompt  (auto-lists all registered tools)
+# Agent state
+# ---------------------------------------------------------------------------
+
+class AgentState(TypedDict):
+    messages:          Annotated[list[BaseMessage], add_messages]
+    hop_count:         int
+    thinking_streamed: bool
+
+
+# ---------------------------------------------------------------------------
+# System prompt (giữ nguyên từ bản cũ)
 # ---------------------------------------------------------------------------
 
 def _build_system_prompt(tools: list[BaseTool]) -> str:
-    tool_lines = "\n".join(f"- {t.name}: {t.description.splitlines()[0]}" for t in tools)
+    tool_lines   = "\n".join(f"- {t.name}: {t.description.splitlines()[0]}" for t in tools)
     current_date = datetime.now().strftime("%d/%m/%Y")
     return f'''Bạn là một trợ lý giọng nói tiếng Việt chuyên tư vấn và nghiên cứu pháp lý, dữ liệu chuyên ngành.
 
@@ -675,28 +1401,16 @@ Các công cụ hiện có:
    như luật, điểm chuẩn, chỉ tiêu, học phí, điều khoản pháp lý, dữ liệu cấu trúc,
    bạn BẮT BUỘC phải sử dụng công cụ phù hợp TRƯỚC KHI trả lời.
 
-2. Với câu hỏi pháp luật, mức phạt, xử phạt hành chính, điều khoản cụ thể,
-   quan hệ giữa các văn bản pháp luật, hãy dùng search_lightrag.
-   Khi gọi search_lightrag, tham số query BẮT BUỘC phải là NGUYÊN VĂN lời người dùng vừa nói,
-   KHÔNG được diễn đạt lại, tóm tắt hay rút gọn dù chỉ một từ.
+2. Với câu hỏi pháp luật, mức phạt, xử phạt hành chính, điều khoản cụ thể:
+   - Dùng search_law TRƯỚC (hybrid Qdrant + reranker, nhanh hơn).
+   - Nếu search_law không đủ hoặc cần tra cứu quan hệ nhiều văn bản → thử search_lightrag.
+   - Khi gọi search_lightrag: tham số query PHẢI là nguyên văn lời người dùng.
 
 3. Khi đã sử dụng công cụ, bạn PHẢI trả lời NGHIÊM NGẶT dựa trên dữ liệu truy xuất được.
-   TUYỆT ĐỐI không được bổ sung, ước đoán hoặc suy diễn bất kỳ con số nào ngoài dữ liệu.
+   TUYỆT ĐỐI không được bổ sung, ước đoán hoặc suy diễn bất kỳ CON SỐ CỤ THỂ nào ngoài dữ liệu.
+   TUY NHIÊN, ĐƯỢC PHÉP và PHẢI đưa ra nhận xét phân tích, tư vấn dựa trên các con số đó.
 
-4. Nếu kết quả truy xuất chưa chứa thông tin trực tiếp trả lời câu hỏi,
-   bạn phải thử truy xuất lại trước khi kết luận không tìm thấy.
-
-   Các cách truy xuất lại bao gồm:
-   - Viết lại câu truy vấn cụ thể hơn.
-   - Mở rộng hoặc diễn đạt lại từ khóa.
-   - Tăng phạm vi truy xuất (ví dụ: lấy nhiều kết quả hơn).
-   - Chia câu hỏi thành nhiều phần và truy xuất từng phần.
-   - Gọi lại công cụ với truy vấn đầy đủ và rõ ràng hơn.
-   - Nếu search_law không cho kết quả tốt, thử search_lightrag và ngược lại.
-
-   Bạn được phép gọi công cụ nhiều lần cho đến khi:
-   - Tìm được thông tin phù hợp, hoặc
-   - Đã thử truy xuất lại mà vẫn không có kết quả liên quan.
+4. Nếu kết quả truy xuất chưa đủ, thử lại với query khác hoặc dùng công cụ khác.
 
 5. Chỉ khi đã thử truy xuất lại mà vẫn không có thông tin phù hợp,
    bạn mới được phép trả lời:
@@ -706,15 +1420,13 @@ Các công cụ hiện có:
    KHÔNG BAO GIỜ là "kiến thức phổ thông" — LUÔN LUÔN phải dùng search_admission.
    TUYỆT ĐỐI không được trả lời câu hỏi tuyển sinh bằng hiểu biết chung hay ước tính.
 
-7. Chỉ những câu hỏi hoàn toàn không liên quan đến số liệu, dữ liệu cụ thể
-   (ví dụ: giải thích khái niệm chung chung) mới được trả lời bằng hiểu biết chung.
+7. Chỉ những câu hỏi hoàn toàn không liên quan đến số liệu cụ thể
+   mới được trả lời bằng hiểu biết chung.
 
-8. Không được đoán, ước tính, hoặc suy diễn bất kỳ số liệu nào.
+8. Không được đoán, ước tính, hoặc suy diễn bất kỳ số liệu CỤ THỂ nào.
+   Nhưng PHẢI đưa ra nhận xét, đánh giá, tư vấn dựa trên số liệu đã có trong data.
 
-9. Không được suy luận dựa trên năm tương tự hoặc đối tượng tương tự.
-
-10. Với dữ liệu số, phải giữ nguyên nội dung theo kết quả truy xuất, không được làm tròn
-    hoặc diễn giải lại con số.
+9. Với dữ liệu số, phải giữ nguyên nội dung theo kết quả truy xuất.
 
 =====================
 QUY TẮC TRÍCH DẪN
@@ -725,11 +1437,10 @@ Mọi thông tin pháp luật PHẢI có trích dẫn nguồn rõ ràng ngay sau
 Định dạng trích dẫn bắt buộc:
 - Văn bản luật: theo <Tên luật/nghị định/thông tư>, <Điều X>, <Khoản Y> (nếu có)
 - Ví dụ: theo Luật Giao thông đường bộ, Điều ba mươi bảy, Khoản một
-- Ví dụ: theo Nghị định một trăm linh tám năm hai nghìn không trăm mười ba, Điều năm
+- Ví dụ: theo Nghị định một trăm sáu mươi tám năm hai nghìn không trăm hai mươi tư, Điều năm
 
 Quy tắc:
 - Trích dẫn phải đặt ngay sau luận điểm, không gom tất cả về cuối.
-- Nếu nhiều điều khoản hỗ trợ một luận điểm, trích dẫn tất cả cách nhau bằng dấu chấm phẩy.
 - Nếu dữ liệu truy xuất không cung cấp số điều khoản cụ thể, ghi rõ tên văn bản mà không bịa số điều.
 - Tuyệt đối không bịa hoặc suy đoán số điều, khoản khi không có trong dữ liệu.
 
@@ -746,55 +1457,133 @@ BƯỚC 2 — Phân tích kết quả dựa trên dữ liệu thực tế:
   - Nếu câu hỏi về học phí: so sánh học phí thực tế với ngân sách người hỏi.
   - Nếu KHÔNG có ngành nào đáp ứng điều kiện → phải trả lời trung thực là không có ngành nào phù hợp,
     đồng thời thông báo mức học phí thực tế thấp nhất của trường để người hỏi tham khảo.
+  - Nếu câu hỏi yêu cầu ĐÁNH GIÁ hoặc TƯ VẤN dựa trên dữ liệu (xu hướng điểm chuẩn, khả năng đậu,
+    nên đăng ký hay không): BẮT BUỘC phải đưa ra nhận xét cụ thể sau khi đã có dữ liệu.
+    Quy tắc tư vấn:
+    * Lấy điểm chuẩn các năm có trong data, so sánh với điểm thí sinh.
+    * Nhận xét xu hướng tăng/giảm dựa trên số liệu thực tế.
+    * Đưa ra đánh giá rõ ràng: "an toàn", "cạnh tranh", "rủi ro cao" kèm lý do từ data.
+    * Lưu ý: dự đoán năm tương lai là ước tính xu hướng, không phải con số chính xác — phải nói rõ điều này.
 
 BƯỚC 3 — Nếu kết quả chứa MÃ NGÀNH mà CHƯA có TÊN NGÀNH đầy đủ,
-  BẮT BUỘC phải gọi thêm search_admission để lấy tên đầy đủ từng mã ngành
-  (ví dụ: query "ngành CN1 tên là gì", "CN17 tên ngành", "CN19 học phí").
+  BẮT BUỘC phải gọi thêm search_admission để lấy tên đầy đủ từng mã ngành.
   Thực hiện cho TẤT CẢ các mã ngành cần hiển thị trong câu trả lời.
 
 BƯỚC 4 — Chỉ sau khi đã có đủ TÊN NGÀNH và SỐ LIỆU CHÍNH XÁC, mới tổng hợp và trả lời.
 
 QUY TẮC QUAN TRỌNG:
-- TUYỆT ĐỐI không được bịa, ước tính hoặc suy diễn bất kỳ số học phí, điểm chuẩn nào.
+- TUYỆT ĐỐI không được bịa, ước tính hoặc suy diễn bất kỳ số học phí, điểm chuẩn cụ thể nào ngoài data.
+- ĐƯỢC PHÉP đưa ra nhận xét tư vấn, đánh giá xu hướng DỰA TRÊN số liệu thực tế đã truy xuất.
 - TUYỆT ĐỐI không được trả lời với mã ngành thuần túy (CN1, CN15...) mà không kèm tên ngành.
 - TUYỆT ĐỐI không được liệt kê ngành "phù hợp" khi học phí thực tế VƯỢT QUÁ ngân sách.
 - Luôn viết đầy đủ: "Ngành <Tên ngành đầy đủ> (mã <CN...>) có học phí <số tiền> mỗi năm".
-- Ví dụ đúng khi không có ngành phù hợp:
+
+QUY TẮC ĐỐI CHIẾU KHI USER ĐỀ CẬP THÔNG TIN CỤ THỂ:
+Khi người dùng nhắc đến một tổ hợp môn, ngành, mức giá, hay điều kiện cụ thể nào đó
+trong câu hỏi, bạn BẮT BUỘC phải làm theo trình tự sau:
+
+BƯỚC A — Truy xuất dữ liệu thực tế từ search_admission.
+BƯỚC B — Đối chiếu: điều user nhắc có XUẤT HIỆN ĐÚNG trong dữ liệu trả về không?
+  - Nếu CÓ → xác nhận và bổ sung thông tin liên quan.
+  - Nếu KHÔNG CÓ → phải nói rõ ràng là không có, rồi nêu những gì thực tế có trong data.
+BƯỚC C — TUYỆT ĐỐI không được xác nhận hay đồng ý với thông tin user đề cập
+  nếu dữ liệu không chứa thông tin đó, dù user có nói chắc chắn đến đâu.
+
+Ví dụ ĐÚNG khi user hỏi tổ hợp không có trong data:
+  User: "Trường mình năm nay có xét tổ hợp Toán, Anh, Tin như năm ngoái không?"
+  Data trả về chỉ có: A00 (Toán, Lý, Hóa), A01 (Toán, Lý, Anh), X06 (Toán, Lý, Tin)
+  → Trả lời đúng: "Theo dữ liệu hiện tại, trường không có tổ hợp Toán, Anh, Tin.
+    Các tổ hợp xét tuyển hiện tại gồm A không không là Toán, Lý, Hóa;
+    A không một là Toán, Lý, Anh; và X không sáu là Toán, Lý, Tin."
+
+Ví dụ ĐÚNG khi không có ngành phù hợp học phí:
   "Với mức ngân sách ba mươi lăm triệu đồng mỗi năm, hiện tại không có ngành nào tại trường
    có học phí trong mức này. Mức học phí thấp nhất của trường là ba mươi tám triệu đồng mỗi năm,
-   áp dụng cho ngành Công nghệ vật liệu và Vi điện tử (mã CN mười chín).""
+   áp dụng cho ngành Công nghệ vật liệu và Vi điện tử (mã CN mười chín)."
 
 =====================
 QUY TẮC TƯ VẤN TOUR
 =====================
 
-Khi công cụ search_tours trả về kết quả:
+Có ba công cụ cho tour — chọn đúng theo tình huống:
 
+search_tours          → Liệt kê danh sách tour theo khu vực/từ khóa
+search_tour_info      → Tìm thông tin CỤ THỂ bên trong tour (địa điểm, dịch vụ, chính sách, lịch khởi hành)
+get_tour_detail       → Xem toàn bộ chi tiết một tour cụ thể theo mã số
+
+QUY TẮC PHÂN LOẠI CÂU HỎI — CHỌN ĐÚNG TOOL:
+
+search_tours      → Liệt kê danh sách tour theo khu vực/từ khóa (trả về tên + mã + giá)
+search_tour_info  → Tìm thông tin cụ thể trong 1 tour hoặc 1 nhóm tour đã biết tên/loại
+scan_all_tours    → Câu hỏi liên quan đến NHIỀU tour hoặc TẤT CẢ tour (xem bên dưới)
+get_tour_detail   → Khách đã có mã tour, muốn xem đầy đủ
+
+KHI NÀO DÙNG scan_all_tours:
+Dùng khi câu hỏi có dạng tổng hợp / liệt kê / so sánh nhiều tour, ví dụ:
+  - "tour nào dùng máy bay"          → clause_types=["summary"]
+  - "liệt kê tour có Tràng An"       → clause_types=["summary","day_1","day_2","day_3","day_4","day_5"]
+  - "điểm chung về quà tặng"         → clause_types=["services"]
+  - "tổng hợp giấy tờ cần mang"      → clause_types=["policies"]
+  - "tour nào yêu cầu 10 khách"      → clause_types=["policies"]
+  - "so sánh chính sách trẻ em 2 tour" → clause_types=["policies"], tour_ids=["x","y"] nếu biết mã
+  - "địa điểm chung giữa tour 1 và 3" → clause_types=["day_1","day_2","day_3","day_4","day_5"], tour_ids=["1","3"]
+  - "tiêu chuẩn khách sạn các tour"  → clause_types=["departures"]
+
+Chỉ dùng search_tour_info khi câu hỏi hỏi về 1 tour cụ thể đã rõ tên/mã,
+hoặc cần semantic search (câu hỏi mơ hồ, không biết chính xác tour nào).
+
+QUY TẮC ĐẶC BIỆT — CÂU HỎI CÓ ĐIỀU KIỆN SỐ NGÀY / MỐC THỜI GIAN:
+
+Khi câu hỏi đề cập "trước X ngày", "sau Y ngày", hoặc một mốc thời gian cụ thể:
+BƯỚC 1 — Gọi search_tour_info với query nguyên văn để lấy TOÀN BỘ bảng chính sách.
+BƯỚC 2 — Đọc kỹ TẤT CẢ các mốc ngày trong bảng chính sách hủy/thanh toán.
+BƯỚC 3 — Xác định khoảng thời gian mà X ngày rơi vào (ví dụ: "trước 6 ngày" nằm giữa "trước 7 ngày" và "trước 5 ngày").
+BƯỚC 4 — Áp dụng đúng mức phí/điều kiện tương ứng với khoảng đó.
+TUYỆT ĐỐI không chỉ trích dẫn một mốc ngày duy nhất nếu câu hỏi rơi vào khoảng giữa hai mốc.
+
+QUY TẮC ĐẶC BIỆT — CÂU HỎI KẾT HỢP THÔNG TIN TOUR + CHÍNH SÁCH:
+
+Khi câu hỏi hỏi về chính sách (thanh toán, hủy tour) của một tour cụ thể theo tên/điểm đến:
+BƯỚC 1 — Gọi search_tour_info với query nguyên văn (rewriter sẽ tự decompose).
+BƯỚC 2 — Nếu kết quả chỉ có thông tin tour mà không có chính sách → gọi thêm search_tour_info
+          lần hai với query tập trung vào chính sách: "chính sách thanh toán hủy tour".
+BƯỚC 3 — Tổng hợp kết quả từ cả hai lần gọi để trả lời đầy đủ.
+
+Khi search_tours trả về kết quả:
 - Đọc nguyên văn từng dòng cho khách nghe.
 - Không được bỏ cụm "mã số ...".
 - Không được chỉnh sửa nội dung từng dòng.
 - Không dùng bullet, markdown hay emoji.
+- Sau khi liệt kê xong, nói:
+  "Bạn muốn biết thêm về tour nào, vui lòng cho biết mã số tour hoặc tên tour."
 
-Sau khi liệt kê xong, nói:
-"Bạn muốn biết thêm về tour nào, vui lòng cho biết mã số tour hoặc tên tour."
-
-Khi khách nói mã số:
-- Gọi công cụ get_tour_detail.
-
-Khi khách nói tên tour:
-- Gọi search_tours để xác định rồi gọi get_tour_detail.
+Khi khách nói mã số → Gọi get_tour_detail.
+Khi khách nói tên tour → Gọi search_tours để xác định mã rồi gọi get_tour_detail.
 
 Sau khi đã tư vấn chi tiết một tour:
-- Các câu hỏi tiếp theo về tour đó không cần gọi lại công cụ,
-  trừ khi người dùng yêu cầu thông tin mới ngoài dữ liệu đã có.'''
+Các câu hỏi tiếp theo về tour đó không cần gọi lại công cụ,
+trừ khi người dùng yêu cầu thông tin mới ngoài dữ liệu đã có.
+
+Khi search_tours trả về kết quả:
+- Đọc nguyên văn từng dòng cho khách nghe.
+- Không được bỏ cụm "mã số ...".
+- Không được chỉnh sửa nội dung từng dòng.
+- Không dùng bullet, markdown hay emoji.
+- Sau khi liệt kê xong, nói:
+  "Bạn muốn biết thêm về tour nào, vui lòng cho biết mã số tour hoặc tên tour."
+
+Khi khách nói mã số → Gọi get_tour_detail.
+Khi khách nói tên tour → Gọi search_tours để xác định mã rồi gọi get_tour_detail.
+Khi khách hỏi thông tin địa điểm/dịch vụ/chính sách → Gọi search_tour_info trực tiếp.
+
+Sau khi đã tư vấn chi tiết một tour:
+Các câu hỏi tiếp theo về tour đó không cần gọi lại công cụ,
+trừ khi người dùng yêu cầu thông tin mới ngoài dữ liệu đã có.'''
 
 
 # ---------------------------------------------------------------------------
-# Graph
+# LangGraph
 # ---------------------------------------------------------------------------
-
-MAX_HOPS = 6
-
 
 def _build_graph(llm_with_tools, tools: list[BaseTool], system_prompt: str):
     tool_node = ToolNode(tools)
@@ -803,14 +1592,22 @@ def _build_graph(llm_with_tools, tools: list[BaseTool], system_prompt: str):
         messages = list(state["messages"])
         if not messages or not isinstance(messages[0], SystemMessage):
             messages = [SystemMessage(content=system_prompt)] + messages
-        response = await llm_with_tools.ainvoke(messages)
+        try:
+            response = await llm_with_tools.ainvoke(messages)
+        except Exception as exc:
+            import traceback
+            logger.error(
+                "LLM call failed [%s]: %s\n%s",
+                type(exc).__name__, exc, traceback.format_exc(),
+            )
+            raise
         return {"messages": [response], "hop_count": state["hop_count"]}
 
     async def run_tools(state: AgentState) -> dict:
         result = await tool_node.ainvoke(state)
         return {
             **result,
-            "hop_count": state["hop_count"] + 1,
+            "hop_count":         state["hop_count"] + 1,
             "thinking_streamed": False,
         }
 
@@ -824,9 +1621,7 @@ def _build_graph(llm_with_tools, tools: list[BaseTool], system_prompt: str):
     graph.add_node("agent", call_model)
     graph.add_node("tools", run_tools)
     graph.set_entry_point("agent")
-    graph.add_conditional_edges(
-        "agent", should_continue, {"tools": "tools", "__end__": END}
-    )
+    graph.add_conditional_edges("agent", should_continue, {"tools": "tools", "__end__": END})
     graph.add_edge("tools", "agent")
     return graph.compile()
 
@@ -842,23 +1637,9 @@ def create_agent(
     openai_base_url: Optional[str] = None,
     temperature: float = 0.0,
 ):
-    """
-    Create and return the compiled LangGraph agent.
+    global _grader_llm, _rewriter_llm
 
-    Parameters
-    ----------
-    extra_tools : list[BaseTool] | None
-        Additional tools to inject alongside the RAG tools defined in this file.
-    model : str
-        OpenAI-compatible model name.
-    openai_api_key : str | None
-        Falls back to OPENAI_API_KEY env var.
-    openai_base_url : str | None
-        Custom LLM backend URL.
-    temperature : float
-        LLM sampling temperature.
-    """
-    tools: list[BaseTool] = RAG_TOOLS + list(extra_tools or [])
+    tools = RAG_TOOLS + list(extra_tools or [])
 
     llm = ChatOpenAI(
         model=model,
@@ -868,65 +1649,36 @@ def create_agent(
         streaming=True,
     )
 
-    # Rewriter LLM: same model, temperature=0 for deterministic keyword output
-    global _rewriter_llm
-    _rewriter_llm = ChatOpenAI(
+    _non_stream_llm = ChatOpenAI(
         model=model,
         temperature=0,
         api_key=openai_api_key or os.environ.get("OPENAI_API_KEY"),
         base_url=openai_base_url,
-        streaming=False,  # rewriter output is consumed whole, not streamed
+        streaming=False,
     )
+    _grader_llm   = _non_stream_llm
+    _rewriter_llm = _non_stream_llm
 
     llm_with_tools = llm.bind_tools(tools)
-    system_prompt = _build_system_prompt(tools)
+    system_prompt  = _build_system_prompt(tools)
 
     return _build_graph(llm_with_tools, tools, system_prompt)
 
 
 # ---------------------------------------------------------------------------
-# Thinking stream — yields interaction sentences while agent is working
+# Thinking stream helper (dùng bởi server.py)
 # ---------------------------------------------------------------------------
 
 async def stream_thinking_while_running(agent_task):
-    """
-    Async generator: yield câu chờ tiếng Việt trong khi agent đang chạy,
-    sau đó đợi thêm THINKING_RESPONSE_DELAY_SECONDS trước khi kết thúc
-    để tạo khoảng nghỉ tự nhiên trước khi LLM response được gửi đi.
-
-    Yield behaviour:
-    - Yield ngay lập tức câu đầu tiên khi tool bắt đầu chạy (không delay).
-    - Cứ mỗi THINKING_INTERVAL_SECONDS yield thêm một câu nếu task chưa xong.
-    - Khi task xong, đợi THINKING_RESPONSE_DELAY_SECONDS rồi mới kết thúc generator.
-
-    Usage in streaming server::
-
-        task = asyncio.create_task(agent.ainvoke(initial_state))
-        async for sentence in stream_thinking_while_running(task):
-            # send sentence to client ngay khi nhận được
-            ...
-        # generator kết thúc -> đã qua delay, gửi LLM response luôn
-        result = await task
-    """
-    # Yield ngay — agent vừa bắt đầu dùng tool
     yield pick_thinking_start_sentence()
-
     task_done = False
     while not task_done:
         try:
-            await asyncio.wait_for(
-                asyncio.shield(agent_task),
-                timeout=THINKING_INTERVAL_SECONDS,
-            )
-            # Task hoàn thành trong khoảng chờ
+            await asyncio.wait_for(asyncio.shield(agent_task), timeout=THINKING_INTERVAL_SECONDS)
             task_done = True
         except asyncio.TimeoutError:
-            # Vẫn còn đang chạy — yield câu tiếp theo
             if not agent_task.done():
                 yield pick_thinking_ongoing_sentence()
             else:
                 task_done = True
-
-    # Khoảng nghỉ tự nhiên trước khi trả response —
-    # giúp tránh cảm giác response xuất hiện ngay lập tức sau câu chờ cuối
     await asyncio.sleep(THINKING_RESPONSE_DELAY_SECONDS)

@@ -10,10 +10,14 @@ motor
 pydantic-settings
 langchain
 langchain-openai
-langgraph
-lightrag-hku
 sentence-transformers
 pdfplumber
 python-docx
 psycopg2-binary
-chromadb
+requests
+beautifulsoup4
+qdrant-client
+transformers
+langchain-text-splitters
+langchain-qdrant
+FlagEmbedding

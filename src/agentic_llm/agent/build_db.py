@@ -1,857 +1,315 @@
-import re
+"""
+build_db.py — Indexing pipeline cho toàn bộ dữ liệu vào Qdrant (hybrid: dense + sparse).
+
+Collections:
+  - law        : văn bản pháp luật (Luật, Nghị định, Thông tư)  ← MIGRATE từ ChromaDB
+  - admission  : tư vấn tuyển sinh                               ← MIGRATE từ ChromaDB
+  - tours      : dữ liệu tour du lịch                            ← MIGRATE từ ChromaDB
+
+Hybrid strategy:
+  - Dense vector  : AITeamVN/Vietnamese_Embedding_v2 (BGE-M3 fine-tuned, dim=1024)
+  - Sparse vector : lexical weights từ cùng BGE-M3 model (SPLADE-style)
+  - Distance      : COSINE cho dense, default sparse index
+
+Thay đổi so với build_db.py cũ:
+  - Backend: ChromaDB → Qdrant
+  - Chunking law: giữ nguyên LawParser + CircularParser
+  - Thêm sparse vectors cho hybrid search
+  - Batch upsert với wait=False để tăng tốc ingest
+
+Run:
+    python build_db.py
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
 import uuid
-from dataclasses import dataclass
-from typing import Optional, List, Dict
-from docx import Document
+from pathlib import Path
+
+import numpy as np
+import torch
+from dotenv import load_dotenv
+from FlagEmbedding import BGEM3FlagModel
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import (
+    Distance,
+    PointStruct,
+    SparseIndexParams,
+    SparseVector,
+    SparseVectorParams,
+    VectorParams,
+)
+from tqdm import tqdm
+
+# Import toàn bộ parsers từ file gốc (đã đổi tên để tránh conflict)
+# Lưu ý: đổi tên file build_db gốc thành build_db_parsers.py
+from build_db_parsers import (
+    LawParser,
+    CircularParser,
+    AdmissionConsultingParser,
+    TourParser,
+    LegalChunk,
+    load_docx_paragraphs,
+    load_docx_text,
+)
+
+load_dotenv(override=True)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 
-# =========================================================
-# Data Model
-# =========================================================
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
 
-@dataclass
-class LegalChunk:
-    id: str
-    text: str
-    doc_type: str
-    source_file: str
+QDRANT_HOST      = os.environ.get("QDRANT_HOST", "localhost")
+QDRANT_PORT      = int(os.environ.get("QDRANT_PORT", "6333"))
+EMBEDDING_MODEL  = os.environ.get("EMBEDDING_MODEL_NAME", "AITeamVN/Vietnamese_Embedding_v2")
+DEVICE           = os.environ.get("DEVICE", "cpu")
+DENSE_DIM        = 1024
+ENCODE_BATCH     = 32
+UPSERT_BATCH     = 256
 
-    chapter: Optional[str] = None
-    section: Optional[str] = None
-    article: Optional[str] = None
-    clause: Optional[str] = None
-    point: Optional[str] = None
+LAW_COLLECTION       = "law"
+ADMISSION_COLLECTION = "admission"
+TOUR_COLLECTION      = "tours"
 
-    article_full: str = ""
-    clause_full: str = ""
 
-    def to_chromadb(self):
-        meta = {
-            "doc_type": self.doc_type,
-            "source_file": self.source_file,
-            "source": ".".join(self.source_file.split("/")[-1].split('.')[:-1]),   # ⭐ NEW FIELD
-            "chapter": self.chapter or "",
-            "section": self.section or "",
-            "article": self.article or "",
-            "clause": self.clause or "",
-            "point": self.point or "",
-            "article_full": self.article_full,
-            "clause_full": self.clause_full,
+# ---------------------------------------------------------------------------
+# Embedding engine
+# ---------------------------------------------------------------------------
+
+class _EmbeddingEngine:
+    """
+    Wrapper quanh BGEM3FlagModel (AITeamVN/Vietnamese_Embedding_v2).
+    Một lần encode → cả dense lẫn sparse, tránh double-inference.
+    """
+
+    def __init__(self, model_name: str = EMBEDDING_MODEL, device: str = DEVICE):
+        logger.info("Loading embedding model: %s on %s", model_name, device)
+        self.model = BGEM3FlagModel(
+            model_name,
+            use_fp16=(device == "cuda"),
+            device=device,
+        )
+        self.model.model.eval()
+        self.tokenizer = self.model.tokenizer
+        # Warmup để compile CUDA kernels nếu có GPU
+        self.model.encode(["warmup"], batch_size=1, max_length=32)
+        logger.info("Embedding model ready.")
+
+    @torch.no_grad()
+    def encode_batch(self, texts: list[str], max_length: int = 512) -> tuple[np.ndarray, list[dict]]:
+        """
+        Encode một batch.
+
+        Returns:
+            dense  : np.ndarray shape (N, 1024), float32
+            sparse : list[dict[int, float]]  — {token_id: weight}
+        """
+        results = self.model.encode(
+            texts,
+            batch_size=len(texts),
+            max_length=max_length,
+            return_dense=True,
+            return_sparse=True,
+            return_colbert_vecs=False,
+        )
+        dense = np.array(results["dense_vecs"], dtype=np.float32)
+        sparse = [self._clean_sparse(lw) for lw in results["lexical_weights"]]
+        return dense, sparse
+
+    def _clean_sparse(self, lexical_weights: dict) -> dict[int, float]:
+        """
+        BGE-M3 trả về {str(token_id): weight}.
+        Convert về {int: float}, filter special tokens, deduplicate với max.
+        """
+        specials = {
+            self.tokenizer.cls_token_id,
+            self.tokenizer.eos_token_id,
+            self.tokenizer.pad_token_id,
+            self.tokenizer.unk_token_id,
         }
-        return self.id, self.text, meta
+        result: dict[int, float] = {}
+        for k, w in lexical_weights.items():
+            tid = int(k)
+            fw  = float(w)
+            if tid not in specials and fw > 0:
+                result[tid] = max(result.get(tid, 0.0), fw)
+        return result
 
 
-# =========================================================
-# Helpers
-# =========================================================
-
-def load_docx_paragraphs(path: str) -> List[str]:
-    doc = Document(path)
-    return [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+def _to_qdrant_sparse(d: dict[int, float]) -> SparseVector:
+    idx = sorted(d.keys())
+    val = [d[i] for i in idx]
+    return SparseVector(indices=idx, values=val)
 
 
-def load_docx_text(path: str) -> str:
-    return "\n".join(load_docx_paragraphs(path))
+# ---------------------------------------------------------------------------
+# Collection helpers
+# ---------------------------------------------------------------------------
+
+def _ensure_collection(client: QdrantClient, name: str) -> None:
+    """Xoá rồi tạo lại collection với dual-vector (dense + sparse)."""
+    if client.collection_exists(name):
+        logger.info("Dropping existing collection '%s'", name)
+        client.delete_collection(name)
+
+    client.create_collection(
+        collection_name=name,
+        vectors_config={
+            "dense": VectorParams(size=DENSE_DIM, distance=Distance.COSINE)
+        },
+        sparse_vectors_config={
+            "sparse": SparseVectorParams(index=SparseIndexParams(on_disk=False))
+        },
+    )
+    logger.info("Created collection '%s' (dense=%d + sparse)", name, DENSE_DIM)
 
 
-def make_id(prefix: str = "") -> str:
-    return f"{prefix}_{uuid.uuid4().hex[:8]}"
+# ---------------------------------------------------------------------------
+# Core ingest
+# ---------------------------------------------------------------------------
 
-
-# =========================================================
-# Regex
-# =========================================================
-
-RE_ARTICLE = re.compile(r"^(Điều\s+\d+[a-z]?\.\s*.*)$")
-RE_CHAPTER = re.compile(r"^(Chương\s+[IVXLCDM\d]+)$", re.IGNORECASE)
-RE_SECTION = re.compile(r"^(Mục\s+\d+[a-z]?)$", re.IGNORECASE)
-RE_CLAUSE = re.compile(r"^(\d+)\.\s+(.+)")
-RE_POINT = re.compile(r"^([a-zđ])\)\s+(.+)")
-
-# =========================================================
-# BaseDocumentParser (domain-agnostic)
-# =========================================================
-
-class BaseDocumentParser:
+def ingest_chunks(
+    chunks: list[LegalChunk],
+    collection_name: str,
+    engine: _EmbeddingEngine,
+    client: QdrantClient,
+) -> None:
     """
-    Base parser chung cho mọi loại tài liệu.
-    Trả về list[LegalChunk] để thống nhất index pipeline.
-    """
-
-    def __init__(self, doc_type: str, source_file: str = ""):
-        self.doc_type = doc_type
-        self.source_file = source_file
-        self.chunks: List[LegalChunk] = []
-
-    def _new_chunk(self, text: str, **metadata):
-        self.chunks.append(
-            LegalChunk(
-                id=make_id(self.doc_type),
-                text=text,
-                doc_type=self.doc_type,
-                source_file=self.source_file,
-                **metadata
-            )
-        )
-
-    def parse(self, *args, **kwargs):
-        raise NotImplementedError
-
-# =========================================================
-# Base Class
-# =========================================================
-
-class BaseLegalParser(BaseDocumentParser):
-    """
-    Base cho văn bản pháp luật.
-    """
-    def __init__(self, doc_type: str, source_file: str = ""):
-        super().__init__(doc_type, source_file)
-
-    def _new_chunk(self, **kwargs) -> None:
-        self.chunks.append(
-            LegalChunk(
-                id=make_id(self.doc_type),
-                doc_type=self.doc_type,
-                source_file=self.source_file,
-                **kwargs
-            )
-        )
-
-    def parse(self, *args, **kwargs) -> List[LegalChunk]:
-        raise NotImplementedError
-
-
-# =========================================================
-# LawParser
-# =========================================================
-
-class LawParser(BaseLegalParser):
-    """
-    Luật:
-    Chương → [Mục] → Điều → Khoản → Điểm
-
-    Granularity:
-    - Không khoản → chunk toàn Điều
-    - Có khoản → chunk mỗi Khoản
-    - Có điểm → chunk mỗi Điểm
-    """
-
-    def __init__(self, source_file: str = ""):
-        super().__init__(doc_type="luat", source_file=source_file)
-
-    def parse(self, paragraphs: List[str]) -> List[LegalChunk]:
-        self.chunks = []
-
-        chapter = None
-        section = None
-        article_title = None
-        article_lines = []
-
-        def flush():
-            if article_title and article_lines:
-                self._process_article(
-                    article_title,
-                    article_lines,
-                    chapter,
-                    section
-                )
-
-        for para in paragraphs:
-            if RE_CHAPTER.match(para):
-                flush()
-                chapter = para
-                section = None
-                article_title = None
-                article_lines = []
-                continue
-
-            if RE_SECTION.match(para):
-                flush()
-                section = para
-                article_title = None
-                article_lines = []
-                continue
-
-            if RE_ARTICLE.match(para):
-                flush()
-                article_title = para
-                article_lines = []
-                continue
-
-            if article_title:
-                article_lines.append(para)
-
-        flush()
-        return self.chunks
-
-    def _process_article(self, title, lines, chapter, section):
-        article_full = title + "\n" + "\n".join(lines)
-        clauses = self._split_clauses(lines)
-
-        if not clauses:
-            self._new_chunk(
-                text=article_full,
-                chapter=chapter,
-                section=section,
-                article=title,
-                article_full=article_full,
-            )
-            return
-
-        for num, clause_lines in clauses.items():
-            clause_title = f"Khoản {num}"
-            clause_full = "\n".join(clause_lines)
-            points = self._split_points(clause_lines)
-
-            if not points:
-                self._new_chunk(
-                    text=f"{title}\n{clause_full}",
-                    chapter=chapter,
-                    section=section,
-                    article=title,
-                    clause=clause_title,
-                    article_full=article_full,
-                    clause_full=clause_full,
-                )
-            else:
-                for letter, point_text in points.items():
-                    self._new_chunk(
-                        text=f"{title} – {clause_title}\n{point_text}",
-                        chapter=chapter,
-                        section=section,
-                        article=title,
-                        clause=clause_title,
-                        point=f"Điểm {letter}",
-                        article_full=article_full,
-                        clause_full=clause_full,
-                    )
-
-    @staticmethod
-    def _split_clauses(lines: List[str]) -> Dict[str, List[str]]:
-        clauses = {}
-        current = None
-        for line in lines:
-            m = RE_CLAUSE.match(line)
-            if m:
-                current = m.group(1)
-                clauses[current] = [line]
-            elif current:
-                clauses[current].append(line)
-        return clauses
-
-    @staticmethod
-    def _split_points(lines: List[str]) -> Dict[str, str]:
-        points = {}
-        for line in lines:
-            m = RE_POINT.match(line)
-            if m:
-                points[m.group(1)] = line
-        return points
-
-
-# =========================================================
-# CircularParser
-# =========================================================
-
-class CircularParser(BaseLegalParser):
-    """
-    Thông tư / Nghị định:
-    Điều → Khoản → Điểm
-
-    Granularity:
-    - Ưu tiên chunk ở cấp Điểm (behavior)
-    - Nếu không có điểm → chunk Khoản
-    """
-
-    def __init__(self, source_file: str = ""):
-        super().__init__(doc_type="thong_tu", source_file=source_file)
-
-    def parse(self, raw_text: str) -> List[LegalChunk]:
-        self.chunks = []
-
-        articles = re.findall(
-            r"(Điều\s+\d+\.?.*?)(?=Điều\s+\d+\.|$)",
-            raw_text,
-            flags=re.S,
-        )
-
-        for art in articles:
-            art_title = art.split("\n")[0].strip()
-            article_full = art.strip()
-            clauses = self._parse_clauses(art)
-
-            if not clauses:
-                self._new_chunk(
-                    text=article_full,
-                    article=art_title,
-                    article_full=article_full,
-                )
-                continue
-
-            for clause_text in clauses:
-                clause_title = clause_text.split("\n")[0].strip()
-                clause_full = clause_text.strip()
-                points = self._parse_points(clause_text)
-
-                if not points:
-                    self._new_chunk(
-                        text=f"{art_title}\n{clause_full}",
-                        article=art_title,
-                        clause=clause_title,
-                        article_full=article_full,
-                        clause_full=clause_full,
-                    )
-                else:
-                    for point_text in points:
-                        behavior = (
-                            point_text
-                            .lstrip("abcdefghijklmnopqrstuvwxyzđ)")
-                            .strip()
-                            .rstrip(";")
-                        )
-                        self._new_chunk(
-                            text=behavior,
-                            article=art_title,
-                            clause=clause_title,
-                            point=point_text,
-                            article_full=article_full,
-                            clause_full=clause_full,
-                        )
-
-        return self.chunks
-
-    @staticmethod
-    def _parse_clauses(article_text: str) -> List[str]:
-        return [
-            c.strip()
-            for c in re.findall(
-                r"(\n\d+\.\s.*?)(?=\n\d+\.|\Z)",
-                article_text,
-                flags=re.S,
-            )
-        ]
-
-    @staticmethod
-    def _parse_points(clause_text: str) -> List[str]:
-        return re.findall(
-            r"(?:^|\n)([a-zđ]\)\s+[^\n]+)",
-            clause_text
-        )
-
-
-# =========================================================
-# Factory
-# =========================================================
-
-def create_chunks(file_path: str, doc_type: str):
-    if doc_type == "luat":
-        paragraphs = load_docx_paragraphs(file_path)
-        parser = LawParser(source_file=file_path)
-        return parser.parse(paragraphs)
-
-    elif doc_type in ["thong_tu", "nghi_dinh"]:
-        parser = CircularParser(source_file=file_path)
-        raw_text = load_docx_text(file_path)
-        return parser.parse(raw_text)
-
-    else:
-        raise ValueError("Unsupported document type")
-
-
-# =========================================================
-# AdmissionConsultingParser
-# =========================================================
-
-import pdfplumber
-
-
-class AdmissionConsultingParser(BaseDocumentParser):
-    """
-    Parser cho tài liệu tư vấn tuyển sinh (PDF).
-
-    Structure:
-        Roman (I, II, III)
-            → Section (1, 2)
-                → Subsection (1.1)
-
-    KHÔNG phải legal document.
-    """
-
-    ROMAN_PATTERN = r'^\s*([IVX]+)\.\s+'
-    SECTION_PATTERN = r'^\s*(\d+)\.\s+'
-    SUBSECTION_PATTERN = r'^\s*(\d+\.\d+)\.?\s+'
-
-    def __init__(self, source_file: str = ""):
-        super().__init__(
-            doc_type="tu_van_tuyen_sinh",
-            source_file=source_file
-        )
-
-    def parse(self, pdf_path: str):
-        self.chunks = []
-        blocks = self._extract_blocks(pdf_path)
-
-        last_chunk_index = None
-
-        for block in blocks:
-
-            if block["type"] == "text":
-
-                text_chunks = self._split_text_block(block["content"])
-
-                for content, meta in text_chunks:
-                    self._new_chunk(
-                        text=content.strip(),
-                        chapter=meta["roman"],
-                        section=meta["section"],
-                        clause=meta["subsection"],
-                        article=f"Page {block['page']}",
-                        article_full=content.strip()
-                    )
-                    last_chunk_index = len(self.chunks) - 1
-
-            elif block["type"] == "table":
-
-                sentences = self._table_to_semantic_sentences(
-                    block["content"]
-                )
-
-                if sentences and last_chunk_index is not None:
-                    self.chunks[last_chunk_index].text += (
-                        "\n" + "\n".join(sentences)
-                    )
-
-        return self.chunks
-        # =========================================================
-    # Internal Helpers
-    # =========================================================
-
-    @staticmethod
-    def _clean(text):
-        if not text:
-            return ""
-        return str(text).strip().replace("\n", " ")
-
-    @staticmethod
-    def _is_page_number(line: str) -> bool:
-        return bool(re.match(r"^\s*\d+\s*$", line.strip()))
-
-    # ===============================
-    # TABLE → SEMANTIC SENTENCES
-    # ===============================
-
-    def _table_to_semantic_sentences(self, table):
-
-        if not table or len(table) < 2:
-            return []
-
-        headers = [self._clean(h) for h in table[0]]
-        rows = table[1:]
-
-        merged_rows = []
-        current_row = None
-
-        for row in rows:
-            row = [self._clean(c) for c in row]
-
-            if len(row) < len(headers):
-                row += [""] * (len(headers) - len(row))
-
-            is_new = row[0] != ""
-
-            if is_new:
-                if current_row:
-                    merged_rows.append(current_row)
-                current_row = row
-            else:
-                if current_row:
-                    for i in range(len(row)):
-                        if row[i]:
-                            if current_row[i]:
-                                current_row[i] += " " + row[i]
-                            else:
-                                current_row[i] = row[i]
-
-        if current_row:
-            merged_rows.append(current_row)
-
-        sentences = []
-
-        for row in merged_rows:
-            row_dict = dict(zip(headers, row))
-
-            parts = []
-            for h in headers:
-                if row_dict.get(h):
-                    parts.append(f"{h}: {row_dict[h]}")
-
-            if parts:
-                sentences.append(". ".join(parts) + ".")
-
-        return sentences
-
-    # ===============================
-    # EXTRACT BLOCKS (TEXT + TABLE)
-    # ===============================
-
-    def _extract_blocks(self, pdf_path: str):
-
-        blocks = []
-
-        with pdfplumber.open(pdf_path) as pdf:
-            for page_num, page in enumerate(pdf.pages, start=1):
-
-                tables = page.find_tables()
-                tables = sorted(tables, key=lambda t: t.bbox[1])
-
-                last_bottom = 0
-
-                for table in tables:
-
-                    x0, top, x1, bottom = table.bbox
-
-                    # ===== TEXT TRÊN TABLE =====
-                    if top > last_bottom:
-                        upper = page.crop((0, last_bottom, page.width, top))
-                        text = upper.extract_text()
-                        if text:
-                            blocks.append({
-                                "type": "text",
-                                "content": text,
-                                "page": page_num
-                            })
-
-                    # ===== TABLE =====
-                    blocks.append({
-                        "type": "table",
-                        "content": table.extract(),
-                        "page": page_num
-                    })
-
-                    last_bottom = bottom
-
-                # ===== TEXT DƯỚI TABLE =====
-                if last_bottom < page.height:
-                    lower = page.crop((0, last_bottom, page.width, page.height))
-                    text = lower.extract_text()
-                    if text:
-                        blocks.append({
-                            "type": "text",
-                            "content": text,
-                            "page": page_num
-                        })
-
-        return blocks
-
-    # ===============================
-    # SPLIT TEXT THEO HIERARCHY
-    # ===============================
-
-    def _split_text_block(self, text):
-
-        lines = text.split("\n")
-
-        chunks = []
-        current_chunk = ""
-        current_meta = {
-            "roman": None,
-            "section": None,
-            "subsection": None
+    Encode + upsert list[LegalChunk] vào Qdrant collection.
+
+    Payload format:
+        {
+          "page_content": str,          # text của chunk
+          "metadata": dict,             # toàn bộ metadata từ LegalChunk.to_chromadb()
         }
-
-        for line in lines:
-
-            if self._is_page_number(line):
-                continue
-
-            roman_match = re.match(self.ROMAN_PATTERN, line)
-            section_match = re.match(self.SECTION_PATTERN, line)
-            subsection_match = re.match(self.SUBSECTION_PATTERN, line)
-
-            if roman_match:
-                if current_chunk.strip():
-                    chunks.append((current_chunk.strip(), current_meta.copy()))
-
-                current_meta["roman"] = roman_match.group(1)
-                current_meta["section"] = None
-                current_meta["subsection"] = None
-                current_chunk = line + "\n"
-
-            elif subsection_match:
-                if current_chunk.strip():
-                    chunks.append((current_chunk.strip(), current_meta.copy()))
-
-                current_meta["subsection"] = subsection_match.group(1)
-                current_chunk = line + "\n"
-
-            elif section_match:
-                if current_chunk.strip():
-                    chunks.append((current_chunk.strip(), current_meta.copy()))
-
-                current_meta["section"] = section_match.group(1)
-                current_meta["subsection"] = None
-                current_chunk = line + "\n"
-
-            else:
-                current_chunk += line + "\n"
-
-        if current_chunk.strip():
-            chunks.append((current_chunk.strip(), current_meta.copy()))
-
-        return chunks
-
-
-# =========================================================
-# TourParser
-# =========================================================
-
-class TourParser(BaseDocumentParser):
     """
-    Parser cho dữ liệu tour du lịch (JSON).
-
-    Mỗi tour sinh ra nhiều LegalChunk để tìm kiếm ngữ nghĩa:
-      - 1 summary chunk  : tiêu đề + điểm đến + loại tour + thời gian + giá
-      - N itinerary chunk: mỗi ngày trong lịch trình (tiêu đề + địa điểm + mô tả)
-
-    Mapping sang các field của LegalChunk:
-      point        ← tour_id  (dedicated lookup key — reliable, not truncated)
-      article      ← tour_id  (kept for legacy compatibility)
-      chapter      ← tour_type   (tour miền bắc / nam / trung)
-      section      ← title
-      clause       ← "summary" hoặc "day_<N>"
-      clause_full  ← compact JSON metadata:
-                     summary chunk: {p0, p1, d, n, nd, tr, dc, ds}
-                     day chunk    : {meals, overnight}
-      article_full ← (empty — not used for tours)
-    """
-
-    def __init__(self, source_file: str = "extracted_data.json"):
-        super().__init__(doc_type="tour", source_file=source_file)
-
-    @staticmethod
-    def _fmt_price(amount: int) -> str:
-        return f"{amount:,}".replace(",", ".")
-
-    def parse(self, tours: list) -> List[LegalChunk]:
-        self.chunks = []
-        for tour in tours:
-            self._parse_tour(tour)
-        return self.chunks
-
-    def _parse_tour(self, tour: dict) -> None:
-        import json as _json
-
-        tid        = tour["tour_id"]
-        title      = tour["title"]
-        tour_type  = tour.get("tour_type", "")
-        dur        = tour.get("duration", {})
-        pr         = tour.get("price_range", {})
-        dests      = ", ".join(tour.get("destinations", []))
-        transport  = ", ".join(tour.get("transport", []))
-        deps       = tour.get("departures", [])
-
-        duration_str = f"{dur.get('days', '?')} ngày {dur.get('nights', '?')} đêm"
-        price_str    = (
-            f"{self._fmt_price(pr.get('min_price', 0))} – "
-            f"{self._fmt_price(pr.get('max_price', 0))} VND"
-        )
-
-        # Compact summary metadata stored in clause_full (always < 500 chars)
-        # Fields: p0=min_price, p1=max_price, d=days, n=nights, nd=next_departure
-        summary_meta = _json.dumps({
-            "p0": pr.get("min_price", 0),
-            "p1": pr.get("max_price", 0),
-            "d":  dur.get("days"),
-            "n":  dur.get("nights"),
-            "nd": deps[0]["date"] if deps else "",
-            "tr": transport,
-            "dc": tour.get("departure", {}).get("city", ""),
-            "ds": tour.get("destinations", []),
-        }, ensure_ascii=False)
-
-        # ── Summary chunk ────────────────────────────────────────────────
-        # point = tour_id  (dedicated field, reliable lookup key)
-        # clause_full = compact summary metadata JSON
-        summary_text = (
-            f"{title}. "
-            f"Loại tour: {tour_type}. "
-            f"Điểm đến: {dests}. "
-            f"Thời gian: {duration_str}. "
-            f"Phương tiện: {transport}. "
-            f"Giá: {price_str}."
-        )
-        self._new_chunk(
-            text=summary_text,
-            chapter=tour_type,
-            section=title,
-            article=tid,
-            clause="summary",
-            point=tid,           # <-- dedicated tour_id field
-            clause_full=summary_meta,
-        )
-
-        # ── One chunk per itinerary day ──────────────────────────────────
-        # clause_full = compact day metadata JSON (meals + overnight)
-        for day in tour.get("itinerary", []):
-            day_num   = day.get("day", 0)
-            day_title = day.get("title", "")
-            desc      = day.get("description", "")
-            locs      = ", ".join(day.get("locations", []))
-
-            day_meta = _json.dumps({
-                "meals":     day.get("meals", []),
-                "overnight": day.get("overnight") or "",
-            }, ensure_ascii=False)
-
-            day_text = (
-                f"{title} – Ngày {day_num}: {day_title}. "
-                f"Địa điểm: {locs}. "
-                f"{desc}"
-            )
-            self._new_chunk(
-                text=day_text,
-                chapter=tour_type,
-                section=title,
-                article=tid,
-                clause=f"day_{day_num}",
-                point=tid,           # <-- dedicated tour_id field
-                clause_full=day_meta,
-            )
-
-
-# =========================================================
-# Chroma Indexer
-# =========================================================
-
-def index_chunks(chunks: List[LegalChunk], collection, batch_size: int = 5000):
-    """
-    Index list[LegalChunk] vào ChromaDB collection.
-
-    - Tự động chia batch
-    - Không phụ thuộc loại document
-    """
-
     if not chunks:
-        print("⚠ No chunks to index.")
+        logger.warning("No chunks for '%s', skipping.", collection_name)
         return
 
-    ids = []
-    documents = []
-    metadatas = []
+    texts = [c.text for c in chunks]
+    logger.info("Encoding %d chunks for '%s'...", len(texts), collection_name)
 
-    for chunk in chunks:
-        cid, doc, meta = chunk.to_chromadb()
-        ids.append(cid)
-        documents.append(doc)
-        metadatas.append(meta)
+    all_dense:  list[np.ndarray] = []
+    all_sparse: list[dict]       = []
 
-    for i in range(0, len(ids), batch_size):
-        collection.add(
-            ids=ids[i:i + batch_size],
-            documents=documents[i:i + batch_size],
-            metadatas=metadatas[i:i + batch_size],
+    for i in tqdm(range(0, len(texts), ENCODE_BATCH), desc=f"Encoding [{collection_name}]"):
+        batch = texts[i : i + ENCODE_BATCH]
+        d, s  = engine.encode_batch(batch)
+        all_dense.append(d)
+        all_sparse.extend(s)
+
+    dense_matrix = np.vstack(all_dense)
+
+    points: list[PointStruct] = []
+    for chunk, dense_vec, sparse_dict in zip(chunks, dense_matrix, all_sparse):
+        _, text, meta = chunk.to_chromadb()
+        points.append(
+            PointStruct(
+                id=str(uuid.uuid4()),
+                vector={
+                    "dense":  dense_vec.tolist(),
+                    "sparse": _to_qdrant_sparse(sparse_dict),
+                },
+                payload={
+                    "page_content": text,
+                    "metadata":     meta,
+                },
+            )
         )
 
-    print(f"✅ Indexed {len(ids)} chunks.")
+    logger.info("Upserting %d points to '%s'...", len(points), collection_name)
+    for i in tqdm(range(0, len(points), UPSERT_BATCH), desc=f"Upserting [{collection_name}]"):
+        client.upsert(
+            collection_name=collection_name,
+            points=points[i : i + UPSERT_BATCH],
+            wait=False,  # async write cho throughput cao hơn
+        )
 
+    # Đảm bảo flush trước khi kết thúc
+    client.get_collection(collection_name)
+    logger.info("Ingested %d chunks into '%s'", len(chunks), collection_name)
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    LAW_PATH = "../data/Luật giao thông đường bộ.docx"
-    INSTRUCT_PATH = "../data/Nghị định 168 năm 2024.docx"
-    ADMISSION_PATH = "../data/Thong-tin-tuyen-sinh-DHCQ-nam-2026-QHI.pdf"
-    TOUR_DATA_PATH = "../data/extracted_data.json"
+    LAW_PATH      = os.environ.get("LAW_PATH",      "../data/Luật giao thông đường bộ.docx")
+    CIRCULAR_PATH = os.environ.get("CIRCULAR_PATH", "../data/Nghị định 168 năm 2024.docx")
+    ADMISSION_TXT = os.environ.get("ADMISSION_TXT", "../data/admission.txt")
+    TOUR_JSON     = os.environ.get("TOUR_JSON",      "../data/extracted_data.json")
 
-    import chromadb
-    from chromadb.utils import embedding_functions
-    import os
-    import json
-    from dotenv import load_dotenv
+    qdrant  = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+    engine  = _EmbeddingEngine()
 
-    load_dotenv(override=True)
+    # ── 1. Law ───────────────────────────────────────────────────────────
+    _ensure_collection(qdrant, LAW_COLLECTION)
+    law_chunks: list[LegalChunk] = []
 
+    if Path(LAW_PATH).exists():
+        p = LawParser(source_file=LAW_PATH)
+        law_chunks += p.parse(load_docx_paragraphs(LAW_PATH))
+        logger.info("Law docx: %d chunks", len(law_chunks))
 
-    # ==============================
-    # Embedding + Chroma
-    # ==============================
+        for file_name in ["../data/Nghị định 151 năm 2024.docx", "../data/Nghị định 160 năm 2024.docx"]:
+            p = LawParser(source_file=file_name)
+            law_chunks += p.parse(load_docx_paragraphs(file_name))
+            logger.info("Law docx: %d chunks", len(law_chunks))
 
-    ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=os.environ.get("EMBEDDING_MODEL_NAME"),
-        device=os.environ.get("DEVICE"),
-    )
+    if Path(CIRCULAR_PATH).exists():
+        p   = CircularParser(source_file=CIRCULAR_PATH)
+        cc  = p.parse(load_docx_text(CIRCULAR_PATH))
+        law_chunks += cc
+        logger.info("Circular docx: %d chunks (running total: %d)", len(cc), len(law_chunks))
 
-    client = chromadb.PersistentClient(
-        path=os.environ.get("CHROMA_PATH")
-    )
+    ingest_chunks(law_chunks, LAW_COLLECTION, engine, qdrant)
 
-    law_col = client.get_or_create_collection(
-        name="law",
-        embedding_function=ef,
-    )
+    # ── 2. Admission ─────────────────────────────────────────────────────
+    _ensure_collection(qdrant, ADMISSION_COLLECTION)
+    admission_chunks: list[LegalChunk] = []
 
+    if Path(ADMISSION_TXT).exists():
+        ap = AdmissionConsultingParser(source_file=ADMISSION_TXT)
+        with open(ADMISSION_TXT, "r", encoding="utf-8") as f:
+            raw = f.read()
+        for block in [b.strip() for b in raw.split("\n\n") if b.strip()]:
+            ap._new_chunk(
+                text=block,
+                chapter=None,
+                section=None,
+                clause=None,
+                article="Tài liệu tư vấn tuyển sinh UET 2026",
+                article_full=block,
+            )
+        admission_chunks = ap.chunks
+        logger.info("Admission: %d chunks", len(admission_chunks))
 
-    # ==============================
-    # 1️⃣ Index Luật
-    # ==============================
+    ingest_chunks(admission_chunks, ADMISSION_COLLECTION, engine, qdrant)
 
-    law_parser = LawParser(source_file=LAW_PATH)
-    law_chunks = law_parser.parse(load_docx_paragraphs(LAW_PATH))
+    # ── 3. Tours ─────────────────────────────────────────────────────────
+    _ensure_collection(qdrant, TOUR_COLLECTION)
+    tour_chunks: list[LegalChunk] = []
 
-    index_chunks(law_chunks, law_col)
+    if Path(TOUR_JSON).exists():
+        with open(TOUR_JSON, "r", encoding="utf-8") as f:
+            tours = json.load(f)
+        tp = TourParser(source_file=TOUR_JSON)
+        tour_chunks = tp.parse(tours)
+        logger.info("Tours: %d chunks", len(tour_chunks))
 
+    ingest_chunks(tour_chunks, TOUR_COLLECTION, engine, qdrant)
 
-    # ==============================
-    # 2️⃣ Index Nghị định / Thông tư
-    # ==============================
-
-    circular_parser = CircularParser(source_file=INSTRUCT_PATH)
-    circular_chunks = circular_parser.parse(load_docx_text(INSTRUCT_PATH))
-
-    index_chunks(circular_chunks, law_col)
-
-
-    # ==============================
-    # 3️⃣ Index Tư vấn tuyển sinh
-    # ==============================
-    admission_col = client.get_or_create_collection(
-        name="admission",
-        embedding_function=ef,
-    )
-    admission_parser = AdmissionConsultingParser(source_file=ADMISSION_PATH)
-    # admission_chunks = admission_parser.parse(ADMISSION_PATH)
-    admission_chunks = []
-    with open("../data/admission.txt", "r", encoding="utf-8") as f:
-        raw_text = f.read()
-
-    blocks = [b.strip() for b in raw_text.split("\n\n") if b.strip()]
-
-    for block in blocks:
-        admission_parser._new_chunk(
-            text=block,
-            chapter=None,
-            section=None,
-            clause=None,
-            article="Tài liêu tư vấn tuyển sinh UET 2026",
-            article_full=block
-        )
-
-    admission_chunks = admission_parser.chunks
-    index_chunks(admission_chunks, admission_col)
-
-    # ==============================
-    # 4️⃣ Index Tour du lịch
-    # ==============================
-
-
-    tour_col = client.get_or_create_collection(
-        name="tours",
-        embedding_function=ef,
-    )
-
-    with open(TOUR_DATA_PATH, "r", encoding="utf-8") as f:
-        tours = json.load(f)
-
-    tour_parser = TourParser(source_file=TOUR_DATA_PATH)
-    tour_chunks = tour_parser.parse(tours)
-    index_chunks(tour_chunks, tour_col)
-    print(f"Tour collection now has {tour_col.count()} documents.")
+    # ── Summary ───────────────────────────────────────────────────────────
+    print("\n=== Ingest Summary ===")
+    for col in [LAW_COLLECTION, ADMISSION_COLLECTION, TOUR_COLLECTION]:
+        info = qdrant.get_collection(col)
+        print(f"  {col:12s}: {info.points_count or 0:>6d} vectors")
+    print("✅ Done.")
