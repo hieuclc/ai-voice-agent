@@ -516,8 +516,30 @@ async def _run_search_admission(query: str) -> str:
         ),
     )
 
-    chunks = [item.get("text", "") for item in ranked]
-    return "\n\n-------------------\n\n".join(chunks)
+    parts = []
+    for i, item in enumerate(ranked, 1):
+        text = item.get("text", "")
+        meta = {k: v for k, v in item.items() if k not in ("text", "_rerank_score")}
+        parts.append(
+            f"[Kết quả {i}]\n"
+            f"Metadata: {json.dumps(meta, ensure_ascii=False)}\n\n"
+            f"Nội dung:\n{text}"
+        )
+
+    body = "\n\n-------------------\n\n".join(parts)
+
+    prefix = (
+        "[HƯỚNG DẪN ĐỐI CHIẾU — KHÔNG ĐỌC CHO USER]\n"
+        "Đây là TOÀN BỘ dữ liệu tuyển sinh tìm được. Khi trả lời BẮT BUỘC:\n"
+        "1. Chỉ nêu những gì THỰC SỰ CÓ trong dữ liệu dưới đây.\n"
+        "2. Nếu điều user nhắc đến (tổ hợp môn, ngành, mức học phí...) "
+        "KHÔNG XUẤT HIỆN trong dữ liệu → trả lời thẳng là KHÔNG CÓ, "
+        "rồi nêu những gì thực tế có.\n"
+        "3. TUYỆT ĐỐI không xác nhận hay đồng ý với thông tin user đề cập "
+        "nếu dữ liệu không chứa thông tin đó.\n"
+        "[KẾT THÚC HƯỚNG DẪN]\n\n"
+    )
+    return prefix + body
 
 
 search_admission = StructuredTool.from_function(
@@ -635,6 +657,7 @@ async def _hybrid_search_tours(
     tour_type: Optional[str],
     prefetch_limit: int,
     final_limit: int,
+    pinned_tour_id: Optional[str] = None,
 ) -> list[dict]:
     """Hàm hybrid search dùng chung cho cả 2 tour tools."""
     dense_vec, sparse_dict = await _encode_query(query)
@@ -656,6 +679,13 @@ async def _hybrid_search_tours(
             qmodels.FieldCondition(
                 key="metadata.chapter",
                 match=qmodels.MatchValue(value=tour_type),
+            )
+        )
+    if pinned_tour_id:
+        must_conditions.append(
+            qmodels.FieldCondition(
+                key="metadata.point",
+                match=qmodels.MatchValue(value=pinned_tour_id),
             )
         )
 
@@ -688,13 +718,14 @@ async def _hybrid_search_tours(
 
 async def _run_search_tours(query: str, tour_type: Optional[str] = None) -> str:
     """Tìm kiếm và liệt kê các tour phù hợp. Chỉ search summary chunks."""
+    # Tăng prefetch và final_limit để không bỏ sót tour khi query reasoning cần tổng hợp
     try:
         candidates = await _hybrid_search_tours(
             query=query,
             clause_filter=["summary"],
             tour_type=tour_type,
-            prefetch_limit=15,
-            final_limit=8,
+            prefetch_limit=20,
+            final_limit=12,
         )
     except Exception as exc:
         logger.error("search_tours error: %s", exc)
@@ -703,7 +734,7 @@ async def _run_search_tours(query: str, tour_type: Optional[str] = None) -> str:
     if not candidates:
         return "Không tìm thấy tour phù hợp."
 
-    ranked = await _rerank(query, candidates, top_k=5)
+    ranked = await _rerank(query, candidates, top_k=8)
 
     lines = []
     for item in ranked:
@@ -729,6 +760,11 @@ async def _run_search_tour_info(query: str, tour_type: Optional[str] = None) -> 
     sub_queries    = rewrite_result["sub_queries"]
     clause_filter  = rewrite_result["clause_types"]
 
+    # Extract tour_id nếu query đề cập "Tour số X", "tour mã X" rõ ràng
+    import re as _re
+    _tour_id_match = _re.search(r"(?:tour\s*(?:số|mã|số mã)?\s*)(\d+)", query, _re.IGNORECASE)
+    pinned_tour_id: Optional[str] = _tour_id_match.group(1) if _tour_id_match else None
+
     async def _fetch_one(sq: str) -> list[dict]:
         try:
             return await _hybrid_search_tours(
@@ -737,6 +773,7 @@ async def _run_search_tour_info(query: str, tour_type: Optional[str] = None) -> 
                 tour_type=tour_type,
                 prefetch_limit=20,
                 final_limit=10,
+                pinned_tour_id=pinned_tour_id,
             )
         except Exception as exc:
             logger.error("search_tour_info sub-query error (%r): %s", sq, exc)
@@ -758,6 +795,12 @@ async def _run_search_tour_info(query: str, tour_type: Optional[str] = None) -> 
 
     ranked = await _rerank(query, merged, top_k=8)
 
+    # Ưu tiên kết quả đúng tour nếu đã pin
+    if pinned_tour_id:
+        pinned = [r for r in ranked if str(r.get("point", r.get("article", ""))) == pinned_tour_id]
+        others = [r for r in ranked if str(r.get("point", r.get("article", ""))) != pinned_tour_id]
+        ranked = (pinned + others)[:8]
+
     parts = []
     for item in ranked:
         tour_name = item.get("section", "")
@@ -767,12 +810,10 @@ async def _run_search_tour_info(query: str, tour_type: Optional[str] = None) -> 
         parts.append(f"[Tour: {tour_name} | mã {tour_id} | {clause}]\n{text}")
 
     logger.info(
-        "===== SEARCH_TOUR_INFO: query=%r sub_queries=%s clause_filter=%s → %d merged → %d ranked =====",
-        query, sub_queries, clause_filter, len(merged), len(ranked),
+        "===== SEARCH_TOUR_INFO: query=%r sub_queries=%s clause_filter=%s pinned=%s → %d merged → %d ranked =====",
+        query, sub_queries, clause_filter, pinned_tour_id, len(merged), len(ranked),
     )
     return "\n\n---\n\n".join(parts)
-
-
 async def _run_get_tour_detail(tour_id: str) -> str:
     """Lấy toàn bộ thông tin của một tour theo mã tour."""
     client = _get_async_qdrant()
@@ -916,7 +957,8 @@ async def _run_count_tour_meals(tour_ids: list[str]) -> str:
             meals     = []
             day_label = clause
 
-        tour_days[tid].append((day_num, day_label, meals))
+        day_text = payload.get("page_content", "")
+        tour_days[tid].append((day_num, day_label, meals, day_text))
 
     if not tour_days:
         return "Không tìm thấy dữ liệu bữa ăn cho các tour yêu cầu."
@@ -926,14 +968,17 @@ async def _run_count_tour_meals(tour_ids: list[str]) -> str:
         name = tour_names.get(tid, f"Tour {tid}")
         days = sorted(tour_days[tid], key=lambda x: x[0])
 
-        total_sang  = sum(m.count("sáng") for _, _, m in days)
-        total_trua  = sum(m.count("trưa") for _, _, m in days)
-        total_toi   = sum(m.count("tối")  for _, _, m in days)
+        total_sang  = sum(m.count("sáng")  for _, _, m, _ in days)
+        total_trua  = sum(m.count("trưa")  for _, _, m, _ in days)
+        total_toi   = sum(m.count("tối")   for _, _, m, _ in days)
         total_chinh = total_sang + total_trua + total_toi
 
         lines.append(f"[Tour {tid}: {name}]")
-        for day_num, day_label, meals in days:
-            lines.append(f"  {day_label}: {', '.join(meals) if meals else 'không có bữa ăn'}")
+        for _, day_label, meals, day_text in days:
+            meal_str = ", ".join(meals) if meals else "không có bữa ăn"
+            lines.append(f"  {day_label}: {meal_str}")
+            if day_text:
+                lines.append(f"    {day_text}")
         lines.append(f"  TỔNG: sáng={total_sang} | trưa={total_trua} | tối={total_toi}")
         lines.append(f"  TỔNG BỮA CHÍNH (sáng + trưa + tối): {total_chinh}")
         lines.append("")
@@ -1049,11 +1094,12 @@ async def _run_scan_all_tours(
         text    = payload.get("page_content", "")
         tid     = meta.get("point", meta.get("article", "?"))
         clause  = meta.get("clause", "")
-        grouped[tid].append((clause, text))
+        clause_full = meta.get("clause_full", "")
+        grouped[tid].append((clause, text, clause_full))
 
     clause_order = {"summary": 0, "departures": 1, "services": 2, "policies": 3}
     def _clause_key(x):
-        c = x[0]
+        c = x[0]  # x is (clause, text, clause_full)
         if c in clause_order:
             return (clause_order[c], c)
         if c.startswith("day_"):
@@ -1064,7 +1110,26 @@ async def _run_scan_all_tours(
     parts = []
     for tid, items in sorted(grouped.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 999):
         items.sort(key=_clause_key)
-        parts.append(f"[Tour mã {tid}]\n" + "\n\n".join(text for _, text in items))
+        tour_texts = []
+        for clause, text, clause_full in items:
+            if clause == "summary" and clause_full:
+                # Bổ sung transport, departure city rõ ràng vào summary để LLM dễ trích xuất
+                try:
+                    import json as _j
+                    cf = _j.loads(clause_full)
+                    tr = cf.get("tr", "")
+                    dc = cf.get("dc", "")
+                    extra_lines = []
+                    if tr:
+                        extra_lines.append(f"Phương tiện di chuyển: {tr}")
+                    if dc:
+                        extra_lines.append(f"Điểm khởi hành: {dc}")
+                    if extra_lines:
+                        text = text + "\n" + "\n".join(extra_lines)
+                except Exception:
+                    pass
+            tour_texts.append(text)
+        parts.append(f"[Tour mã {tid}]\n" + "\n\n".join(tour_texts))
 
     logger.info(
         "===== SCAN_ALL_TOURS: clause_types=%s tour_ids=%s → %d tours =====",
