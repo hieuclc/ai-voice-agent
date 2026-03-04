@@ -31,7 +31,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Ngành Công nghệ thông tin",
-          "text": "Năm 2025: Chỉ tiêu 420, Nhập học 428, Điểm chuẩn 28.19"
+          "text": "Ngành công nghệ thông tin ... Năm 2025: Chỉ tiêu 420, Nhập học 428, Điểm chuẩn 28.19"
         }
       ],
       "difficulty": "retrieval"
@@ -67,7 +67,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Ngành Khoa học máy tính",
-          "text": "Năm 2024: Chỉ tiêu 340, Nhập học 358, Điểm chuẩn: SAT 27.5, ĐGNL 23, IELTS 26.5, THPT 27.58"
+          "text": "Ngành Khoa học máy tính ... Năm 2024: Chỉ tiêu 340, Nhập học 358, Điểm chuẩn: SAT 27.5, ĐGNL 23, IELTS 26.5, THPT 27.58"
         }
       ],
       "difficulty": "retrieval"
@@ -187,7 +187,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Lưu ý tuyển sinh",
-          "text": "Chưa có thông tin về thời gian công bố chính thức công thức quy đổi điểm SAT 2026."
+          "text": "Không có thông tin về thời gian công bố chính thức công thức quy đổi điểm SAT 2026."
         }
       ],
       "difficulty": "retrieval"
@@ -199,7 +199,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Dữ liệu tuyển sinh 2024-2025",
-          "text": "CN1 (2024: 27.8, 2025: 28.19); CN8 (2024: 27.58, 2025: 27.86); CN12 (2024: 27.12, 2025: 27.75)."
+          "text": "Công nghệ thông tin ... Điểm chuẩn 2024: 27.8, 2025: 28.19; Khoa học máy tính ... Điểm chuẩn 2024: 27.58, 2025: 27.86; Trí tuệ nhân tạo ... Điểm chuẩn 2024: 27.12, 2025: 27.75."
         }
       ],
       "difficulty": "integration"
@@ -253,13 +253,13 @@
       "difficulty": "integration"
     },
     {
-      "question": "Phân tích sự khác biệt về tổ hợp môn xét tuyển giữa nhóm ngành Kỹ thuật và nhóm ngành Công nghệ sinh học/nông nghiệp.",
-      "gold_answer": "Nhóm ngành Kỹ thuật chủ yếu xét A00, A01, X06. Các ngành như Công nghệ nông nghiệp/sinh học ngoài 3 tổ hợp trên còn xét thêm A02 (Toán, Lý, Sinh).",
+      "question": "Phân tích sự khác biệt về tổ hợp môn xét tuyển giữa nhóm ngành Kỹ thuật với nhóm ngành Công nghệ sinh học và công nghệ nông nghiệp.",
+      "gold_answer": "Nhóm ngành Kỹ thuật chủ yếu xét A00, A01, X06. Các ngành như Công nghệ nông nghiệp và công nghệ sinh học ngoài 3 tổ hợp trên còn xét thêm A02 (Toán, Lý, Sinh).",
       "gold_contexts": [
         {
           "document_name": "admission.txt",
           "article_or_clause": "Tổ hợp môn",
-          "text": "Hầu hết các ngành: A00, A01, X06. Riêng CN10, CN20 bổ sung A02."
+          "text": "Hầu hết các ngành: A00, A01, X06. Riêng Công nghệ nông nghiệp, Công nghệ sinh học bổ sung A02."
         }
       ],
       "difficulty": "integration"
@@ -271,7 +271,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Chỉ tiêu dự bị đại học và Điểm chuẩn 2025",
-          "text": "CNTT: 28.19 (3 chỉ tiêu); KHMT: 27.86 (3); TTNT: 27.75 (3); KTMT: 27.00 (3)."
+          "text": "Công nghệ thông tin: Điểm chuẩn 28.19 (3 chỉ tiêu); Khoa học máy tính: Điểm chuẩn 27.86 (3 chỉ tiêu); Trí tuệ nhân tạo: Điểm chuẩn 27.75 (3); Kỹ thuật máy tính: Điểm chuẩn 27.00 (3 chỉ tiêu)."
         }
       ],
       "difficulty": "integration"
@@ -283,14 +283,14 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Mục tiêu đào tạo",
-          "text": "KTMT: Thiết kế phần cứng, vi mạch, hệ thống nhúng. Robot: Thiết kế vận hành hệ thống tự động hóa, tay máy robot."
+          "text": "Mục tiêu đào tạo ngành Kỹ thuật máy tính: Thiết kế phần cứng, vi mạch, hệ thống nhúng. Mục tiêu đào tạo ngành kỹ thuật Robot: Thiết kế vận hành hệ thống tự động hóa, tay máy robot."
         }
       ],
       "difficulty": "integration"
     },
     {
       "question": "Tính tổng chỉ tiêu tuyển sinh năm 2025 của 3 ngành: Công nghệ thông tin, Khoa học máy tính và Kỹ thuật máy tính.",
-      "gold_answer": "Tổng chỉ tiêu là 420 (CNTT) + 420 (KHMT) + 420 (KTMT) = 1.260 chỉ tiêu.",
+      "gold_answer": "Ngành Công nghệ thông tin có 480 chỉ tiêu, Khoa học máy tính có 420 chỉ tiêu, Kỹ thuật máy tính có 420 chỉ tiêu. Như vậy tổng số chỉ tiêu cho 3 ngành là 1320.",
       "gold_contexts": [
         {
           "document_name": "admission.txt",
@@ -307,7 +307,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Dữ liệu ngành Mạng máy tính",
-          "text": "Mã CN15: Chỉ tiêu 120, Điểm chuẩn 2025: 26.73."
+          "text": "Mạng máy tính và truyền thông dữ liệu: Chỉ tiêu 120, Điểm chuẩn 2025: 26.73."
         }
       ],
       "difficulty": "integration"
@@ -319,7 +319,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Dự bị đại học",
-          "text": "Thí sinh phải đạt ngưỡng điểm trúng tuyển 2025 (TTNT: 27.75, HTTT: 26.38)."
+          "text": "Thí sinh phải đạt ngưỡng điểm trúng tuyển 2025 (Trí tuệ nhân tạo: 27.75, Hệ thống thông tin: 26.38)."
         }
       ],
       "difficulty": "integration"
@@ -350,7 +350,7 @@
     },
     {
       "question": "Trong các phương thức xét tuyển 2026, phương thức nào chiếm tỷ trọng lớn nhất và bao gồm những hình thức xét tuyển nhỏ nào?",
-      "gold_answer": "Phương thức xét tuyển theo kế hoạch Bộ GD&ĐT chiếm lớn nhất (95%), bao gồm: điểm thi THPT, thi ĐGNL (HSA) và chứng chỉ SAT.",
+      "gold_answer": "Phương thức xét tuyển theo kế hoạch Bộ GD&ĐT chiếm lớn nhất (95%), bao gồm: điểm thi THPT, HSA và chứng chỉ SAT.",
       "gold_contexts": [
         {
           "document_name": "admission.txt",
@@ -391,7 +391,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Dữ liệu ngành CNTT",
-          "text": "Điểm chuẩn SAT 2024 của CN1 là 28 (trên thang 30 quy đổi). SAT 1500/1600 là mức điểm cực kỳ cạnh tranh."
+          "text": "Điểm chuẩn SAT 2024 của CN1 là 1493."
         }
       ],
       "difficulty": "reasoning"
@@ -415,7 +415,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Định hướng đào tạo",
-          "text": "CN1: Chuyên sâu về phần mềm và ứng dụng. CN17: Thiết kế vận hành hệ thống tự động hóa, robot."
+          "text": "Công nghệ thông tin: Chuyên sâu về phần mềm và ứng dụng. Kỹ thuật Robot: Thiết kế vận hành hệ thống tự động hóa, robot."
         }
       ],
       "difficulty": "reasoning"
@@ -451,7 +451,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Cơ sở đào tạo",
-          "text": "SV năm thứ nhất dự kiến học tập tập trung tại Hòa Lạc."
+          "text": "Sinh viên năm thứ nhất dự kiến học tập tập trung tại Hòa Lạc."
         }
       ],
       "difficulty": "reasoning"
@@ -463,7 +463,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Điểm chuẩn KHMT",
-          "text": "2024: 27.58; 2025: 27.86."
+          "text": "Điểm chuẩn ngành khoa học máy tính năm 2024: 27.58; năm 2025: 27.86."
         }
       ],
       "difficulty": "reasoning"

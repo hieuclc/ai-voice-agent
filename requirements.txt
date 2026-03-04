@@ -10,6 +10,7 @@ motor
 pydantic-settings
 langchain
 langchain-openai
+transformers==4.57.5
 sentence-transformers
 pdfplumber
 python-docx
@@ -17,7 +18,6 @@ psycopg2-binary
 requests
 beautifulsoup4
 qdrant-client
-transformers
 langchain-text-splitters
 langchain-qdrant
 FlagEmbedding
