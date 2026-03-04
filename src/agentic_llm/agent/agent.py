@@ -522,7 +522,7 @@ async def _run_search_admission(query: str) -> str:
         meta = {k: v for k, v in item.items() if k not in ("text", "_rerank_score")}
         parts.append(
             f"[Kết quả {i}]\n"
-            f"Metadata: {json.dumps(meta, ensure_ascii=False)}\n\n"
+            # f"Metadata: {json.dumps(meta, ensure_ascii=False)}\n\n"
             f"Nội dung:\n{text}"
         )
 
@@ -582,6 +582,10 @@ QUY TẮC PHÂN TÍCH:
 4. Câu hỏi về lịch khởi hành, ngày đi, còn chỗ:
    → clause_types: ["departures"]
    → sub_queries: [tên tour đầy đủ nếu có]
+
+4b. Câu hỏi về giá cụ thể theo hạng khách sạn, giá tối đa, giá cao nhất, giá thấp nhất của một tour:
+   → clause_types: ["departures"]
+   → sub_queries: [tên tour đầy đủ, "giá khách sạn", "lịch khởi hành giá"]
 
 5. Câu hỏi về dịch vụ tổng quát (bao gồm gì, không bao gồm gì, phương tiện, hướng dẫn viên):
    → clause_types: ["services"]
@@ -754,14 +758,18 @@ async def _run_search_tour_info(query: str, tour_type: Optional[str] = None) -> 
     _tour_id_match = _re.search(r"(?:tour\s*(?:số|mã|số mã)?\s*)(\d+)", query, _re.IGNORECASE)
     pinned_tour_id: Optional[str] = _tour_id_match.group(1) if _tour_id_match else None
 
+    # Khi không có tour_id số, tăng prefetch để tìm tour bằng tên địa danh
+    _prefetch = 20 if pinned_tour_id else 30
+    _final    = 10 if pinned_tour_id else 15
+
     async def _fetch_one(sq: str) -> list[dict]:
         try:
             return await _hybrid_search_tours(
                 query=sq,
                 clause_filter=clause_filter,
                 tour_type=tour_type,
-                prefetch_limit=20,
-                final_limit=10,
+                prefetch_limit=_prefetch,
+                final_limit=_final,
                 pinned_tour_id=pinned_tour_id,
             )
         except Exception as exc:

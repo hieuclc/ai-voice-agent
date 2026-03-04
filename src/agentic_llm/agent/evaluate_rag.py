@@ -454,6 +454,15 @@ def parse_args():
              "Ví dụ: --from-raw law:eval_results_law_raw.json tour:eval_results_tour_raw.json",
     )
 
+    # Chế độ xuất summary từ CSV results đã có (không chạy agent/RAGAS)
+    p.add_argument(
+        "--from-csv", nargs="+", metavar="DOMAIN:PATH",
+        help="Xuất summary từ file CSV results đã có, không chạy agent/RAGAS. "
+             "Truyền DOMAIN:PATH hoặc chỉ PATH (domain tự suy từ tên file). "
+             "Ví dụ: --from-csv admission:eval_results_admission.csv "
+             "hoặc: --from-csv eval_results_admission.csv eval_results_law.csv",
+    )
+
     p.add_argument("--output",      default="eval_results.csv")
     p.add_argument("--model",       default=os.environ.get("LLM_MODEL", "gpt-4o-mini"))
     p.add_argument("--eval-model",  default="gpt-4o-mini")
@@ -490,6 +499,56 @@ async def main_from_raw(args, ragas_llm, ragas_emb):
         logger.error("Không có domain nào được load thành công.")
 
 
+def _infer_domain_from_path(path: str) -> str:
+    """Tự suy domain từ tên file, ví dụ eval_results_admission.csv -> admission."""
+    stem = Path(path).stem.lower()  # e.g. "eval_results_admission"
+    for known in ("law", "admission", "tour"):
+        if known in stem:
+            return known
+    # Fallback: lấy phần cuối sau dấu "_"
+    parts = stem.rsplit("_", 1)
+    return parts[-1] if len(parts) > 1 else stem
+
+
+def main_from_csv(args):
+    """
+    Đọc các file CSV results đã có và xuất lại summary — không cần RAGAS/agent.
+
+    Ví dụ sử dụng:
+        python evaluate_rag.py --from-csv eval_results_admission.csv eval_results_law.csv
+        python evaluate_rag.py --from-csv admission:eval_results_admission.csv law:eval_results_law.csv
+        python evaluate_rag.py --from-csv admission:eval_results_admission.csv --output my_summary.csv
+    """
+    all_results: dict[str, pd.DataFrame] = {}
+
+    for entry in args.from_csv:
+        if ":" in entry:
+            domain, path = entry.split(":", 1)
+        else:
+            path = entry
+            domain = _infer_domain_from_path(path)
+
+        if not Path(path).exists():
+            logger.error("File không tồn tại: %s", path)
+            continue
+
+        df = pd.read_csv(path, encoding="utf-8-sig")
+        logger.info("[%s] Loaded %d rows from %s", domain.upper(), len(df), path)
+
+        # Kiểm tra có đủ metric columns không
+        missing = [c for c in METRIC_COLS if c not in df.columns]
+        if missing:
+            logger.warning("[%s] Thiếu metric columns: %s — sẽ bỏ qua các cột này.", domain, missing)
+
+        all_results[domain] = df
+
+    if not all_results:
+        logger.error("Không có domain nào được load thành công.")
+        return
+
+    save_results(all_results, args.output)
+
+
 async def main(args):
     api_key  = os.environ.get("OPENAI_API_KEY", "")
     base_url = os.environ.get("OPENAI_BASE_URL") or None
@@ -504,6 +563,11 @@ async def main(args):
     # Chế độ re-eval — không cần khởi động agent
     if args.from_raw:
         await main_from_raw(args, ragas_llm, ragas_emb)
+        return
+
+    # Chế độ xuất summary từ CSV — không cần RAGAS hay agent
+    if args.from_csv:
+        main_from_csv(args)
         return
 
     # Chế độ thông thường

@@ -7,7 +7,31 @@
         {
           "document_name": "extracted_data.json",
           "tour_id": "1",
-          "text": "title: TOUR MIỀN BẮC MÙA XUÂN 5N4Đ | TAM CHÚC - NINH BÌNH - HẠ LONG. duration: { days: 5, nights: 4 }"
+          "text": "title: TOUR MIỀN BẮC MÙA XUÂN 5N4Đ | TAM CHÚC - NINH BÌNH - HẠ LONG 5 ngày 4 đêm"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Tour số 5 khởi hành từ đâu?",
+      "gold_answer": "Tour số 5 khởi hành từ TP. Hồ Chí Minh",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "1",
+          "text": "Tour số 5: Khởi hành từ TP. Hồ Chí Minh"
+        }
+      ],
+      "difficulty": "retrieval"
+    },
+    {
+      "question": "Tên của tour số 6 là gì?",
+      "gold_answer": "Tour số 6 có tên là TOUR MIỀN TÂY 2N1Đ | CÁI BÈ - ĐỒNG THÁP - CHỢ QUÊ TÂN THUẬN ĐÔNG",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "Tour số 6: TOUR MIỀN TÂY 2N1Đ | CÁI BÈ - ĐỒNG THÁP - CHỢ QUÊ TÂN THUẬN ĐÔNG"
         }
       ],
       "difficulty": "retrieval"
@@ -133,6 +157,40 @@
           "document_name": "extracted_data.json",
           "tour_id": "4",
           "text": "10 bữa ăn"
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Tour số 1 và tour số 3 có điểm gì giống nhau ở điểm xuất phát",
+      "gold_answer": "Tour số 1 và tour số 3 đều khởi hành từ TP. Hồ Chí Minh",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "6",
+          "text": "Tour số 1 khởi hành từ TP. Hồ Chí Minh, tour số 3 khởi hành từ TP. Hồ Chí Minh."
+        }
+      ],
+      "difficulty": "integration"
+    },
+    {
+      "question": "Tên của tour số 6 và tour số 2 là gì? Hai tour này có điểm gì chung",
+      "gold_answer": "Tour số 6 có tên là TOUR MIỀN TÂY 2N1Đ | CÁI BÈ - ĐỒNG THÁP - CHỢ QUÊ TÂN THUẬN ĐÔNG. Tour số 2 có tên là TOUR ĐỒNG THÁP - LÀNG HOA SA ĐÉC - CẦN THƠ 2N1Đ | Về Xứ Hoa Kiểng Miền Tây. Điểm chung giữa hai tour này là đều có thời gian 2 ngày 1 đêm, khởi hành từ TP. Hồ Chí Minh và đều đi qua Đồng Tháp.",
+      "gold_contexts": [
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "6",
+          "text": "Tour số 6: TOUR MIỀN TÂY 2 ngày 1 đêm | CÁI BÈ - ĐỒNG THÁP - CHỢ QUÊ TÂN THUẬN ĐÔNG khởi hành từ TP. Hồ Chí Minh"
+        },
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "2",
+          "text": "Tour số 2: TOUR ĐỒNG THÁP - LÀNG HOA SA ĐÉC - CẦN THƠ 2 ngày 1 đêm khởi hành từ TP. Hồ Chí Minh."
+        }
+        {
+          "document_name": "extracted_data.json",
+          "tour_id": "0",
+          "text": "Cả hai tour đều khởi hành từ TP. Hồ Chí Minh và đi qua Đồng Tháp"
         }
       ],
       "difficulty": "integration"

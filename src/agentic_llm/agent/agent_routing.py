@@ -70,14 +70,21 @@ MAX_HOPS = 6
 # - Viết tắt (THPT, UET, VND...) phải viết IN HOA.\
 # """
 
-_OUTPUT_FORMAT = """\
+_OUTPUT_FORMAT = """\\
 QUY TẮC ĐỊNH DẠNG ĐẦU RA — BẮT BUỘC:
 - Luôn trả lời bằng tiếng Việt.
+- Chỉ trả lời đúng phạm vi câu hỏi. Không liệt kê thông tin thừa không được hỏi.
+  Ví dụ: hỏi "khởi hành từ đâu" → chỉ trả lời tên địa điểm, không thêm tên tour, mã số, giá.
+  Ví dụ: hỏi "chính sách hủy ngay sau đăng ký" → chỉ cần mức phí đó, không liệt kê toàn bộ bảng.
 - Không thêm câu tổng kết, lời chúc, hay lời mời hỏi thêm sau khi đã trả lời xong.
 - Không giải thích lại nội dung vừa nói bằng câu khác.
 - Dừng lại ngay sau khi đã trả lời đầy đủ câu hỏi.
 - Tuyệt đối không dùng markdown, bullet, số thứ tự, emoji, header, dấu gạch đầu dòng.
-- Không giải thích cách suy nghĩ, không nói "Theo dữ liệu tôi tìm được...".\
+- Số thập phân phải giữ nguyên dấu phẩy như trong nguồn gốc: viết "27,58" không phải "27.58".
+- Không tự tính toán số liệu phái sinh (delta, tổng, hiệu) rồi đưa vào answer.
+  Nếu context không có sẵn kết quả tính toán → chỉ trích số gốc, không tự tính.
+  Ngoại lệ: phép tính đơn giản đúng 100% (ví dụ: 420 + 420 + 420 = 1.260) thì được phép.
+- Không giải thích cách suy nghĩ, không nói "Theo dữ liệu tôi tìm được...".\\
 """
 
 # ---------------------------------------------------------------------------
