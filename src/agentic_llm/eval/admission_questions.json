@@ -110,12 +110,12 @@
     },
     {
       "question": "Địa chỉ giảng đường Kiều Mai của Trường Đại học Công nghệ, ĐHQGHN ở đâu?",
-      "gold_answer": "Giảng đường Kiều Mai đặt tại phường Phúc Diễn, quận Bắc Từ Liêm, Hà Nội.",
+      "gold_answer": "Địa chỉ giảng đường Kiều Mai của Trường Đại học Công nghệ, ĐHQGHN là 12 Kiều Mai, Hà Nội.",
       "gold_contexts": [
         {
           "document_name": "admission.txt",
           "article_or_clause": "Thông tin chung",
-          "text": "Các cơ sở: ... Giảng đường Kiều Mai tại Phường Phúc Diễn, Quận Bắc Từ Liêm, Hà Nội."
+          "text": "Địa điểm học ... địa điểm ... 12 Kiều Mai"
         }
       ],
       "difficulty": "retrieval"
@@ -182,12 +182,12 @@
     },
     {
       "question": "Thời gian công bố chính thức công thức quy đổi điểm SAT 2026 là khi nào?",
-      "gold_answer": "Trường chưa có thông báo chính thức và sẽ công bố trong thời gian tới.",
+      "gold_answer": "Trường chưa có thông báo thông tin chính thức.",
       "gold_contexts": [
         {
           "document_name": "admission.txt",
           "article_or_clause": "Lưu ý tuyển sinh",
-          "text": "Công thức quy đổi điểm SAT sẽ được nhà trường công bố chính thức trong thời gian tới."
+          "text": "Chưa có thông tin về thời gian công bố chính thức công thức quy đổi điểm SAT 2026."
         }
       ],
       "difficulty": "retrieval"
@@ -242,12 +242,12 @@
     },
     {
       "question": "Thí sinh đoạt giải Nhì học sinh giỏi quốc gia môn Sinh học có những lựa chọn xét tuyển thẳng vào các ngành nào tại trường?",
-      "gold_answer": "Thí sinh này có thể xét tuyển thẳng vào ngành Công nghệ nông nghiệp (CN10) hoặc ngành Công nghệ kỹ thuật sinh học (CN20).",
+      "gold_answer": "Thí sinh này có thể xét tuyển thẳng vào ngành Công nghệ nông nghiệp hoặc ngành Công nghệ kỹ thuật sinh học.",
       "gold_contexts": [
         {
           "document_name": "admission.txt",
           "article_or_clause": "Quy định tuyển thẳng",
-          "text": "Thí sinh đoạt giải Nhất, Nhì, Ba môn Sinh học được xét tuyển thẳng vào ngành Công nghệ nông nghiệp và Công nghệ kỹ thuật sinh học."
+          "text": "Xét tuyển thẳng ... Môn Sinh học: Xét tuyển thẳng vào ngành Công nghệ nông nghiệp và Công nghệ sinh học."
         }
       ],
       "difficulty": "integration"
@@ -295,7 +295,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Chỉ tiêu 2025",
-          "text": "CN1: 420; CN8: 420; CN2: 420."
+          "text": "Chỉ tiêu tuyển sinh 2026 ... Các ngành có chỉ tiêu lớn nhất (480 chỉ tiêu): Công nghệ thông tin ... Các ngành 420 chỉ tiêu: Kỹ thuật máy tính, Khoa học máy tính"
         }
       ],
       "difficulty": "integration"
@@ -331,7 +331,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Thông tin chung",
-          "text": "Cơ sở: Xuân Thủy, Tôn Thất Thuyết, Kiều Mai, Hòa Lạc. SV năm nhất học tại Hòa Lạc."
+          "text": "Địa điểm: 144 Xuân Thủy, 8 Tôn Thất Thuyết, 12 Kiều Mai và Hòa Lạc. Dự kiến sinh viên năm thứ nhất sẽ học tập tại cơ sở Hòa Lạc."
         }
       ],
       "difficulty": "integration"
@@ -343,7 +343,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Mục tiêu đào tạo các ngành",
-          "text": "CN14: Định hướng dữ liệu lớn. CN8: Định hướng xử lý dữ liệu lớn."
+          "text": "Hệ thống thông tin: Định hướng dữ liệu lớn. Khoa học máy tính: Định hướng xử lý dữ liệu lớn."
         }
       ],
       "difficulty": "integration"
@@ -367,7 +367,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Điểm chuẩn 2025",
-          "text": "CN2: 27.00; CN14: 26.38; CN17: 26.00."
+          "text": "Điểm chuẩn 2025: Kỹ thuật máy tính: 27.00; Hệ thống thông tin: 26.38; Kỹ thuật robot: 26.00."
         }
       ],
       "difficulty": "reasoning"
@@ -379,14 +379,14 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Thời gian đào tạo",
-          "text": "KTMT: 4.5 năm (Kỹ sư). KHMT: 4 năm (Cử nhân)."
+          "text": "Kỹ thuật máy tính: 4.5 năm (cấp bằng Kỹ sư). Khoa học máy tính: 4 năm (cấp bằng Cử nhân)."
         }
       ],
       "difficulty": "reasoning"
     },
     {
       "question": "Tại sao thí sinh có chứng chỉ SAT 1500/1600 lại có lợi thế rất lớn khi xét tuyển vào ngành Công nghệ thông tin năm 2026?",
-      "gold_answer": "Vì SAT 1500 là mức điểm rất cao so với điểm chuẩn SAT 2024 (28/1600 quy đổi cũ hoặc tương đương) và trường dành tới 95% chỉ tiêu cho nhóm xét tuyển bao gồm SAT.",
+      "gold_answer": "Vì SAT 1500 là mức điểm rất cao so với điểm chuẩn SAT 2024 là 1493 điểm nên thí sinh có cơ hội cao trúng tuyển.",
       "gold_contexts": [
         {
           "document_name": "admission.txt",
@@ -427,7 +427,7 @@
         {
           "document_name": "admission.txt",
           "article_or_clause": "Học phí",
-          "text": "Học phí CN19: 38 triệu. Các ngành khác: 44 triệu."
+          "text": "Học phí ngành vi điện tử: 38 triệu. Các ngành khác: 44 triệu."
         }
       ],
       "difficulty": "reasoning"

@@ -516,30 +516,8 @@ async def _run_search_admission(query: str) -> str:
         ),
     )
 
-    parts = []
-    for i, item in enumerate(ranked, 1):
-        text = item.get("text", "")
-        meta = {k: v for k, v in item.items() if k not in ("text", "_rerank_score")}
-        parts.append(
-            f"[Kết quả {i}]\n"
-            f"Metadata: {json.dumps(meta, ensure_ascii=False)}\n\n"
-            f"Nội dung:\n{text}"
-        )
-
-    body = "\n\n-------------------\n\n".join(parts)
-
-    prefix = (
-        "[HƯỚNG DẪN ĐỐI CHIẾU — KHÔNG ĐỌC CHO USER]\n"
-        "Đây là TOÀN BỘ dữ liệu tuyển sinh tìm được. Khi trả lời BẮT BUỘC:\n"
-        "1. Chỉ nêu những gì THỰC SỰ CÓ trong dữ liệu dưới đây.\n"
-        "2. Nếu điều user nhắc đến (tổ hợp môn, ngành, mức học phí...) "
-        "KHÔNG XUẤT HIỆN trong dữ liệu → trả lời thẳng là KHÔNG CÓ, "
-        "rồi nêu những gì thực tế có.\n"
-        "3. TUYỆT ĐỐI không xác nhận hay đồng ý với thông tin user đề cập "
-        "nếu dữ liệu không chứa thông tin đó.\n"
-        "[KẾT THÚC HƯỚNG DẪN]\n\n"
-    )
-    return prefix + body
+    chunks = [item.get("text", "") for item in ranked]
+    return "\n\n-------------------\n\n".join(chunks)
 
 
 search_admission = StructuredTool.from_function(

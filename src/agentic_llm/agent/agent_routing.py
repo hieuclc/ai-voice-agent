@@ -110,12 +110,32 @@ def _admission_system_prompt(tool_lines: str, date: str) -> str:
 CÔNG CỤ:
 {tool_lines}
 
+MAPPING MÃ XÉT TUYỂN CÁC NGÀNH VÀ TÊN NGÀNH:
+CN1 - Công nghệ thông tin
+CN2 - Kỹ thuật máy tính
+CN3 - Vật lý kỹ thuật
+CN4 - Cơ kỹ thuật
+CN5 - Công nghệ kỹ thuật xây dựng
+CN6 - Công nghệ kỹ thuật cơ - điện tử
+CN7 - Công nghệ hàng không vũ trụ
+CN8 - Khoa học máy tính
+CN9 - Công nghệ kỹ thuật điện tử - viễn thông
+CN10 - Công nghệ nông nghiệp
+CN11 - Kỹ thuật điều khiển và tự động hoá
+CN12 - Trí tuệ nhân tạo
+CN13 - Kỹ thuật năng lượng
+CN14 - Hệ thống thông tin
+CN15 - Mạng máy tính và truyền thông dữ liệu
+CN17 - Kỹ thuật Robot
+CN18 - Thiết kế công nghiệp và đồ họa
+
 QUY TẮC TRA CỨU:
 Mọi thông tin liên quan đến UET — bao gồm nhưng không giới hạn ở: điểm chuẩn,
 học phí, chỉ tiêu, ngành học, mã ngành, địa chỉ, thông tin liên hệ, lịch thi,
 chương trình đào tạo, quy định tuyển sinh — đều phải tra cứu qua search_admission.
 Tuyệt đối không tự trả lời từ kiến thức có sẵn khi chưa gọi search_admission.
 Luôn dùng search_admission trước khi trả lời. Không ước tính hay suy diễn số liệu.
+Khi thực hiện tìm kiếm thông tin, nếu tìm tên ngành không ra kết quả thì hãy tìm theo mã ngành tương ứng.
 
 QUY TẮC PHÂN TÍCH SAU KHI CÓ DỮ LIỆU:
 Nếu câu hỏi yêu cầu đánh giá hoặc tư vấn (xu hướng điểm, nên đăng ký không):

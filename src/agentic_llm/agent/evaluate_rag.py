@@ -441,17 +441,110 @@ async def main(args):
 
 def parse_args():
     p = argparse.ArgumentParser(description="Evaluate RAG pipeline with RAGAS.")
+
+    # Chế độ thông thường
     p.add_argument("--law-file")
     p.add_argument("--adm-file")
     p.add_argument("--tour-file")
-    p.add_argument("--output",      default="eval_results.csv",
-                   help="Output CSV path (domain suffix added automatically)")
+
+    # Chế độ re-eval từ raw JSON
+    p.add_argument(
+        "--from-raw", nargs="+", metavar="DOMAIN:PATH",
+        help="Tính lại metrics từ file raw JSON đã có, không chạy agent. "
+             "Ví dụ: --from-raw law:eval_results_law_raw.json tour:eval_results_tour_raw.json",
+    )
+
+    p.add_argument("--output",      default="eval_results.csv")
     p.add_argument("--model",       default=os.environ.get("LLM_MODEL", "gpt-4o-mini"))
     p.add_argument("--eval-model",  default="gpt-4o-mini")
     p.add_argument("--max-items",   type=int, default=0)
     p.add_argument("--concurrency", type=int, default=3)
     return p.parse_args()
 
+
+async def main_from_raw(args, ragas_llm, ragas_emb):
+    all_results = {}
+    for entry in args.from_raw:
+        if ":" not in entry:
+            logger.error("--from-raw format sai, cần DOMAIN:PATH, got: %r", entry)
+            continue
+        domain, path = entry.split(":", 1)
+        if not Path(path).exists():
+            logger.error("File không tồn tại: %s", path)
+            continue
+        with open(path, encoding="utf-8") as f:
+            rows = json.load(f)
+        if args.max_items > 0:
+            rows = rows[:args.max_items]
+        logger.info("[%s] Loaded %d rows from %s", domain.upper(), len(rows), path)
+        logger.info("[%s] Running RAGAS on %d rows...", domain.upper(), len(rows))
+        try:
+            df = evaluate_with_ragas(rows, ragas_llm, ragas_emb)
+        except Exception as exc:
+            logger.error("RAGAS failed for [%s]: %s", domain, exc)
+            df = pd.DataFrame(rows)
+        all_results[domain] = df
+    if all_results:
+        save_results(all_results, args.output)
+    else:
+        logger.error("Không có domain nào được load thành công.")
+
+
+async def main(args):
+    api_key  = os.environ.get("OPENAI_API_KEY", "")
+    base_url = os.environ.get("OPENAI_BASE_URL") or None
+
+    _eval_llm = ChatOpenAI(model=args.eval_model, temperature=0,
+                           api_key=api_key, base_url=base_url)
+    _eval_emb = OpenAIEmbeddings(model="text-embedding-3-small",
+                                 api_key=api_key, base_url=base_url)
+    ragas_llm = LangchainLLMWrapper(_eval_llm) if RAGAS_V2 else _eval_llm
+    ragas_emb = LangchainEmbeddingsWrapper(_eval_emb) if RAGAS_V2 else _eval_emb
+
+    # Chế độ re-eval — không cần khởi động agent
+    if args.from_raw:
+        await main_from_raw(args, ragas_llm, ragas_emb)
+        return
+
+    # Chế độ thông thường
+    agent_graph = create_router_agent(
+        model=args.model, openai_api_key=api_key, openai_base_url=base_url,
+    )
+    datasets = {}
+    for key, path in [("law", args.law_file), ("admission", args.adm_file), ("tour", args.tour_file)]:
+        if path:
+            datasets[key] = load_dataset(path)
+    if not datasets:
+        logger.error("No dataset files provided.")
+        sys.exit(1)
+
+    out       = Path(args.output)
+    log_path  = out.parent / f"{out.stem}_qa_trace.log"
+    qa_logger = _get_qa_logger(str(log_path))
+    logger.info("QA trace log -> %s", log_path)
+    all_results = {}
+
+    for domain, items in datasets.items():
+        logger.info("=" * 50)
+        logger.info("[%s] Running agent on %d items", domain.upper(), len(items))
+        logger.info("=" * 50)
+        rows = await run_dataset(
+            agent_graph, items, domain=domain, qa_logger=qa_logger,
+            max_items=args.max_items, concurrency=args.concurrency,
+        )
+        raw_path = out.parent / f"{out.stem}_{domain}_raw.json"
+        with open(raw_path, "w", encoding="utf-8") as f:
+            json.dump(rows, f, ensure_ascii=False, indent=2)
+        logger.info("Raw rows saved -> %s", raw_path)
+        logger.info("[%s] Running RAGAS on %d rows...", domain.upper(), len(rows))
+        try:
+            df = evaluate_with_ragas(rows, ragas_llm, ragas_emb)
+        except Exception as exc:
+            logger.error("RAGAS failed for [%s]: %s", domain, exc)
+            df = pd.DataFrame(rows)
+        all_results[domain] = df
+
+    save_results(all_results, args.output)
 
 if __name__ == "__main__":
     asyncio.run(main(parse_args()))

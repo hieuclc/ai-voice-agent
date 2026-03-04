@@ -217,7 +217,7 @@
       "difficulty": "integration"
     },
     {
-      "question": "Tổng hợp các môn học lý thuyết lái xe ô tô có thể đào tạo từ xa hoặc tự học có hướng dẫn?",
+      "question": "Theo quy định luật giao thông đường bộ, các môn học lý thuyết lái xe ô tô nào có thể đào tạo từ xa hoặc tự học có hướng dẫn?",
       "gold_answer": "Gồm Pháp luật giao thông, Đạo đức và văn hóa giao thông, Phòng chống tác hại của rượu, bia khi tham gia giao thông, Cấu tạo sửa chữa thông thường, Kỹ năng phòng cháy chữa cháy và Kỹ thuật lái xe.",
       "gold_contexts": [
         {
