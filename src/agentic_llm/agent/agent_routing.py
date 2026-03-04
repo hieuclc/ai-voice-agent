@@ -49,7 +49,37 @@ from agent import (
 )
 import agent as _agent_module
 
+from tts_normalizer import TTSNormalizerAgent
+
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# TTS Normalizer — singleton, khởi tạo một lần duy nhất khi load module.
+# Dùng cùng OPENAI_API_KEY / OPENAI_BASE_URL với các sub-agent.
+# Đặt use_llm_fallback=False nếu không muốn gọi thêm API cho từ viết tắt lạ.
+# ---------------------------------------------------------------------------
+_tts: TTSNormalizerAgent = TTSNormalizerAgent(use_llm_fallback=True)
+
+
+def _normalize_last_message(messages: list) -> list:
+    """
+    Lấy AIMessage cuối cùng trong list, normalize content cho TTS,
+    trả về list messages mới với message đó đã được thay thế.
+    """
+    if not messages:
+        return messages
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        if isinstance(msg, AIMessage) and isinstance(msg.content, str):
+            normalized = _tts.normalize(msg.content)
+            new_msg = AIMessage(
+                content=normalized,
+                id=msg.id,
+                name=getattr(msg, "name", None),
+                additional_kwargs=msg.additional_kwargs,
+            )
+            return messages[:i] + [new_msg] + messages[i + 1:]
+    return messages
 
 MAX_HOPS = 6
 
@@ -269,17 +299,20 @@ def _build_router_graph(
     async def run_law(state: RouterState) -> dict:
         sub_state = {"messages": state["messages"], "hop_count": 0, "thinking_streamed": False}
         result = await law_graph.ainvoke(sub_state)
-        return {"messages": result["messages"], "hop_count": state["hop_count"]}
+        normalized_messages = _normalize_last_message(result["messages"])
+        return {"messages": normalized_messages, "hop_count": state["hop_count"]}
 
     async def run_admission(state: RouterState) -> dict:
         sub_state = {"messages": state["messages"], "hop_count": 0, "thinking_streamed": False}
         result = await admission_graph.ainvoke(sub_state)
-        return {"messages": result["messages"], "hop_count": state["hop_count"]}
+        normalized_messages = _normalize_last_message(result["messages"])
+        return {"messages": normalized_messages, "hop_count": state["hop_count"]}
 
     async def run_tour(state: RouterState) -> dict:
         sub_state = {"messages": state["messages"], "hop_count": 0, "thinking_streamed": False}
         result = await tour_graph.ainvoke(sub_state)
-        return {"messages": result["messages"], "hop_count": state["hop_count"]}
+        normalized_messages = _normalize_last_message(result["messages"])
+        return {"messages": normalized_messages, "hop_count": state["hop_count"]}
 
     def dispatch(state: RouterState) -> str:
         return state["domain"]
@@ -320,6 +353,15 @@ def create_router_agent(
     import os
     api_key  = openai_api_key  or os.environ.get("OPENAI_API_KEY")
     base_url = openai_base_url
+
+    # Đồng bộ config TTS với LLM chính (cùng model/key/base_url)
+    global _tts
+    _tts = TTSNormalizerAgent(
+        model=model,
+        use_llm_fallback=True,
+        openai_api_key=api_key,
+        openai_base_url=base_url,
+    )
 
     def _make_llm(streaming: bool) -> ChatOpenAI:
         return ChatOpenAI(

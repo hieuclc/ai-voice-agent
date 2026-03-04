@@ -45,12 +45,25 @@ EXTRA_TOOLS: list = []
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 load_dotenv(override=True)
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 OPENAI_API_KEY  = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", None)
 LLM_MODEL       = os.environ.get("LLM_MODEL", "gpt-4o-mini")
+
+# ---------------------------------------------------------------------------
+# TTS Normalizer — import sau khi load_dotenv để OPENAI_API_KEY sẵn sàng
+# ---------------------------------------------------------------------------
+from tts_normalizer import TTSNormalizerAgent
+
+_tts = TTSNormalizerAgent(
+    model=LLM_MODEL,
+    use_llm_fallback=True,
+    openai_api_key=OPENAI_API_KEY,
+    openai_base_url=OPENAI_BASE_URL,
+)
 
 # ---------------------------------------------------------------------------
 # OpenAI request / response models
@@ -130,13 +143,13 @@ async def stream_agent_response(
     completion_id: str,
 ) -> AsyncIterator[str]:
     """
-    Stream agent response với thinking sentences tiếng Việt:
-    - Khi tool bắt đầu lần đầu → yield ngay 1 câu opening (random trong 3 câu)
-    - Cứ mỗi THINKING_INTERVAL_SECONDS mà agent chưa trả token thực → yield 1 câu ongoing
-    - Khi LLM bắt đầu trả token thực → dừng thinking, stream token bình thường
+    Stream agent response với thinking sentences tiếng Việt.
 
-    Sử dụng asyncio.Queue + 2 concurrent tasks để đảm bảo timing chính xác
-    bất kể astream_events có block giữa các event hay không.
+    Cơ chế TTS normalization trong streaming:
+      - Các token thực từ LLM được GOM vào buffer (không stream ngay).
+      - Khi agent kết thúc, buffer được normalize bằng TTSNormalizerAgent.
+      - Sau đó mới stream từng ký tự/từ của text đã normalize ra client.
+      - Thinking sentences vẫn stream real-time như cũ (không cần normalize).
     """
     from agent import (
         THINKING_INTERVAL_SECONDS,
@@ -152,25 +165,19 @@ async def stream_agent_response(
         "thinking_streamed": False,
     }
 
-    # Queue chung: mọi item đều đi qua đây trước khi yield ra client
-    # Item format: ("thinking", sentence) | ("token", text) | ("done", None)
     output_queue: asyncio.Queue = asyncio.Queue()
-
-    # Event báo hiệu: tool đã bắt đầu chạy lần đầu trong lifecycle này
     tool_started_event = asyncio.Event()
-    # Event báo hiệu: LLM đã bắt đầu trả token thực (không phải tool_call_chunks)
-    llm_started_event = asyncio.Event()
+    llm_started_event  = asyncio.Event()
 
-    # ------------------------------------------------------------------ #
-    # Task 1: tiêu thụ astream_events và đẩy vào output_queue            #
-    # ------------------------------------------------------------------ #
+    # Buffer gom toàn bộ token thực từ LLM trước khi normalize
+    token_buffer: list[str] = []
+
     async def agent_consumer():
         try:
             async for event in graph.astream_events(initial_state, version="v2"):
                 kind = event.get("event", "")
 
                 if kind == "on_tool_start":
-                    # Chỉ set lần đầu — opening sentence chỉ yield 1 lần / lifecycle
                     if not tool_started_event.is_set():
                         tool_started_event.set()
                         await output_queue.put(("thinking", pick_thinking_start_sentence()))
@@ -182,33 +189,26 @@ async def stream_agent_response(
                     token = chunk.content
                     if not token:
                         continue
-                    # Token thực → báo cho thinking_producer dừng lại
                     if not llm_started_event.is_set():
                         llm_started_event.set()
-                    await output_queue.put(("token", token))
+                    # Gom token vào buffer, KHÔNG put vào queue ngay
+                    token_buffer.append(token)
 
         except Exception as exc:
             logger.error("agent_consumer error: %s", exc)
         finally:
             await output_queue.put(("done", None))
 
-    # ------------------------------------------------------------------ #
-    # Task 2: đếm giờ và yield ongoing sentences trong khi agent chạy    #
-    # ------------------------------------------------------------------ #
     async def thinking_producer():
-        # Chờ đến khi tool bắt đầu mới tính interval
         await tool_started_event.wait()
         while True:
             try:
-                # Chờ tối đa THINKING_INTERVAL_SECONDS cho LLM bắt đầu
                 await asyncio.wait_for(
                     asyncio.shield(llm_started_event.wait()),
                     timeout=THINKING_INTERVAL_SECONDS,
                 )
-                # LLM đã bắt đầu → dừng thinking
                 break
             except asyncio.TimeoutError:
-                # Vẫn chưa có token thực → yield câu ongoing
                 if not llm_started_event.is_set():
                     await output_queue.put(("thinking", pick_thinking_ongoing_sentence()))
                 else:
@@ -217,6 +217,7 @@ async def stream_agent_response(
     agent_task = asyncio.create_task(agent_consumer())
     think_task = asyncio.create_task(thinking_producer())
 
+    # Drain thinking sentences trong khi agent chạy
     try:
         while True:
             kind, value = await output_queue.get()
@@ -224,13 +225,26 @@ async def stream_agent_response(
                 break
             elif kind == "thinking":
                 yield _sse(_chunk_payload(completion_id, model, {"content": f"\n\n{value}\n\n"}))
-            elif kind == "token":
-                yield _sse(_chunk_payload(completion_id, model, {"content": value}))
+            # kind == "token" không còn xuất hiện ở đây nữa (đã gom vào buffer)
     finally:
         think_task.cancel()
-        # agent_task tự kết thúc sau khi put("done"), nhưng cancel để chắc chắn
         if not agent_task.done():
             agent_task.cancel()
+
+    # --- Normalize toàn bộ response rồi stream từng từ ---
+    if token_buffer:
+        raw_text = "".join(token_buffer)
+        try:
+            normalized = await _tts.anormalize(raw_text)
+        except Exception as exc:
+            logger.warning("TTS normalize lỗi, dùng text gốc: %s", exc)
+            normalized = raw_text
+
+        # Stream từng từ (split by space) để client vẫn thấy hiệu ứng streaming
+        words = normalized.split(" ")
+        for i, word in enumerate(words):
+            chunk = word if i == len(words) - 1 else word + " "
+            yield _sse(_chunk_payload(completion_id, model, {"content": chunk}))
 
     yield _sse(_chunk_payload(completion_id, model, {}, finish_reason="stop"))
     yield _sse_done()
@@ -244,10 +258,18 @@ async def get_full_response(graph, lc_messages: list, model: str) -> str:
     result = await graph.ainvoke(
         {"messages": lc_messages, "hop_count": 0, "thinking_streamed": False}
     )
+    raw = ""
     for msg in reversed(result["messages"]):
         if isinstance(msg, AIMessage) and not msg.tool_calls:
-            return msg.content
-    return ""
+            raw = msg.content
+            break
+
+    # Normalize tại đây — đảm bảo cả non-streaming path đều được xử lý
+    try:
+        return await _tts.anormalize(raw)
+    except Exception as exc:
+        logger.warning("TTS normalize lỗi, dùng text gốc: %s", exc)
+        return raw
 
 
 # ---------------------------------------------------------------------------
@@ -258,7 +280,7 @@ async def get_full_response(graph, lc_messages: list, model: str) -> str:
 async def lifespan(app: FastAPI):
     """Pre-warm all models on startup so first request is fast."""
     logger.info("Startup: loading BGE-M3 embedding model…")
-    await preload_bge_model()           # ← BGE model cho Qdrant hybrid search
+    await preload_bge_model()
     logger.info("Startup: all services ready.")
     yield
     logger.info("Shutdown: bye.")
