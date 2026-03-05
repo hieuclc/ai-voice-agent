@@ -32,38 +32,16 @@ import asyncio
 from agent import preload_bge_model
 from agent_routing import create_router_agent
 
-# ---------------------------------------------------------------------------
-# Extra tools  ← add your independently-implemented tools here
-# ---------------------------------------------------------------------------
-# from my_tools.web import tavily_search
-# EXTRA_TOOLS = [tavily_search]
 EXTRA_TOOLS: list = []
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 load_dotenv(override=True)
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
 OPENAI_API_KEY  = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", None)
 LLM_MODEL       = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 
-# ---------------------------------------------------------------------------
-# TTS Normalizer — import sau khi load_dotenv để OPENAI_API_KEY sẵn sàng
-# ---------------------------------------------------------------------------
-from tts_normalizer import TTSNormalizerAgent
-
-_tts = TTSNormalizerAgent(
-    model=LLM_MODEL,
-    use_llm_fallback=True,
-    openai_api_key=OPENAI_API_KEY,
-    openai_base_url=OPENAI_BASE_URL,
-)
 
 # ---------------------------------------------------------------------------
 # OpenAI request / response models
@@ -112,10 +90,8 @@ def to_lc_messages(messages: list[ChatMessage]) -> list:
 def _sse(data: dict) -> str:
     return f"data: {json.dumps(data)}\n\n"
 
-
 def _sse_done() -> str:
     return "data: [DONE]\n\n"
-
 
 def _chunk_payload(
     completion_id: str,
@@ -145,11 +121,12 @@ async def stream_agent_response(
     """
     Stream agent response với thinking sentences tiếng Việt.
 
-    Cơ chế TTS normalization trong streaming:
-      - Các token thực từ LLM được GOM vào buffer (không stream ngay).
-      - Khi agent kết thúc, buffer được normalize bằng TTSNormalizerAgent.
-      - Sau đó mới stream từng ký tự/từ của text đã normalize ra client.
-      - Thinking sentences vẫn stream real-time như cũ (không cần normalize).
+    Vì TTS normalize xảy ra trong tts_node (sau khi LLM xong),
+    token stream từ on_chat_model_stream là raw text chưa normalize.
+
+    Chiến lược: dùng ainvoke (không stream token) để lấy kết quả đã qua tts_node,
+    trong khi đó stream thinking sentences real-time bằng một task riêng.
+    Sau khi ainvoke xong, stream từng từ của normalized text ra client.
     """
     from agent import (
         THINKING_INTERVAL_SECONDS,
@@ -163,61 +140,47 @@ async def stream_agent_response(
         "messages": lc_messages,
         "hop_count": 0,
         "thinking_streamed": False,
+        "domain": "",
     }
 
     output_queue: asyncio.Queue = asyncio.Queue()
-    tool_started_event = asyncio.Event()
-    llm_started_event  = asyncio.Event()
+    agent_done_event = asyncio.Event()
+    first_tool_event = asyncio.Event()
 
-    # Buffer gom toàn bộ token thực từ LLM trước khi normalize
-    token_buffer: list[str] = []
+    normalized_text: list[str] = []  # list để mutate từ coroutine
 
-    async def agent_consumer():
+    async def agent_runner():
         try:
-            async for event in graph.astream_events(initial_state, version="v2"):
-                kind = event.get("event", "")
-
-                if kind == "on_tool_start":
-                    if not tool_started_event.is_set():
-                        tool_started_event.set()
-                        await output_queue.put(("thinking", pick_thinking_start_sentence()))
-
-                elif kind == "on_chat_model_stream":
-                    chunk: AIMessageChunk = event["data"]["chunk"]
-                    if chunk.tool_call_chunks:
-                        continue
-                    token = chunk.content
-                    if not token:
-                        continue
-                    if not llm_started_event.is_set():
-                        llm_started_event.set()
-                    # Gom token vào buffer, KHÔNG put vào queue ngay
-                    token_buffer.append(token)
-
+            result = await graph.ainvoke(initial_state)
+            for msg in reversed(result["messages"]):
+                if isinstance(msg, AIMessage) and not getattr(msg, "tool_calls", None) and msg.content.strip():
+                    normalized_text.append(msg.content)
+                    break
         except Exception as exc:
-            logger.error("agent_consumer error: %s", exc)
+            logger.error("agent_runner error: %s", exc)
         finally:
+            agent_done_event.set()
             await output_queue.put(("done", None))
 
     async def thinking_producer():
-        await tool_started_event.wait()
+        # Emit thinking ngay lập tức vì ainvoke không có on_tool_start event
+        await output_queue.put(("thinking", pick_thinking_start_sentence()))
         while True:
             try:
                 await asyncio.wait_for(
-                    asyncio.shield(llm_started_event.wait()),
+                    asyncio.shield(agent_done_event.wait()),
                     timeout=THINKING_INTERVAL_SECONDS,
                 )
                 break
             except asyncio.TimeoutError:
-                if not llm_started_event.is_set():
+                if not agent_done_event.is_set():
                     await output_queue.put(("thinking", pick_thinking_ongoing_sentence()))
                 else:
                     break
 
-    agent_task = asyncio.create_task(agent_consumer())
+    agent_task = asyncio.create_task(agent_runner())
     think_task = asyncio.create_task(thinking_producer())
 
-    # Drain thinking sentences trong khi agent chạy
     try:
         while True:
             kind, value = await output_queue.get()
@@ -225,23 +188,15 @@ async def stream_agent_response(
                 break
             elif kind == "thinking":
                 yield _sse(_chunk_payload(completion_id, model, {"content": f"\n\n{value}\n\n"}))
-            # kind == "token" không còn xuất hiện ở đây nữa (đã gom vào buffer)
     finally:
         think_task.cancel()
         if not agent_task.done():
             agent_task.cancel()
 
-    # --- Normalize toàn bộ response rồi stream từng từ ---
-    if token_buffer:
-        raw_text = "".join(token_buffer)
-        try:
-            normalized = await _tts.anormalize(raw_text)
-        except Exception as exc:
-            logger.warning("TTS normalize lỗi, dùng text gốc: %s", exc)
-            normalized = raw_text
-
-        # Stream từng từ (split by space) để client vẫn thấy hiệu ứng streaming
-        words = normalized.split(" ")
+    # Stream từng từ của kết quả đã normalize
+    text = normalized_text[0] if normalized_text else ""
+    if text:
+        words = text.split(" ")
         for i, word in enumerate(words):
             chunk = word if i == len(words) - 1 else word + " "
             yield _sse(_chunk_payload(completion_id, model, {"content": chunk}))
@@ -254,22 +209,18 @@ async def stream_agent_response(
 # Non-streaming response
 # ---------------------------------------------------------------------------
 
-async def get_full_response(graph, lc_messages: list, model: str) -> str:
+async def get_full_response(graph, lc_messages: list) -> str:
+    """
+    Invoke graph và lấy AIMessage cuối.
+    TTS đã được xử lý bên trong graph bởi tts_node — không cần normalize ở đây.
+    """
     result = await graph.ainvoke(
-        {"messages": lc_messages, "hop_count": 0, "thinking_streamed": False}
+        {"messages": lc_messages, "hop_count": 0, "thinking_streamed": False, "domain": ""}
     )
-    raw = ""
     for msg in reversed(result["messages"]):
         if isinstance(msg, AIMessage) and not msg.tool_calls:
-            raw = msg.content
-            break
-
-    # Normalize tại đây — đảm bảo cả non-streaming path đều được xử lý
-    try:
-        return await _tts.anormalize(raw)
-    except Exception as exc:
-        logger.warning("TTS normalize lỗi, dùng text gốc: %s", exc)
-        return raw
+            return msg.content
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -278,7 +229,6 @@ async def get_full_response(graph, lc_messages: list, model: str) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Pre-warm all models on startup so first request is fast."""
     logger.info("Startup: loading BGE-M3 embedding model…")
     await preload_bge_model()
     logger.info("Startup: all services ready.")
@@ -296,7 +246,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Build the agent once at startup
 graph = create_router_agent(
     extra_tools=EXTRA_TOOLS,
     model=LLM_MODEL,
@@ -304,6 +253,7 @@ graph = create_router_agent(
     openai_base_url=OPENAI_BASE_URL,
 )
 logger.info("Agent ready. LLM: %s", LLM_MODEL)
+
 
 # ---------------------------------------------------------------------------
 # Routes
@@ -318,14 +268,7 @@ async def health():
 async def list_models():
     return {
         "object": "list",
-        "data": [
-            {
-                "id": LLM_MODEL,
-                "object": "model",
-                "created": int(time.time()),
-                "owned_by": "rag-agent",
-            }
-        ],
+        "data": [{"id": LLM_MODEL, "object": "model", "created": int(time.time()), "owned_by": "rag-agent"}],
     }
 
 
@@ -349,35 +292,19 @@ async def chat_completions(request: ChatCompletionRequest):
             },
         )
 
-    content = await get_full_response(graph, lc_messages, model)
-    return JSONResponse(
-        {
-            "id": completion_id,
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": content},
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {
-                "prompt_tokens": -1,
-                "completion_tokens": -1,
-                "total_tokens": -1,
-            },
-        }
-    )
+    content = await get_full_response(graph, lc_messages)
+    return JSONResponse({
+        "id": completion_id,
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": -1, "completion_tokens": -1, "total_tokens": -1},
+    })
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
