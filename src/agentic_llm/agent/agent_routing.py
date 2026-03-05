@@ -1,5 +1,11 @@
 """
 agent_routing.py — Multi-agent routing layer.
+
+Domains:
+  law         — pháp luật Việt Nam
+  admission   — tuyển sinh UET
+  tour        — tư vấn du lịch
+  normal_talk — xã giao, chào hỏi, câu hỏi ngoài 3 domain trên
 """
 
 from __future__ import annotations
@@ -37,9 +43,12 @@ logger = logging.getLogger(__name__)
 # TTS singleton — khởi tạo lại trong create_router_agent() khi có đủ config
 _tts: Optional[TTSNormalizerAgent] = None
 
+# Router LLM singleton — dùng bởi pre_route() trong server.py
+_router_llm_instance: Optional[ChatOpenAI] = None
+
 MAX_HOPS = 6
 
-_OUTPUT_FORMAT = """\\
+_OUTPUT_FORMAT = """\
 QUY TẮC ĐỊNH DẠNG ĐẦU RA — BẮT BUỘC:
 - Luôn trả lời bằng tiếng Việt.
 - Chỉ trả lời đúng phạm vi câu hỏi. Không liệt kê thông tin thừa không được hỏi.
@@ -53,7 +62,7 @@ QUY TẮC ĐỊNH DẠNG ĐẦU RA — BẮT BUỘC:
 - Không tự tính toán số liệu phái sinh (delta, tổng, hiệu) rồi đưa vào answer.
   Nếu context không có sẵn kết quả tính toán → chỉ trích số gốc, không tự tính.
   Ngoại lệ: phép tính đơn giản đúng 100% (ví dụ: 420 + 420 + 420 = 1.260) thì được phép.
-- Không giải thích cách suy nghĩ, không nói "Theo dữ liệu tôi tìm được...".\\
+- Không giải thích cách suy nghĩ, không nói "Theo dữ liệu tôi tìm được...".\
 """
 
 def _law_system_prompt(tool_lines: str, date: str) -> str:
@@ -166,19 +175,36 @@ SAU KHI search_tours TRẢ VỀ KẾT QUẢ:
 Ví dụ: "[mã 3] TOUR HẠ LONG" → gọi là "tour mã ba", không phải "tour thứ nhất" hay "tour số một"."""
 
 
+def _normal_talk_system_prompt(date: str) -> str:
+    return f"""Bạn là trợ lý giọng nói tiếng Việt thân thiện. Ngày hiện tại: {date}.
+
+QUY TẮC:
+- Luôn trả lời bằng tiếng Việt.
+- Ngắn gọn, tự nhiên như đang trò chuyện trực tiếp.
+- Tuyệt đối không dùng markdown, bullet, số thứ tự, emoji, header, dấu gạch đầu dòng.
+- Không giải thích cách suy nghĩ.
+- Mỗi câu phải có ít nhất bốn từ.
+- Nếu được hỏi về chủ đề nằm ngoài khả năng (pháp luật chuyên sâu, tuyển sinh UET,
+  tour du lịch cụ thể), hãy nói rõ bạn có thể hỗ trợ những chủ đề đó và mời người dùng hỏi."""
+
+
+# ---------------------------------------------------------------------------
+# Router prompt — 4 domains
+# ---------------------------------------------------------------------------
+
 _ROUTER_PROMPT = """\
-Bạn là bộ định tuyến câu hỏi. Phân loại câu hỏi sau vào đúng một trong ba domain:
+Bạn là bộ định tuyến câu hỏi. Phân loại câu hỏi sau vào đúng một trong bốn domain:
 
-- "law"       : câu hỏi về luật, nghị định, thông tư, xử phạt, quy định pháp luật Việt Nam
-- "admission" : câu hỏi về tuyển sinh, điểm chuẩn, học phí, ngành học, mã ngành (UET)
-- "tour"      : câu hỏi về tour du lịch, lịch trình, chính sách tour, bữa ăn, giá tour
+- "law"         : câu hỏi về luật, nghị định, thông tư, xử phạt, quy định pháp luật Việt Nam
+- "admission"   : câu hỏi về tuyển sinh, điểm chuẩn, học phí, ngành học, mã ngành (UET)
+- "tour"        : câu hỏi về tour du lịch, lịch trình, chính sách tour, bữa ăn, giá tour
+- "normal_talk" : lời chào hỏi, cảm ơn, hỏi thăm, tán gẫu, câu hỏi xã giao,
+                  hoặc bất kỳ nội dung nào không thuộc ba domain trên
 
-Chỉ trả về đúng một trong ba từ: law, admission, hoặc tour. Không giải thích.\
+Chỉ trả về đúng một trong bốn từ: law, admission, tour, hoặc normal_talk. Không giải thích.\
 """
 
-
-class _RouterOutput(BaseModel):
-    domain: Literal["law", "admission", "tour"]
+_VALID_DOMAINS = {"law", "admission", "tour", "normal_talk"}
 
 
 async def _route(query: str, llm: ChatOpenAI) -> str:
@@ -188,15 +214,44 @@ async def _route(query: str, llm: ChatOpenAI) -> str:
             HumanMessage(content=query),
         ])
         domain = resp.content.strip().lower()
-        if domain in ("law", "admission", "tour"):
+        if domain in _VALID_DOMAINS:
             logger.info("ROUTER: %r → %s", query[:60], domain)
             return domain
-        logger.warning("ROUTER unexpected output %r, defaulting to law", domain)
-        return "law"
+        logger.warning("ROUTER unexpected output %r, defaulting to normal_talk", domain)
+        return "normal_talk"
     except Exception as exc:
         logger.error("ROUTER error: %s", exc)
-        return "law"
+        return "normal_talk"
 
+
+# ---------------------------------------------------------------------------
+# Public helper — gọi từ server.py để pre-route trước khi ainvoke graph
+# ---------------------------------------------------------------------------
+
+async def pre_route(messages: list) -> str:
+    """
+    Phân loại nhanh domain từ danh sách messages.
+    - Nếu không có HumanMessage nào → normal_talk (ví dụ: kickstart system prompt)
+    - Ngược lại → gọi router LLM với nội dung HumanMessage cuối cùng
+
+    Server.py gọi hàm này TRƯỚC khi ainvoke graph, sau đó truyền domain vào
+    initial_state["domain"] để route_node bỏ qua LLM call thứ hai.
+    """
+    if _router_llm_instance is None:
+        logger.warning("pre_route called before create_router_agent — defaulting to normal_talk")
+        return "normal_talk"
+
+    user_msgs = [m for m in messages if isinstance(m, HumanMessage)]
+    if not user_msgs:
+        logger.info("ROUTER: no HumanMessage found → normal_talk")
+        return "normal_talk"
+
+    return await _route(user_msgs[-1].content, _router_llm_instance)
+
+
+# ---------------------------------------------------------------------------
+# Graph state
+# ---------------------------------------------------------------------------
 
 class RouterState(TypedDict):
     messages:          Annotated[list[BaseMessage], add_messages]
@@ -205,18 +260,40 @@ class RouterState(TypedDict):
     domain:            str
 
 
+# ---------------------------------------------------------------------------
+# Graph builder
+# ---------------------------------------------------------------------------
+
 def _build_router_graph(
     router_llm: ChatOpenAI,
     law_graph,
     admission_graph,
     tour_graph,
+    normal_talk_llm: ChatOpenAI,
+    normal_talk_system_prompt: str,
 ):
+    # ------------------------------------------------------------------
+    # route_node: nếu domain đã được pre-seeded từ server.py thì bỏ qua
+    #             LLM call (tiết kiệm 1 round-trip); nếu không có
+    #             HumanMessage thì default về normal_talk
+    # ------------------------------------------------------------------
     async def route_node(state: RouterState) -> dict:
+        # Domain đã được server.py điền trước → dùng luôn
+        if state.get("domain") and state["domain"] in _VALID_DOMAINS:
+            logger.info("ROUTER: domain pre-seeded as %s, skipping LLM", state["domain"])
+            return {}
+
         user_msgs = [m for m in state["messages"] if isinstance(m, HumanMessage)]
-        query = user_msgs[-1].content if user_msgs else ""
-        domain = await _route(query, router_llm)
+        if not user_msgs:
+            logger.info("ROUTER: no HumanMessage → normal_talk")
+            return {"domain": "normal_talk"}
+
+        domain = await _route(user_msgs[-1].content, router_llm)
         return {"domain": domain}
 
+    # ------------------------------------------------------------------
+    # Sub-agent runners
+    # ------------------------------------------------------------------
     async def run_law(state: RouterState) -> dict:
         sub_state = {"messages": state["messages"], "hop_count": 0, "thinking_streamed": False}
         result = await law_graph.ainvoke(sub_state)
@@ -232,11 +309,24 @@ def _build_router_graph(
         result = await tour_graph.ainvoke(sub_state)
         return {"messages": result["messages"], "hop_count": state["hop_count"]}
 
+    async def run_normal_talk(state: RouterState) -> dict:
+        """
+        Agent xã giao — không dùng tool, trả lời trực tiếp từ LLM.
+        Không cần emit thinking sentences.
+        """
+        messages = list(state["messages"])
+        if not messages or not isinstance(messages[0], SystemMessage):
+            messages = [SystemMessage(content=normal_talk_system_prompt)] + messages
+        response = await normal_talk_llm.ainvoke(messages)
+        return {"messages": [response], "hop_count": state["hop_count"]}
+
+    # ------------------------------------------------------------------
+    # TTS normalization node (chạy sau mọi sub-agent)
+    # ------------------------------------------------------------------
     async def tts_node(state: RouterState) -> dict:
         """
         Node TTS duy nhất trong toàn bộ pipeline.
         Tìm AIMessage cuối, normalize, thay thế in-place.
-        Chạy một lần duy nhất — server.py không cần biết về TTS.
         """
         messages = list(state["messages"])
         for i in range(len(messages) - 1, -1, -1):
@@ -260,30 +350,48 @@ def _build_router_graph(
                 break
         return {"messages": messages}
 
+    # ------------------------------------------------------------------
+    # Conditional dispatch
+    # ------------------------------------------------------------------
     def dispatch(state: RouterState) -> str:
-        return state["domain"]
+        return state.get("domain", "normal_talk")
 
+    # ------------------------------------------------------------------
+    # Assemble graph
+    # ------------------------------------------------------------------
     g = StateGraph(RouterState)
-    g.add_node("router",    route_node)
-    g.add_node("law",       run_law)
-    g.add_node("admission", run_admission)
-    g.add_node("tour",      run_tour)
-    g.add_node("tts",       tts_node)   # ← node duy nhất xử lý TTS
+    g.add_node("router",      route_node)
+    g.add_node("law",         run_law)
+    g.add_node("admission",   run_admission)
+    g.add_node("tour",        run_tour)
+    g.add_node("normal_talk", run_normal_talk)
+    g.add_node("tts",         tts_node)
 
     g.set_entry_point("router")
     g.add_conditional_edges(
         "router",
         dispatch,
-        {"law": "law", "admission": "admission", "tour": "tour"},
+        {
+            "law":         "law",
+            "admission":   "admission",
+            "tour":        "tour",
+            "normal_talk": "normal_talk",
+        },
     )
-    # Cả 3 sub-agent đều đi qua tts trước khi kết thúc
-    g.add_edge("law",       "tts")
-    g.add_edge("admission", "tts")
-    g.add_edge("tour",      "tts")
-    g.add_edge("tts",       END)
+
+    # Tất cả sub-agent đều qua TTS trước khi kết thúc
+    g.add_edge("law",         "tts")
+    g.add_edge("admission",   "tts")
+    g.add_edge("tour",        "tts")
+    g.add_edge("normal_talk", "tts")
+    g.add_edge("tts",         END)
 
     return g.compile()
 
+
+# ---------------------------------------------------------------------------
+# Public factory
+# ---------------------------------------------------------------------------
 
 def create_router_agent(
     extra_tools: Optional[list[BaseTool]] = None,
@@ -293,10 +401,10 @@ def create_router_agent(
     temperature: float = 0.0,
 ):
     import os
-    api_key  = openai_api_key  or os.environ.get("OPENAI_API_KEY")
+    api_key  = openai_api_key or os.environ.get("OPENAI_API_KEY")
     base_url = openai_base_url
 
-    # Khởi tạo TTS singleton với cùng config LLM
+    # TTS singleton
     global _tts
     _tts = TTSNormalizerAgent(
         model=model,
@@ -317,11 +425,16 @@ def create_router_agent(
     non_streaming_llm = _make_llm(streaming=False)
     router_llm        = _make_llm(streaming=False)
 
+    # Expose router LLM cho pre_route()
+    global _router_llm_instance
+    _router_llm_instance = router_llm
+
     _agent_module._grader_llm   = non_streaming_llm
     _agent_module._rewriter_llm = non_streaming_llm
 
     date = datetime.now().strftime("%d/%m/%Y")
 
+    # --- Law sub-agent ---
     law_tools = list(extra_tools or []) + [search_law]
     law_tool_lines = "\n".join(f"- {t.name}: {t.description.splitlines()[0]}" for t in law_tools)
     law_graph = build_sub_agent(
@@ -330,6 +443,7 @@ def create_router_agent(
         _law_system_prompt(law_tool_lines, date),
     )
 
+    # --- Admission sub-agent ---
     admission_tools = list(extra_tools or []) + [search_admission]
     adm_tool_lines = "\n".join(f"- {t.name}: {t.description.splitlines()[0]}" for t in admission_tools)
     admission_graph = build_sub_agent(
@@ -338,6 +452,7 @@ def create_router_agent(
         _admission_system_prompt(adm_tool_lines, date),
     )
 
+    # --- Tour sub-agent ---
     tour_tools = list(extra_tools or []) + [
         search_tours, search_tour_info, scan_all_tours, get_tour_detail, count_tour_meals,
     ]
@@ -348,4 +463,15 @@ def create_router_agent(
         _tour_system_prompt(tour_tool_lines, date),
     )
 
-    return _build_router_graph(router_llm, law_graph, admission_graph, tour_graph)
+    # --- Normal talk LLM (no tools) ---
+    normal_talk_llm = _make_llm(streaming=False)
+    nt_system_prompt = _normal_talk_system_prompt(date)
+
+    return _build_router_graph(
+        router_llm,
+        law_graph,
+        admission_graph,
+        tour_graph,
+        normal_talk_llm,
+        nt_system_prompt,
+    )

@@ -30,7 +30,7 @@ from pydantic import BaseModel
 import asyncio
 
 from agent import preload_bge_model
-from agent_routing import create_router_agent
+from agent_routing import create_router_agent, pre_route
 
 EXTRA_TOOLS: list = []
 
@@ -41,6 +41,9 @@ load_dotenv(override=True)
 OPENAI_API_KEY  = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", None)
 LLM_MODEL       = os.environ.get("LLM_MODEL", "gpt-4o-mini")
+
+# Domains mà cần tool call → cần emit thinking sentences
+_TOOL_DOMAINS = {"law", "admission", "tour"}
 
 
 # ---------------------------------------------------------------------------
@@ -119,14 +122,16 @@ async def stream_agent_response(
     completion_id: str,
 ) -> AsyncIterator[str]:
     """
-    Stream agent response với thinking sentences tiếng Việt.
+    Stream agent response.
 
-    Vì TTS normalize xảy ra trong tts_node (sau khi LLM xong),
-    token stream từ on_chat_model_stream là raw text chưa normalize.
-
-    Chiến lược: dùng ainvoke (không stream token) để lấy kết quả đã qua tts_node,
-    trong khi đó stream thinking sentences real-time bằng một task riêng.
-    Sau khi ainvoke xong, stream từng từ của normalized text ra client.
+    Chiến lược:
+    1. Pre-route nhanh để biết domain TRƯỚC khi ainvoke toàn bộ graph.
+       - Nếu domain thuộc {law, admission, tour}: emit thinking ngay lập tức,
+         rồi chạy ainvoke song song với thinking producer.
+       - Nếu domain là normal_talk: bỏ qua thinking, ainvoke thẳng, stream từng từ.
+    2. Domain được truyền vào initial_state["domain"] → route_node trong graph
+       bỏ qua LLM call thứ hai (không tốn thêm round-trip).
+    3. Sau khi ainvoke xong, stream từng từ của normalized text ra client.
     """
     from agent import (
         THINKING_INTERVAL_SECONDS,
@@ -136,25 +141,59 @@ async def stream_agent_response(
 
     yield _sse(_chunk_payload(completion_id, model, {"role": "assistant", "content": ""}))
 
+    # ------------------------------------------------------------------
+    # Bước 1: Pre-route — xác định domain nhanh
+    # ------------------------------------------------------------------
+    domain = await pre_route(lc_messages)
+    logger.info("stream_agent_response: pre_route → %s", domain)
+
+    needs_thinking = domain in _TOOL_DOMAINS
+
     initial_state = {
-        "messages": lc_messages,
-        "hop_count": 0,
+        "messages":          lc_messages,
+        "hop_count":         0,
         "thinking_streamed": False,
-        "domain": "",
+        "domain":            domain,   # pre-seeded → route_node bỏ qua LLM call
     }
 
+    # ------------------------------------------------------------------
+    # Bước 2: Nhánh normal_talk — không cần thinking
+    # ------------------------------------------------------------------
+    if not needs_thinking:
+        normalized_text: list[str] = []
+        try:
+            result = await graph.ainvoke(initial_state)
+            for msg in reversed(result["messages"]):
+                if isinstance(msg, AIMessage) and not getattr(msg, "tool_calls", None) and msg.content.strip():
+                    normalized_text.append(msg.content)
+                    break
+        except Exception as exc:
+            logger.error("normal_talk ainvoke error: %s", exc)
+
+        text = normalized_text[0] if normalized_text else ""
+        if text:
+            words = text.split(" ")
+            for i, word in enumerate(words):
+                chunk = word if i == len(words) - 1 else word + " "
+                yield _sse(_chunk_payload(completion_id, model, {"content": chunk}))
+
+        yield _sse(_chunk_payload(completion_id, model, {}, finish_reason="stop"))
+        yield _sse_done()
+        return
+
+    # ------------------------------------------------------------------
+    # Bước 3: Nhánh tool agents (law / admission / tour) — có thinking
+    # ------------------------------------------------------------------
     output_queue: asyncio.Queue = asyncio.Queue()
     agent_done_event = asyncio.Event()
-    first_tool_event = asyncio.Event()
-
-    normalized_text: list[str] = []  # list để mutate từ coroutine
+    normalized_text_tool: list[str] = []
 
     async def agent_runner():
         try:
             result = await graph.ainvoke(initial_state)
             for msg in reversed(result["messages"]):
                 if isinstance(msg, AIMessage) and not getattr(msg, "tool_calls", None) and msg.content.strip():
-                    normalized_text.append(msg.content)
+                    normalized_text_tool.append(msg.content)
                     break
         except Exception as exc:
             logger.error("agent_runner error: %s", exc)
@@ -163,7 +202,7 @@ async def stream_agent_response(
             await output_queue.put(("done", None))
 
     async def thinking_producer():
-        # Emit thinking ngay lập tức vì ainvoke không có on_tool_start event
+        # Emit thinking ngay lập tức — domain đã biết từ pre_route nên không bị delay
         await output_queue.put(("thinking", pick_thinking_start_sentence()))
         while True:
             try:
@@ -194,7 +233,7 @@ async def stream_agent_response(
             agent_task.cancel()
 
     # Stream từng từ của kết quả đã normalize
-    text = normalized_text[0] if normalized_text else ""
+    text = normalized_text_tool[0] if normalized_text_tool else ""
     if text:
         words = text.split(" ")
         for i, word in enumerate(words):
@@ -212,10 +251,17 @@ async def stream_agent_response(
 async def get_full_response(graph, lc_messages: list) -> str:
     """
     Invoke graph và lấy AIMessage cuối.
-    TTS đã được xử lý bên trong graph bởi tts_node — không cần normalize ở đây.
+    Domain được pre-route trước để tránh gọi LLM route 2 lần.
+    TTS đã được xử lý bên trong graph bởi tts_node.
     """
+    domain = await pre_route(lc_messages)
     result = await graph.ainvoke(
-        {"messages": lc_messages, "hop_count": 0, "thinking_streamed": False, "domain": ""}
+        {
+            "messages":          lc_messages,
+            "hop_count":         0,
+            "thinking_streamed": False,
+            "domain":            domain,
+        }
     )
     for msg in reversed(result["messages"]):
         if isinstance(msg, AIMessage) and not msg.tool_calls:

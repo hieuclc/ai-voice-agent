@@ -1,7 +1,7 @@
 [
   {
     "tour_id": "1",
-    "title": "TOUR MIỀN BẮC MÙA XUÂN 5N4Đ | TAM CHÚC - NINH BÌNH - HẠ LONG",
+    "title": "Tour miền Bắc mùa xuân 5N4Đ | Tam Chúc - Ninh Bình - Hạ Long",
     "duration": {
       "days": 5,
       "nights": 4
@@ -33,7 +33,7 @@
     "itinerary": [
       {
         "day": 1,
-        "title": "TP.HCM – HÀ NỘI",
+        "title": "TP. Hồ Chí Minh - Hà Nội",
         "meals": [
           "trưa"
         ],
@@ -55,7 +55,7 @@
       },
       {
         "day": 2,
-        "title": "HÀ NỘI – CHÙA TAM CHÚC",
+        "title": "Hà Nội - Chùa Tam Chúc",
         "meals": [
           "sáng",
           "trưa",
@@ -70,7 +70,7 @@
       },
       {
         "day": 3,
-        "title": "TRÀNG AN – TUYỆT TÌNH CỐC – HANG MÚA",
+        "title": "Tràng An - Tuyệt tình cốc - Hang Múa",
         "meals": [
           "sáng",
           "trưa",
@@ -89,7 +89,7 @@
       },
       {
         "day": 4,
-        "title": "HẠ LONG – TRẢI NGHIỆM BUFFET 5 SAO TRÊN VỊNH HẠ LONG",
+        "title": "Hạ Long - Trải nghiệm buffet 5 sao trên vịnh Hạ Long",
         "meals": [
           "sáng",
           "trưa",
@@ -109,7 +109,7 @@
       },
       {
         "day": 5,
-        "title": "HẠ LONG - YÊN TỬ – HÀ NỘI – HỒ CHÍ MINH",
+        "title": "Hạ Long - Yên Tử - Hà Nội - TP. Hồ Chí Minh",
         "meals": [
           "sáng",
           "trưa"
@@ -178,7 +178,7 @@
       }
     ],
     "services": {
-      "included": "Vé máy bay khứ hồi TP.HCM – HÀ NỘI – TP.HCM (Vietjet Air, …); Xe tham quan tùy theo số lượng khách; Khách sạn 3-4 sao theo tiêu chuẩn đăng ký; Ăn uống theo chương trình (2 buffet sáng, 6 bữa chính 150.000đ, 1 buffet 5 sao Hạ Long); Vé tham quan; HDV tiếng Việt; Bảo hiểm du lịch tối đa 100.000.000đ; Quà tặng nón, nước, khăn lạnh; Thuế VAT.",
+      "included": "Vé máy bay khứ hồi TP. Hồ Chí Minh – Hà Nội – TP. Hồ Chí Minh (Vietjet Air, …); Xe tham quan tùy theo số lượng khách; Khách sạn 3-4 sao theo tiêu chuẩn đăng ký; Ăn uống theo chương trình (2 buffet sáng, 6 bữa chính 150.000đ, 1 buffet 5 sao Hạ Long); Vé tham quan; hướng dẫn viên tiếng Việt; Bảo hiểm du lịch tối đa 100.000.000đ; Quà tặng nón, nước, khăn lạnh; Thuế VAT.",
       "excluded": "Đồ uống trong bữa ăn; Chi phí cá nhân; Cáp Treo Yên tử 350.000 vnd/ khách."
     },
     "policies": {
@@ -191,7 +191,7 @@
   },
   {
     "tour_id": "2",
-    "title": "TOUR ĐỒNG THÁP - LÀNG HOA SA ĐÉC - CẦN THƠ 2N1Đ | Về Xứ Hoa Kiểng Miền Tây",
+    "title": "Tour Đồng Tháp - Làng hoa Sa Đéc - Cần Thơ 2N1Đ | Về Xứ Hoa Kiểng Miền Tây",
     "duration": {
       "days": 2,
       "nights": 1
@@ -223,7 +223,7 @@
     "itinerary": [
       {
         "day": 1,
-        "title": "TP. HCM – LÀNG HOA SA ĐÉC – CẦN THƠ",
+        "title": "TP. Hồ Chí Minh - Làng hoa Sa Đéc – Cần Thơ",
         "meals": [
           "trưa",
           "chiều"
@@ -241,11 +241,11 @@
           "Bến Ninh Kiều",
           "Cầu Tình Yêu"
         ],
-        "description": "Xe và HDV đón khách khởi hành đi Đồng Tháp. Tham quan Chùa Phước Kiển với ao sen khổng lồ, Làng hoa Sa Đéc với nghề truyền thống hơn 100 năm. Dùng cơm trưa tại nhà hàng. Di chuyển đến Cần Thơ nhận phòng. Buổi tối dạo Bến Ninh Kiều, Cầu Tình Yêu và ăn tối trên Du thuyền Ninh Kiều 5 sao."
+        "description": "Xe và hướng dẫn viên đón khách khởi hành đi Đồng Tháp. Tham quan Chùa Phước Kiển với ao sen khổng lồ, Làng hoa Sa Đéc với nghề truyền thống hơn 100 năm. Dùng cơm trưa tại nhà hàng. Di chuyển đến Cần Thơ nhận phòng. Buổi tối dạo Bến Ninh Kiều, Cầu Tình Yêu và ăn tối trên Du thuyền Ninh Kiều 5 sao."
       },
       {
         "day": 2,
-        "title": "CHỢ NỔI – KDL MỸ KHÁNH – TP.HCM",
+        "title": "Chợ nổi - Khu du lịch Mỹ Khánh - TP. Hồ Chí Minh",
         "meals": [
           "sáng",
           "trưa"
@@ -376,7 +376,7 @@
       "excluded": "Bia, nước ngọt trong bữa ăn. Bữa sáng ngày đầu. Tham quan ngoài chương trình. Chi phí cá nhân. Phụ phí người nước ngoài. Phụ phí phòng đơn. Vé tham quan căn nhà màu tím (60.000 vnd/vé)."
     },
     "policies": {
-      "children_policy": "Trẻ em dưới 05 tuổi: miễn giá tour (1 kèm 1). Trẻ em từ 05 – dưới 10 tuổi: 75% giá tour (ngủ chung gia đình). Từ 10 tuổi trở lên: 100% giá tour.",
+      "children_policy": "Trẻ em dưới 05 tuổi: miễn giá tour (1 kèm 1). Trẻ em từ 05 - dưới 10 tuổi: 75% giá tour (ngủ chung gia đình). Từ 10 tuổi trở lên: 100% giá tour.",
       "cancellation_policy": "Sau khi đặt cọc hoặc trước 15 ngày: phí 35%. Hủy 10 ngày trước khởi hành: phí 50%. Hủy 07 ngày trước khởi hành: phí 70%. Hủy 05 ngày trước khởi hành: phí 100%. Không tính thứ 7, Chủ Nhật.",
       "payment_policy": "Thanh toán ít nhất 50% tiền cọc và 100% trước 15 ngày khởi hành. Không thanh toán đúng hạn xem như tự ý hủy tour.",
       "notes": "Đoàn ghép khách lẻ khởi hành từ 20 khách người lớn. Mang theo giấy tờ tùy thân và hành lý gọn nhẹ. Nhận phòng sau 14h, trả phòng trước 12h."
@@ -679,7 +679,7 @@
       }
     ],
     "services": {
-      "included": "Vé máy bay khứ hồi TP.HCM – ĐÀ NẴNG. Xe tham quan đời mới. Khách sạn tiêu chuẩn 3 sao hoặc 4 sao (2 khách/phòng). Ăn uống gồm 2 bữa sáng buffet và 4 bữa chính (130.000đ/bữa). Vé tham quan theo chương trình. HDV tiếng Việt. Bảo hiểm du lịch tối đa 100.000.000đ. Quà tặng: nón, nước, khăn lạnh. Thuế VAT.",
+      "included": "Vé máy bay khứ hồi TP.HCM – ĐÀ NẴNG. Xe tham quan đời mới. Khách sạn tiêu chuẩn 3 sao hoặc 4 sao (2 khách/phòng). Ăn uống gồm 2 bữa sáng buffet và 4 bữa chính (130.000đ/bữa). Vé tham quan theo chương trình. hướng dẫn viên tiếng Việt. Bảo hiểm du lịch tối đa 100.000.000đ. Quà tặng: nón, nước, khăn lạnh. Thuế VAT.",
       "excluded": "Bia, nước ngọt trong bữa ăn. Tham quan ngoài chương trình. Chi phí cá nhân (điện thoại, giặt ủi). Vé cáp treo Bà Nà, công viên Châu Á. 01 bữa trưa ngày thứ 2. Chi phí bãi biển (dù, võng, tắm nước ngọt)."
     },
     "policies": {
@@ -2459,7 +2459,7 @@
       }
     ],
     "services": {
-      "included": "Vé máy bay khứ hồi TP.HCM – HÀ NỘI – TP.HCM (Vietjet Air, …). Xe tham quan tùy theo số lượng khách. Khách sạn 3 sao (Mây Sapa, Mây Hồ, …) hoặc 4 sao (Sapa Cham, ...) đầy đủ tiện nghi 2 khách/phòng. Ăn uống: 2 bữa sáng buffet, 5 bữa chính 130.000đ/bữa. Vé tham quan theo chương trình. HDV tiếng Việt. Bảo hiểm tối đa 100tr/vụ. Quà tặng: nón, nước, khăn lạnh. Thuế VAT.",
+      "included": "Vé máy bay khứ hồi TP.HCM – HÀ NỘI – TP.HCM (Vietjet Air, …). Xe tham quan tùy theo số lượng khách. Khách sạn 3 sao (Mây Sapa, Mây Hồ, …) hoặc 4 sao (Sapa Cham, ...) đầy đủ tiện nghi 2 khách/phòng. Ăn uống: 2 bữa sáng buffet, 5 bữa chính 130.000đ/bữa. Vé tham quan theo chương trình. hướng dẫn viên tiếng Việt. Bảo hiểm tối đa 100tr/vụ. Quà tặng: nón, nước, khăn lạnh. Thuế VAT.",
       "excluded": "Bia hay nước ngọt trong các bữa ăn. Chi phí cá nhân: điện thoại, giặt ủi… Chi phí cáp treo Fansipan, …"
     },
     "policies": {

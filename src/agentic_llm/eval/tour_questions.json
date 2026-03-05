@@ -230,22 +230,22 @@
       "difficulty": "integration"
     },
     {
-      "question": "Cả Tour 1 và Tour 3 đều yêu cầu mang theo giấy tờ gì khi đi tour?",
+      "question": "So sánh Tour 1 và Tour 3, hai tour này yêu cầu mang theo giấy tờ gì khi đi tour?",
       "gold_answer": "Cả hai tour đều yêu cầu khách hàng mang theo căn cước công dân (cccd) hoặc hộ chiếu bản chính (trẻ em mang giấy khai sinh) để làm thủ tục.",
       "gold_contexts": [
         {
           "document_name": "extracted_data.json",
           "tour_id": "1",
-          "text": "policies.notes: \"Quý khách mang theo CCCD/Passport/Giấy khai sinh bản chính\""
+          "text": "Chính sách tour 1: \"Quý khách mang theo CCCD/Passport/Giấy khai sinh bản chính\""
         },
         {
           "document_name": "extracted_data.json",
           "tour_id": "3",
-          "text": "policies.notes: \"Quý khách khi đi cần mang theo CMND/Passport/Giấy khai sinh (bản chính)\""
+          "text": "Chính sách tour 3: \"Quý khách khi đi cần mang theo CMND/Passport/Giấy khai sinh (bản chính)\""
         }
       ],
       "difficulty": "integration"
-    },
+    }
     {
       "question": "So sánh phương tiện di chuyển chính được sử dụng trong Tour 1 và Tour 2. Có điểm gì khác biệt?",
       "gold_answer": "Tour 1 (tour miền bắc) sử dụng máy bay và xe du lịch, trong khi Tour 2 (tour miền nam) chỉ sử dụng xe du lịch để di chuyển.",
@@ -264,18 +264,18 @@
       "difficulty": "integration"
     },
     {
-      "question": "Điểm khác biệt về dịch vụ ăn uống bao gồm trong giá tour giữa Tour 2 (Miền Tây) và Tour 3 (Đà Nẵng) là gì?",
+      "question": "Điểm khác biệt về dịch vụ ăn uống bao gồm trong giá tour giữa Tour số 2 và Tour số 3 là gì?",
       "gold_answer": "Tour 2 bao gồm 3 bữa chính và 2 bữa sáng (trong đó có ăn tối trên du thuyền Ninh Kiều 5 sao), trong khi Tour 3 bao gồm 4 bữa chính và 2 bữa sáng buffet.",
       "gold_contexts": [
         {
           "document_name": "extracted_data.json",
           "tour_id": "2",
-          "text": "services.included: \"Ăn uống theo chương trình (3 bữa chính + 2 bữa sáng)\"; itinerary: \"ăn tối trên Du thuyền Ninh Kiều 5 sao\""
+          "text": "Tour số 2 .. Dịch vụ đi kèm: \"Ăn uống theo chương trình (3 bữa chính + 2 bữa sáng)\"; itinerary: \"ăn tối trên Du thuyền Ninh Kiều 5 sao\""
         },
         {
           "document_name": "extracted_data.json",
           "tour_id": "3",
-          "text": "services.included: \"Ăn uống gồm 2 bữa sáng buffet và 4 bữa chính\""
+          "text": "Tour số 3 ... Dịch vụ đi kèm: \"Ăn uống gồm 2 bữa sáng buffet và 4 bữa chính\""
         }
       ],
       "difficulty": "integration"

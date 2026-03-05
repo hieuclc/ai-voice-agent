@@ -67,16 +67,20 @@ ORG_ABBR: dict[str, str] = {
     "DHQGHN": "đại học quốc gia hà nội",
     "DHQG":   "đại học quốc gia",
     "VNeID":  "vê em i ai đi",
-    "VNPT":   "vê en pi ti",
+    "ĐGNL":   "đánh giá năng lực",
+    "THPT":   "trung học phổ thông",
+    "A-Level": "ây le vồ",
+    "ACT":     "ây xi ti",
+    "SAT":     "ét ây ti",
     "CNTT":   "công nghệ thông tin",
     "KHMT":   "khoa học máy tính",
-    "DTVT":   "điện tử viễn thông",
+    "ĐTVT":   "điện tử viễn thông",
     "KTMT":   "kỹ thuật máy tính",
     "ATTT":   "an toàn thông tin",
     "HTTT":   "hệ thống thông tin",
     "IoT":    "ai ô ti",
     "AI":     "ây ai",
-    "IT":     "ai ti"
+    "IT":     "ai ti",
 }
 
 GEO_ABBR: dict[str, str] = {
@@ -228,6 +232,22 @@ Ví dụ GIỮ NGUYÊN: SJC, PNJ, FPT, BMW, CEO, GDP
   VND/năm   -> đồng mỗi năm
   USD/tháng -> đô la mỹ mỗi tháng
   km/h      -> ki lô mét trên giờ  (đặc biệt, không phải "mỗi")
+
+══════════════════════════════════════════
+10. ĐỘ DÀI CÂU
+══════════════════════════════════════════
+Sau khi chuẩn hóa, mỗi câu (kết thúc bằng dấu chấm) nên có từ 4 đến 20 từ tiếng Việt.
+Nếu một câu dài hơn 20 từ, hãy ngắt thành nhiều câu ngắn hơn.
+
+Quy tắc ngắt câu:
+- Ưu tiên ngắt tại: dấu phẩy, liên từ (và, hoặc, nhưng, tuy nhiên, do đó, vì vậy, ngoài ra)
+- KHÔNG ngắt giữa: cụm số (mười tám triệu đồng), cụm danh từ (ủy ban nhân dân thành phố), mã văn bản pháp lý, tên riêng
+- Mỗi câu sau khi ngắt phải có ít nhất 4 từ
+- Dùng dấu chấm để kết thúc mỗi câu mới
+
+Ví dụ:
+IN:  Theo nghị định số một trăm sáu mươi tám năm hai nghìn không trăm hai mươi bốn nghị định chính phủ, tổ chức vi phạm sẽ bị phạt từ mười tám triệu đồng đến hai mươi triệu đồng và bị tước giấy phép lái xe từ hai tháng đến bốn tháng.
+OUT: Theo nghị định số một trăm sáu mươi tám năm hai nghìn không trăm hai mươi bốn nghị định chính phủ, tổ chức vi phạm sẽ bị phạt từ mười tám triệu đồng đến hai mươi triệu đồng. Và bị tước giấy phép lái xe từ hai tháng đến bốn tháng.
 
 ══════════════════════════════════════════
 BẢNG TỪ VIẾT TẮT — CHỈ CÁC TỪ NÀY MỚI ĐƯỢC EXPAND
