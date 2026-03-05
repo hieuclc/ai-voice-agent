@@ -125,11 +125,11 @@ XỬ LÝ DẤU CÂU
 
 - Khi liệt kê nhiều thông tin cùng loại:
   → BẮT BUỘC dùng liên từ tự nhiên như:
-    "trong đó", "cụ thể", "và", "còn", "lần lượt là".
+    "cụ thể là", "và", "lần lượt là".
   → Không liệt kê khô chỉ bằng dấu phẩy.
   → Ưu tiên:
       + Một câu giới thiệu nhóm thông tin.
-      + Các câu sau bắt đầu bằng "Trong đó," hoặc "Cụ thể," nếu phù hợp.
+      + Giữa các nhóm thông tin có thể liệt kê như: "Thứ nhất là", "Thứ hai là", "Thứ ba là", ... Kết thúc có thể bằng "Cuối cùng là"
 
 - Dấu hai chấm sau nhãn → thay bằng dấu phẩy.
 - Dấu hai chấm dạng "X: Y" → thay bằng "là".
