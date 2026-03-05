@@ -80,17 +80,6 @@ except ImportError:
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from agent_routing import create_router_agent
 
-# Domain → node name trong RouterGraph (dùng để filter astream_events)
-# TTS node chạy SAU sub-agent, câu trả lời cuối sẽ đến từ node "tts"
-# nhưng ta muốn lấy answer TRƯỚC khi TTS normalize (để RAGAS đánh giá nội dung
-# gốc), nên ta lấy on_chat_model_end từ các sub-agent node thực sự.
-_DOMAIN_TO_NODE = {
-    "law":         "law",
-    "admission":   "admission",
-    "tour":        "tour",
-    "normal_talk": "normal_talk",
-}
-
 # Tên các tool RAG — dùng để phân biệt tool call thực sự vs internal call
 _RAG_TOOL_NAMES = {
     "search_law",
@@ -176,10 +165,16 @@ async def run_single(
     """
     Chạy một câu hỏi qua router graph.
 
+    Pipeline: router → sub-agent (law/admission/tour/normal_talk) → tts_node → END
+    - domain được pre-seed vào init_state → route_node bỏ qua LLM call.
+    - tts_node chọn TTSNormalizerAgent theo domain → normalize answer cuối.
+    - final_answer lấy từ on_chat_model_end của tts_node (output thực sự người dùng nhận).
+    - retrieved_contexts gom từ tất cả on_tool_end của RAG tools (multihop).
+
     Returns:
-        final_answer    : nội dung câu trả lời cuối (pre-TTS để RAGAS đánh giá nội dung gốc)
-        retrieved_contexts : danh sách context string từ tất cả tool calls (multihop)
-        hop_log         : metadata từng hop [{hop, tool_name, query_preview, context_len}]
+        final_answer       : câu trả lời sau khi TTS normalize (đúng với output thực tế)
+        retrieved_contexts : list context string từ tất cả tool calls (multihop)
+        hop_log            : metadata từng hop [{hop, tool, context_len}]
     """
     async with semaphore:
         for attempt in range(retries + 1):
@@ -197,8 +192,6 @@ async def run_single(
                 hop_log:            list[dict] = []   # metadata từng hop
                 hop_counter:        int        = 0
                 final_answer:       str        = ""
-                # Tên node sub-agent tương ứng với domain
-                sub_agent_node = _DOMAIN_TO_NODE.get(domain, domain)
 
                 t_start = asyncio.get_event_loop().time()
 
@@ -237,50 +230,50 @@ async def run_single(
                                 domain.upper(), item_index, hop_counter, tool_name, len(text),
                             )
 
-                    # ── Capture final answer từ sub-agent (TRƯỚC khi TTS)
-                    # Chiến lược: lấy on_chat_model_end từ đúng sub-agent node.
-                    # TTS node cũng sinh on_chat_model_end — ta phân biệt bằng
-                    # langgraph_node trong metadata (available trong astream_events v2).
+                    # ── Capture final answer từ TTS node ────────────────
+                    # TTS node là node cuối cùng trong pipeline (→ END).
+                    # Nó normalize AIMessage bằng TTSNormalizerAgent (dùng LLM),
+                    # emit on_chat_model_end với langgraph_node = "tts".
+                    # Đây là output thực sự người dùng nhận được → RAGAS đánh giá cái này.
                     elif kind == "on_chat_model_end":
                         node_name = metadata.get("langgraph_node", "")
 
-                        # Bỏ qua output từ tts node và router node
-                        if node_name in ("tts", "router"):
+                        # Chỉ lấy output từ tts node
+                        if node_name != "tts":
                             continue
 
                         msg = event["data"].get("output")
                         if msg is None:
                             continue
-                        # Bỏ qua nếu là tool call (agent đang gọi tool, chưa phải answer)
-                        if getattr(msg, "tool_calls", None):
-                            continue
                         content = getattr(msg, "content", "")
                         if content:
                             final_answer = content
 
-                # ── Fallback: nếu không lấy được từ sub-agent node,
-                # thử lấy từ TTS node (đã normalize) — vẫn tốt hơn không có gì
+                # ── Fallback: nếu TTS không emit (ví dụ _tts=None → normalize=passthrough),
+                # thử lấy on_chain_end của node "tts" từ state["messages"][-1]
                 if not final_answer:
                     logger.warning(
-                        "[%s] #%d could not capture pre-TTS answer, "
-                        "will retry astream for tts output",
+                        "[%s] #%d TTS node did not emit on_chat_model_end "
+                        "(TTSNormalizerAgent may be passthrough) — "
+                        "falling back to on_chain_end state capture",
                         domain.upper(), item_index,
                     )
-                    # Chạy lại lần nữa để lấy output TTS nếu cần
-                    # (trường hợp này hiếm — thường chỉ xảy ra với normal_talk)
                     async for event in graph.astream_events(init_state, version="v2"):
                         kind     = event.get("event", "")
                         metadata = event.get("metadata", {})
-                        if kind == "on_chat_model_end":
+                        if kind == "on_chain_end":
                             node_name = metadata.get("langgraph_node", "")
-                            if node_name == "tts":
+                            if node_name != "tts":
                                 continue
-                            msg = event["data"].get("output")
-                            if msg and not getattr(msg, "tool_calls", None):
-                                content = getattr(msg, "content", "")
-                                if content:
-                                    final_answer = content
-                                    break
+                            output = event["data"].get("output", {})
+                            msgs   = output.get("messages", []) if isinstance(output, dict) else []
+                            for m in reversed(msgs):
+                                if hasattr(m, "content") and not getattr(m, "tool_calls", None):
+                                    if m.content:
+                                        final_answer = m.content
+                                        break
+                            if final_answer:
+                                break
 
                 # ── Log Q&A ngay sau khi có kết quả ─────────────────────
                 elapsed = asyncio.get_event_loop().time() - t_start

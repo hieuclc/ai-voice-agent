@@ -74,9 +74,24 @@ class ChatCompletionRequest(BaseModel):
 # LangChain message conversion
 # ---------------------------------------------------------------------------
 
+def _strip_pipecat_persona(messages: list[ChatMessage]) -> list[ChatMessage]:
+    """
+    Pipecat luôn đặt persona prompt là system message đầu tiên (index 0).
+    Backend có system prompt riêng cho từng domain → strip persona để tránh conflict.
+
+    Các message khác giữ nguyên, bao gồm:
+    - System message thứ hai (greeting instruction lúc kickstart)
+    - Toàn bộ human/assistant history từ transcript_handler
+    """
+    if messages and messages[0].role == "system":
+        return messages[1:]
+    return messages
+
+
 def to_lc_messages(messages: list[ChatMessage]) -> list:
+    cleaned = _strip_pipecat_persona(messages)
     out = []
-    for m in messages:
+    for m in cleaned:
         if m.role == "system":
             out.append(SystemMessage(content=m.content))
         elif m.role == "user":
