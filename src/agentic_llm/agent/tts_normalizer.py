@@ -149,6 +149,7 @@ BẮT BUỘC tách câu khi:
 - Xuất hiện phép so sánh giữa hai đối tượng.
 - Xuất hiện liệt kê nhiều hơn hai giá trị.
 - Câu dài và chứa hai mệnh đề độc lập.
+- Câu dài quá 20 từ
 
 ĐÚNG:
 "Năm hai nghìn không trăm hai mươi bốn, điểm chuẩn là hai mươi bảy.
@@ -388,6 +389,66 @@ class TTSNormalizerAgent:
         except Exception as exc:
             logger.warning("TTS [%s] anormalize error, returning original: %s", self._domain, exc)
             return text
+
+    async def astream_normalize(self, text: str):
+        """
+        Stream token từ LLM TTS normalizer — yield chunk ngay khi LLM trả về,
+        không chờ full response. Giảm latency đáng kể so với anormalize().
+
+        Chiến lược buffer:
+        - Gom token vào buffer cho đến khi xuất hiện word-boundary (dấu cách, dấu câu).
+        - Yield ngay khi có boundary → client nhận chữ hoàn chỉnh, không bị vỡ giữa từ.
+        - _regex_post_process được bỏ qua trong stream (LLM thường không emit ALL-CAPS
+          sau normalize); nếu cần có thể áp dụng trên full text sau khi collect.
+
+        Yields:
+            str: chunk văn bản đã normalize, sẵn sàng gửi tới client.
+        """
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        if not text.strip():
+            return
+
+        buffer = ""
+        # Ranh giới để flush buffer: khoảng trắng hoặc dấu câu
+        _BOUNDARIES = {" ", "\n", ".", ",", ";", ":", "!", "?"}
+
+        try:
+            async for chunk in self._get_llm().astream([
+                SystemMessage(content=self._system_prompt),
+                HumanMessage(content=text),
+            ]):
+                token: str = getattr(chunk, "content", "") or ""
+                if not token:
+                    continue
+
+                buffer += token
+
+                # Tìm boundary cuối cùng trong buffer để flush phần trước nó
+                last_boundary = -1
+                for idx in range(len(buffer) - 1, -1, -1):
+                    if buffer[idx] in _BOUNDARIES:
+                        last_boundary = idx
+                        break
+
+                if last_boundary >= 0:
+                    to_yield = buffer[: last_boundary + 1]
+                    buffer   = buffer[last_boundary + 1 :]
+                    yield to_yield
+
+            # Flush phần còn lại (đuôi câu không kết thúc bằng dấu câu)
+            if buffer:
+                yield buffer
+
+        except Exception as exc:
+            logger.warning(
+                "TTS [%s] astream_normalize error, falling back word-split: %s",
+                self._domain, exc,
+            )
+            # Fallback: stream từng từ của text gốc (không normalize)
+            words = text.split(" ")
+            for i, word in enumerate(words):
+                yield word if i == len(words) - 1 else word + " "
 
 
 # ============================================================

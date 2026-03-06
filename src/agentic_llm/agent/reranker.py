@@ -51,7 +51,7 @@ class LawReranker:
     def __init__(
         self,
         model_name: str = DEFAULT_RERANKER_MODEL,
-        max_length: int = 1024,
+        max_length: int = 512,
         batch_size: int = 32,
         device: Optional[str] = None,
     ) -> None:

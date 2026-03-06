@@ -44,6 +44,11 @@ logger = logging.getLogger(__name__)
 # Khởi tạo trong create_router_agent() khi có đủ config
 _tts_agents: dict[str, TTSNormalizerAgent] = {}
 
+
+def get_tts_agents() -> dict[str, TTSNormalizerAgent]:
+    """Trả về dict TTS agents hiện tại. Dùng bởi server.py để stream normalize."""
+    return _tts_agents
+
 # Router LLM singleton — dùng bởi pre_route() trong server.py
 _router_llm_instance: Optional[ChatOpenAI] = None
 
@@ -270,6 +275,7 @@ class RouterState(TypedDict):
     hop_count:         int
     thinking_streamed: bool
     domain:            str
+    skip_tts:          bool  # nếu True, tts_node trả về nguyên state (server tự stream TTS)
 
 
 # ---------------------------------------------------------------------------
@@ -350,7 +356,13 @@ def _build_router_graph(
         Node TTS duy nhất trong toàn bộ pipeline.
         Chọn TTSNormalizerAgent theo domain trong state → normalize đúng context.
         Tìm AIMessage cuối, normalize, thay thế in-place.
+
+        Nếu state["skip_tts"] is True (do server.py set), bỏ qua normalize —
+        server sẽ tự stream TTS trực tiếp qua TTSNormalizerAgent.astream_normalize().
         """
+        if state.get("skip_tts", False):
+            return {}  # no-op: giữ nguyên messages để server tự xử lý
+
         domain = state.get("domain", "normal_talk")
         tts    = tts_agents.get(domain) or tts_agents.get("normal_talk")
 

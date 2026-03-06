@@ -30,7 +30,7 @@ from pydantic import BaseModel
 import asyncio
 
 from agent import preload_bge_model
-from agent_routing import create_router_agent, pre_route
+from agent_routing import create_router_agent, pre_route, get_tts_agents
 
 EXTRA_TOOLS: list = []
 
@@ -169,23 +169,24 @@ async def stream_agent_response(
         "hop_count":         0,
         "thinking_streamed": False,
         "domain":            domain,   # pre-seeded → route_node bỏ qua LLM call
+        "skip_tts":          True,     # server tự stream TTS, bỏ qua tts_node trong graph
     }
 
     # ------------------------------------------------------------------
-    # Bước 2: Nhánh normal_talk — không cần thinking
+    # Bước 2: Nhánh normal_talk — không cần thinking, không cần TTS LLM
     # ------------------------------------------------------------------
     if not needs_thinking:
-        normalized_text: list[str] = []
+        raw_text: list[str] = []
         try:
             result = await graph.ainvoke(initial_state)
             for msg in reversed(result["messages"]):
                 if isinstance(msg, AIMessage) and not getattr(msg, "tool_calls", None) and msg.content.strip():
-                    normalized_text.append(msg.content)
+                    raw_text.append(msg.content)
                     break
         except Exception as exc:
             logger.error("normal_talk ainvoke error: %s", exc)
 
-        text = normalized_text[0] if normalized_text else ""
+        text = raw_text[0] if raw_text else ""
         if text:
             words = text.split(" ")
             for i, word in enumerate(words):
@@ -201,14 +202,14 @@ async def stream_agent_response(
     # ------------------------------------------------------------------
     output_queue: asyncio.Queue = asyncio.Queue()
     agent_done_event = asyncio.Event()
-    normalized_text_tool: list[str] = []
+    raw_agent_text: list[str] = []
 
     async def agent_runner():
         try:
             result = await graph.ainvoke(initial_state)
             for msg in reversed(result["messages"]):
                 if isinstance(msg, AIMessage) and not getattr(msg, "tool_calls", None) and msg.content.strip():
-                    normalized_text_tool.append(msg.content)
+                    raw_agent_text.append(msg.content)
                     break
         except Exception as exc:
             logger.error("agent_runner error: %s", exc)
@@ -247,13 +248,24 @@ async def stream_agent_response(
         if not agent_task.done():
             agent_task.cancel()
 
-    # Stream từng từ của kết quả đã normalize
-    text = normalized_text_tool[0] if normalized_text_tool else ""
-    if text:
-        words = text.split(" ")
-        for i, word in enumerate(words):
-            chunk = word if i == len(words) - 1 else word + " "
-            yield _sse(_chunk_payload(completion_id, model, {"content": chunk}))
+    # ------------------------------------------------------------------
+    # Bước 4: Stream TTS normalize — yield token ngay khi LLM trả về,
+    # không đợi full normalize xong → giảm latency đáng kể.
+    # ------------------------------------------------------------------
+    raw_text = raw_agent_text[0] if raw_agent_text else ""
+    if raw_text:
+        tts_agents = get_tts_agents()
+        tts = tts_agents.get(domain) or tts_agents.get("normal_talk")
+        if tts is not None:
+            async for token_chunk in tts.astream_normalize(raw_text):
+                if token_chunk:
+                    yield _sse(_chunk_payload(completion_id, model, {"content": token_chunk}))
+        else:
+            # Fallback khi không có TTS agent
+            words = raw_text.split(" ")
+            for i, word in enumerate(words):
+                chunk = word if i == len(words) - 1 else word + " "
+                yield _sse(_chunk_payload(completion_id, model, {"content": chunk}))
 
     yield _sse(_chunk_payload(completion_id, model, {}, finish_reason="stop"))
     yield _sse_done()

@@ -198,12 +198,50 @@ CHUNK 8
 
 
 CHUNK 9
-[Trace-back]: II. TUYỂN SINH ĐÀO TẠO ĐẠI HỌC > 8. Địa điểm học và Học phí năm học 2026-2027
+[Trace-back]: II. TUYỂN SINH ĐÀO TẠO ĐẠI HỌC > 8. Địa điểm học
 [Content]:
 - Địa điểm: 144 Xuân Thủy, 8 Tôn Thất Thuyết, 12 Kiều Mai và Hòa Lạc. Dự kiến sinh viên năm thứ nhất sẽ học tập tại cơ sở Hòa Lạc.
-- Mức học phí:
-  + 44.000.000 VNĐ/năm: Áp dụng cho hầu hết các ngành (CN1-CN15, CN17, CN18, CN20, CN21).
-  + 38.000.000 VNĐ/năm: Áp dụng cho ngành Công nghệ vật liệu và Vi điện tử (CN19).
+
+Học phí ngành Công nghệ thông tin (CN1) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Công nghệ nông nghiệp (CN10) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Kỹ thuật điều khiển và tự động hoá (CN11) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Trí tuệ nhân tạo (CN12) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Kỹ thuật năng lượng (CN13) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Hệ thống thông tin (CN14) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Mạng máy tính và truyền thông dữ liệu (CN15) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Kỹ thuật Robot (CN17) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Thiết kế công nghiệp và đồ họa (CN18) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Kỹ thuật máy tính (CN2) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Vật lý kỹ thuật (CN3) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Cơ kỹ thuật (CN4) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Công nghệ kỹ thuật xây dựng (CN5) năm học 2026-2027: 44.000.000 VNĐ/năm.
+ 
+Học phí ngành Công nghệ kỹ thuật cơ - điện tử (CN6) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Công nghệ hàng không vũ trụ (CN7) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Khoa học máy tính (CN8) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Công nghệ kỹ thuật điện tử - viễn thông (CN9) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Công nghệ vật liệu và Vi điện tử (CN19) năm học 2026-2027: 38.000.000 VNĐ/năm.
+
+Học phí ngành Khoa học và Kỹ thuật dữ liệu (CN20) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
+Học phí ngành Công nghệ kỹ thuật sinh học (CN21) năm học 2026-2027: 44.000.000 VNĐ/năm.
+
 
 CHUNK 1
 [Trace-back]: Chương trình đào tạo ngành Khoa học máy tính > A. Một số thông tin về chương trình đào tạo
