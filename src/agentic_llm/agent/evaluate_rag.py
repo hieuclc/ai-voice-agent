@@ -167,12 +167,11 @@ async def run_single(
 
     Pipeline: router → sub-agent (law/admission/tour/normal_talk) → tts_node → END
     - domain được pre-seed vào init_state → route_node bỏ qua LLM call.
-    - tts_node chọn TTSNormalizerAgent theo domain → normalize answer cuối.
     - final_answer lấy từ on_chat_model_end của tts_node (output thực sự người dùng nhận).
     - retrieved_contexts gom từ tất cả on_tool_end của RAG tools (multihop).
 
     Returns:
-        final_answer       : câu trả lời sau khi TTS normalize (đúng với output thực tế)
+        final_answer       : câu trả lời raw từ sub-agent
         retrieved_contexts : list context string từ tất cả tool calls (multihop)
         hop_log            : metadata từng hop [{hop, tool, context_len}]
     """

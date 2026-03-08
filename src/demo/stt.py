@@ -17,7 +17,7 @@ class OpenAISTTService(BaseWhisperSTTService):
             **kwargs,
         )
 
-        self.recognizer = ChunkFormerModel.from_pretrained("khanhld/chunkformer-rnnt-large-vie")
+        self.recognizer = ChunkFormerModel.from_pretrained("khanhld/chunkformer-ctc-large-vie")
 
     async def _transcribe(self, audio: bytes) -> Transcription:
         text = await asyncio.to_thread(self._run_recognition, audio)

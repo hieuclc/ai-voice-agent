@@ -16,7 +16,7 @@ from pipecat.audio.vad.silero import SileroVADAnalyzer
 logger.info("✅ Silero VAD model loaded")
 
 from pipecat.audio.vad.vad_analyzer import VADParams
-from pipecat.frames.frames import LLMRunFrame
+from pipecat.frames.frames import LLMRunFrame, Frame, TextFrame, TTSSpeakFrame
 
 logger.info("Loading pipeline components...")
 from pipecat.pipeline.pipeline import Pipeline
@@ -29,6 +29,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
+from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
 from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
@@ -40,12 +41,57 @@ from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.processors.transcript_processor import TranscriptProcessor
 
-from transcription_handler import TranscriptHandler
+# from transcription_handler import TranscriptHandler
 from mcp_service import MCPClient
 from mcp.client.session_group import StreamableHttpParameters
 logger.info("✅ All components loaded successfully!")
 
 load_dotenv(override=True)
+
+
+# ---------------------------------------------------------------------------
+# Thinking sentence prefixes — phải khớp với THINKING_SENTENCES_* trong agent.py
+# ---------------------------------------------------------------------------
+_THINKING_SENTENCES = set([
+    "Tôi đang thực hiện tìm kiếm thông tin, vui lòng chờ trong giây lát.",
+    "Tôi sẽ tìm kiếm dữ liệu ngay bây giờ, vui lòng chờ đợi.",
+    "Để trả lời chính xác, tôi cần tra cứu dữ liệu, xin vui lòng chờ.",
+    "Quá trình tìm kiếm vẫn đang tiếp tục, vui lòng chờ thêm.",
+    "Hệ thống đang truy xuất dữ liệu liên quan, xin vui lòng đợi.",
+    "Đang phân tích các nguồn tài liệu, vui lòng kiên nhẫn chờ đợi.",
+    "Tìm kiếm vẫn đang được thực hiện, kết quả sẽ có trong chốc lát.",
+    "Hệ thống vẫn đang xử lý yêu cầu, vui lòng chờ thêm một chút.",
+])
+
+def _is_thinking_sentence(text: str) -> bool:
+    return text.strip() in _THINKING_SENTENCES
+
+
+class ThinkingSentenceProcessor(FrameProcessor):
+    """
+    Đặt giữa llm và tts trong pipeline.
+
+    Vấn đề: SimpleTextAggregator (aggregate_sentences=True) dùng cross-frame
+    lookahead — buffer câu thinking cho đến khi thấy chữ hoa đầu câu tiếp theo
+    → delay 6-7 giây trước khi TTS xử lý.
+
+    Fix: intercept TextFrame chứa thinking sentence, convert thành TTSSpeakFrame.
+    TTSService xử lý TTSSpeakFrame bằng _push_tts_frames(AggregationType.SENTENCE)
+    — hoàn toàn bypass SimpleTextAggregator.
+    Các TextFrame bình thường (response tokens) vẫn đi qua aggregator như cũ.
+    """
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, TextFrame) and _is_thinking_sentence(frame.text):
+            logger.debug(
+                "ThinkingSentenceProcessor: converting to TTSSpeakFrame: %r",
+                frame.text[:60],
+            )
+            await self.push_frame(TTSSpeakFrame(frame.text.strip()), direction)
+        else:
+            await self.push_frame(frame, direction)
 
 
 async def run_bot(webrtc_connection, session_id):
@@ -91,7 +137,7 @@ async def run_bot(webrtc_connection, session_id):
     - Nhận xét xu hướng hoặc khác biệt chính dựa trên dữ liệu đã có.
     - Đưa ra lời khuyên HỮU ÍCH dựa trên xu hướng đó, nhưng phải kèm điều kiện hoặc lưu ý rủi ro.
 
-    5. Khi người dùng hỏi “có nên mua”, “có nên bán”, “đầu tư”:
+    5. Khi người dùng hỏi "có nên mua", "có nên bán", "đầu tư":
     - KHÔNG được chỉ dựa trên dữ liệu của một ngày hay một đối tượng.
     - BẮT BUỘC phải sử dụng dữ liệu nhiều mốc (ít nhất 2-3 mốc gần nhất).
     - Nếu chưa có dữ liệu, phải gọi tool để bổ sung trước khi trả lời.
@@ -111,14 +157,14 @@ async def run_bot(webrtc_connection, session_id):
 
     transcript = TranscriptProcessor()
 
-    transcript_handler = TranscriptHandler(session_id = session_id)
-    await transcript_handler.load_session()
-    if transcript_handler.messages:
-        for message in transcript_handler.messages:
-            messages.append({
-                "role": message.role,
-                "content": message.content
-            })
+    # transcript_handler = TranscriptHandler(session_id = session_id)
+    # await transcript_handler.load_session()
+    # if transcript_handler.messages:
+    #     for message in transcript_handler.messages:
+    #         messages.append({
+    #             "role": message.role,
+    #             "content": message.content
+    #         })
 
     context = LLMContext(messages)
     context_aggregator = LLMContextAggregatorPair(
@@ -131,17 +177,19 @@ async def run_bot(webrtc_connection, session_id):
     )
 
     rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
+    thinking_processor = ThinkingSentenceProcessor()
 
     pipeline = Pipeline(
         [
-            transport.input(),  # Transport user input
-            rtvi,  # RTVI processor
+            transport.input(),           # Transport user input
+            rtvi,                        # RTVI processor
             stt,
             transcript.user(),
-            context_aggregator.user(),  # User responses
-            llm,  # LLM
-            tts,  # TTS
-            transport.output(),  # Transport bot output
+            context_aggregator.user(),   # User responses
+            llm,                         # LLM
+            thinking_processor,          # Convert thinking sentences → TTSSpeakFrame (bypass aggregator)
+            tts,                         # TTS
+            transport.output(),          # Transport bot output
             transcript.assistant(),
             context_aggregator.assistant(),  # Assistant spoken responses
         ]
@@ -160,13 +208,13 @@ async def run_bot(webrtc_connection, session_id):
     async def on_client_connected(transport, client):
         logger.info(f"Client connected")
         # Kick off the conversation.
-        if not transcript_handler.messages:
-            messages.append({"role": "system", "content": "Say hello and briefly introduce yourself in Vietnamese."})
+        # if not transcript_handler.messages:
+        messages.append({"role": "system", "content": "Hãy nói câu sau: 'Xin chào bạn, tôi có thể giúp gì cho bạn hôm nay.'"})
         await task.queue_frames([LLMRunFrame()])
 
-    @transcript.event_handler("on_transcript_update")
-    async def on_transcript_update(processor, frame):
-        await transcript_handler.on_transcript_update(processor, frame)
+    # @transcript.event_handler("on_transcript_update")
+    # async def on_transcript_update(processor, frame):
+    #     await transcript_handler.on_transcript_update(processor, frame)
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
@@ -177,4 +225,3 @@ async def run_bot(webrtc_connection, session_id):
     runner = PipelineRunner(handle_sigint=False)
 
     await runner.run(task)
-

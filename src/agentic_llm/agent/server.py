@@ -97,6 +97,7 @@ def to_lc_messages(messages: list[ChatMessage]) -> list:
         elif m.role == "user":
             out.append(HumanMessage(content=m.content))
         elif m.role == "assistant":
+            # Lọc bỏ thinking sentences khỏi history để tránh nhiễu context
             out.append(AIMessage(content=m.content))
     return out
 
@@ -147,6 +148,11 @@ async def stream_agent_response(
     2. Domain được truyền vào initial_state["domain"] → route_node trong graph
        bỏ qua LLM call thứ hai (không tốn thêm round-trip).
     3. Sau khi ainvoke xong, stream từng từ của normalized text ra client.
+
+    Thinking sentences:
+    - Gửi KHÔNG có \n\n wrapping để SimpleTextAggregator nhận diện ngay
+    - Mỗi thinking sentence là một sentence hoàn chỉnh kết thúc bằng dấu chấm
+    - Theo sau bởi một space để force aggregator flush ngay lập tức
     """
     from agent import (
         THINKING_INTERVAL_SECONDS,
@@ -218,7 +224,6 @@ async def stream_agent_response(
             await output_queue.put(("done", None))
 
     async def thinking_producer():
-        # Emit thinking ngay lập tức — domain đã biết từ pre_route nên không bị delay
         await output_queue.put(("thinking", pick_thinking_start_sentence()))
         while True:
             try:
@@ -242,7 +247,18 @@ async def stream_agent_response(
             if kind == "done":
                 break
             elif kind == "thinking":
-                yield _sse(_chunk_payload(completion_id, model, {"content": f"\n\n{value}\n\n"}))
+                # FIX: Gửi thành 2 SSE event RIÊNG BIỆT → 2 TextFrame khác nhau.
+                #
+                # SimpleTextAggregator dùng cross-frame lookahead:
+                #   Frame 1: "...đợi."  → thấy period, đánh dấu potential boundary,
+                #                         nhưng CHƯA flush — đang chờ frame tiếp theo.
+                #   Frame 2: " "        → confirm boundary → flush ngay lập tức.
+                #
+                # Nếu gộp thành 1 chunk "...đợi. " → chỉ có 1 TextFrame duy nhất
+                # → aggregator vẫn chờ frame tiếp → buffer lại 6-7 giây.
+                logger.info("Emitting thinking sentence: %r", value)
+                yield _sse(_chunk_payload(completion_id, model, {"content": value}))
+                yield _sse(_chunk_payload(completion_id, model, {"content": " "}))
     finally:
         think_task.cancel()
         if not agent_task.done():
@@ -361,7 +377,7 @@ async def chat_completions(request: ChatCompletionRequest):
             headers={
                 "Cache-Control": "no-cache",
                 "X-Accel-Buffering": "no",
-                "Connection": "keep-alive",
+                "Connection":    "keep-alive",
             },
         )
 
