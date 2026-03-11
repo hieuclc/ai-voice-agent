@@ -8,3 +8,6 @@ lightrag_data/
 lightrag_data.zip
 chroma_db
 qdrant_data
+src/agentic_llm/eval/result*/
+src/agentic_llm/eval/*.csv
+test_questions.json
