@@ -48,6 +48,9 @@ logger.info("✅ All components loaded successfully!")
 
 load_dotenv(override=True)
 
+from benchmark_log_sink import BenchmarkLogSink, current_session_id
+_benchmark_sink = BenchmarkLogSink()
+logger.add(_benchmark_sink, format="{message}")
 
 # ---------------------------------------------------------------------------
 # Thinking sentence prefixes — phải khớp với THINKING_SENTENCES_* trong agent.py
@@ -95,6 +98,7 @@ class ThinkingSentenceProcessor(FrameProcessor):
 
 
 async def run_bot(webrtc_connection, session_id):
+    _token = current_session_id.set(session_id)
     transport = SmallWebRTCTransport(
         webrtc_connection=webrtc_connection,
         params=TransportParams(
@@ -220,8 +224,11 @@ async def run_bot(webrtc_connection, session_id):
     async def on_client_disconnected(transport, client):
         logger.info(f"Client disconnected")
         await task.cancel()
-        await transport.close()
+        # await transport.close()
 
     runner = PipelineRunner(handle_sigint=False)
 
-    await runner.run(task)
+    try:
+        await runner.run(task)
+    finally:
+        current_session_id.reset(_token)

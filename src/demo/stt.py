@@ -3,6 +3,9 @@ from openai.resources.audio.transcriptions import Transcription
 
 import asyncio
 from chunkformer import ChunkFormerModel
+import torch
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class OpenAISTTService(BaseWhisperSTTService):
     def __init__(
@@ -17,7 +20,7 @@ class OpenAISTTService(BaseWhisperSTTService):
             **kwargs,
         )
 
-        self.recognizer = ChunkFormerModel.from_pretrained("khanhld/chunkformer-ctc-large-vie")
+        self.recognizer = ChunkFormerModel.from_pretrained("khanhld/chunkformer-ctc-large-vie").to(device)
 
     async def _transcribe(self, audio: bytes) -> Transcription:
         text = await asyncio.to_thread(self._run_recognition, audio)
