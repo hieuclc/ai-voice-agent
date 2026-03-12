@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice Agent Benchmark</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --border: #252535;
+    --accent: #00ff88;
+    --accent2: #7c3aed;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--mono); overflow: hidden; }
+
+  /* ── layout ── */
+  .shell { display: grid; grid-template-columns: 280px 1fr; grid-template-rows: 56px 1fr; height: 100vh; }
+
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-family: var(--sans); font-weight: 800; font-size: 18px; color: var(--accent); letter-spacing: -0.5px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .pill-status { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+  .pill-status.running { border-color: var(--accent); color: var(--accent); animation: pulse 1.5s ease infinite; }
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+
+  .content { overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+
+  /* ── config card ── */
+  .card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .card-title { font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+
+  label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+  input[type=text], input[type=number], select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 7px 10px; border-radius: 6px; outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  .form-row { margin-bottom: 12px; }
+
+  /* ── file list ── */
+  .file-drop {
+    border: 2px dashed var(--border); border-radius: 8px;
+    padding: 20px; text-align: center; cursor: pointer;
+    transition: border-color .2s, background .2s;
+    font-size: 12px; color: var(--muted);
+  }
+  .file-drop:hover, .file-drop.over { border-color: var(--accent); background: rgba(0,255,136,.04); color: var(--text); }
+  .file-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 8px; background: var(--bg); border-radius: 6px;
+    font-size: 11px; margin-top: 6px; border: 1px solid var(--border);
+  }
+  .file-item .name { color: var(--text); }
+  .file-item .dur { color: var(--muted); }
+  .file-item .remove { cursor: pointer; color: var(--danger); font-size: 14px; line-height: 1; }
+
+  /* ── buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-accent { background: var(--accent); color: #000; }
+  .btn-accent:hover { filter: brightness(1.15); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { filter: brightness(1.15); }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: .35; cursor: not-allowed; filter: none; }
+  .btn-row { display: flex; gap: 8px; }
+
+  /* ── metrics grid ── */
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .metric-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 12px;
+  }
+  .metric-box .mval { font-family: var(--sans); font-size: 28px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .metric-box .mval.warn { color: var(--warn); }
+  .metric-box .mval.danger { color: var(--danger); }
+  .metric-box .mlabel { font-size: 10px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .metric-box .msub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* ── run log ── */
+  .run-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .run-table th { font-size: 10px; color: var(--muted); text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }
+  .run-table td { padding: 5px 8px; border-bottom: 1px solid rgba(37,37,53,.6); color: var(--text); }
+  .run-table tr:hover td { background: rgba(0,255,136,.03); }
+  .tag { padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .tag-ok { background: rgba(0,255,136,.15); color: var(--accent); }
+  .tag-err { background: rgba(239,68,68,.15); color: var(--danger); }
+  .tag-run { background: rgba(245,158,11,.15); color: var(--warn); animation: pulse 1s infinite; }
+
+  /* ── section labels ── */
+  .section-label { font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+
+  /* ── separator ── */
+  .sep { border: none; border-top: 1px solid var(--border); }
+
+  /* ── timeline / breakdown ── */
+  .breakdown { font-size: 11px; }
+  .breakdown-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .breakdown-row .blabel { width: 120px; color: var(--muted); flex-shrink: 0; }
+  .breakdown-bar-wrap { flex: 1; background: var(--border); border-radius: 99px; height: 8px; overflow: hidden; }
+  .breakdown-bar { height: 100%; border-radius: 99px; transition: width .4s; }
+  .bar-stt { background: #38bdf8; }
+  .bar-llm { background: var(--accent2); }
+  .bar-tts { background: var(--accent); }
+  .bar-net { background: var(--warn); }
+  .breakdown-row .bval { width: 52px; text-align: right; color: var(--text); }
+
+  /* ── scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <!-- topbar -->
+  <div class="topbar">
+    <div class="logo">BENCH<span>mark</span></div>
+    <div class="pill-status" id="global-status">IDLE</div>
+    <div style="margin-left:auto;font-size:11px;color:var(--muted)" id="clock">—</div>
+  </div>
+
+  <!-- sidebar config -->
+  <div class="sidebar">
+    <div>
+      <div class="card-title">Server</div>
+      <div class="form-row">
+        <label>API Base URL</label>
+        <input type="text" id="api-base" value="http://localhost:7860" />
+      </div>
+      <div class="form-row">
+        <label>WebRTC Offer URL</label>
+        <input type="text" id="webrtc-url" value="http://localhost:7860/api/offer" />
+      </div>
+    </div>
+    <hr class="sep">
+    <div>
+      <div class="card-title">ICE Servers</div>
+      <div class="form-row">
+        <label>STUN / TURN JSON (array)</label>
+        <textarea id="ice-json" style="width:100%;min-height:90px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:10px;padding:7px;border-radius:6px;outline:none;resize:vertical;">[{"urls":"stun:stun.l.google.com:19302"}]</textarea>
+      </div>
+    </div>
+    <hr class="sep">
+    <div>
+      <div class="card-title">Run Config</div>
+      <div class="form-row">
+        <label>Concurrency (parallel sessions)</label>
+        <input type="number" id="concurrency" value="1" min="1" max="20" />
+      </div>
+      <div class="form-row">
+        <label>Repeats per file</label>
+        <input type="number" id="repeats" value="1" min="1" max="50" />
+      </div>
+      <div class="form-row">
+        <label>Inter-run delay (ms)</label>
+        <input type="number" id="delay" value="2000" min="0" />
+      </div>
+      <div class="form-row">
+        <label>Run timeout (s)</label>
+        <input type="number" id="timeout" value="120" min="10" />
+      </div>
+      <div class="form-row">
+        <label>Silence detection (s) — bot turn end</label>
+        <input type="number" id="silence-detect" value="12" min="1" max="30" step="0.5" />
+      </div>
+      <div class="form-row">
+        <label>Silence fallback (s) — max wait per turn</label>
+        <input type="number" id="silence-fallback" value="120" min="10" max="600" />
+      </div>
+    </div>
+    <hr class="sep">
+    <div class="btn-row">
+      <button class="btn btn-accent" id="btn-start" onclick="startBenchmark()">▶ Run</button>
+      <button class="btn btn-danger" id="btn-stop" onclick="stopBenchmark()" disabled>■ Stop</button>
+      <button class="btn btn-ghost" onclick="clearResults()">✕ Clear</button>
+    </div>
+    <div class="btn-row" style="margin-top:8px">
+      <button class="btn btn-ghost" onclick="exportCSV()" style="flex:1">↓ CSV</button>
+      <button class="btn btn-ghost" onclick="exportJSON()" style="flex:1">↓ JSON</button>
+    </div>
+  </div>
+
+  <!-- main content -->
+  <div class="content">
+    <!-- upload -->
+    <div class="card">
+      <div class="card-title">Audio Files (virtual mic input)</div>
+      <div class="file-drop" id="drop-zone" onclick="document.getElementById('file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('over')"
+           ondragleave="this.classList.remove('over')"
+           ondrop="handleDrop(event)">
+        Click or drag .wav / .mp3 / .ogg files here
+      </div>
+      <input type="file" id="file-input" accept="audio/*" multiple style="display:none" onchange="addFiles(this.files)" />
+      <div id="file-list"></div>
+    </div>
+
+    <!-- summary metrics -->
+    <div>
+      <div class="section-label" style="margin-bottom:12px">Summary — Client-side</div>
+      <div class="metrics-grid">
+        <div class="metric-box"><div class="mval" id="m-e2e">—</div><div class="mlabel">E2E Latency (avg)</div><div class="msub">speech_end → first_audio_chunk</div></div>
+        <div class="metric-box"><div class="mval" id="m-e2e-p95">—</div><div class="mlabel">E2E p95</div><div class="msub">ms</div></div>
+        <div class="metric-box"><div class="mval" id="m-runs">0</div><div class="mlabel">Runs</div><div class="msub">completed</div></div>
+        <div class="metric-box"><div class="mval" id="m-err">0</div><div class="mlabel">Errors</div><div class="msub">total</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label" style="margin-bottom:12px">Summary — Server-side</div>
+      <div class="metrics-grid">
+        <div class="metric-box"><div class="mval" id="s-stt">—</div><div class="mlabel">STT TTFB (avg)</div><div class="msub">ms</div></div>
+        <div class="metric-box"><div class="mval" id="s-llm">—</div><div class="mlabel">LLM TTFB (avg)</div><div class="msub">ms</div></div>
+        <div class="metric-box"><div class="mval" id="s-tts">—</div><div class="mlabel">TTS TTFB (avg)</div><div class="msub">ms</div></div>
+        <div class="metric-box"><div class="mval" id="s-proc">—</div><div class="mlabel">LLM Proc (avg)</div><div class="msub">ms</div></div>
+      </div>
+    </div>
+
+    <!-- breakdown bar -->
+    <div class="card" id="breakdown-card" style="display:none">
+      <div class="card-title">Latency Breakdown (avg, last run)</div>
+      <div class="breakdown" id="breakdown"></div>
+    </div>
+
+    <!-- run log table -->
+    <div class="card">
+      <div class="card-title">Run Log</div>
+      <div style="max-height:320px;overflow-y:auto">
+        <table class="run-table">
+          <thead>
+            <tr>
+              <th>#</th><th>File</th><th>Session</th>
+              <th>E2E (ms)</th>
+              <th>STT (ms)</th><th>LLM (ms)</th><th>TTS (ms)</th>
+              <th>Error</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="run-log"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- debug log -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="card-title" style="margin-bottom:0">Debug Log</div>
+        <button class="btn btn-ghost" style="padding:3px 10px;font-size:10px" onclick="document.getElementById('bench-log').innerHTML=''">Clear</button>
+      </div>
+      <div id="bench-log" style="max-height:240px;overflow-y:auto;font-family:var(--mono);background:var(--bg);padding:10px;border-radius:6px;border:1px solid var(--border)"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────
+// Utilities (defined first to avoid hoisting issues)
+// ──────────────────────────────────────────────
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+class Semaphore {
+  constructor(n) { this._n = n; this._q = []; }
+  acquire() {
+    if (this._n > 0) { this._n--; return Promise.resolve(() => this._release()); }
+    return new Promise(res => this._q.push(res)).then(res => { res(() => this._release()); return () => this._release(); });
+  }
+  _release() {
+    this._n++;
+    if (this._q.length) { this._n--; const res = this._q.shift(); res(null); }
+  }
+}
+
+// ──────────────────────────────────────────────
+// State
+// ──────────────────────────────────────────────
+let audioFiles = [];     // {name, buffer, duration}
+let results    = [];     // {runId, file, sessionId, e2e, stt_ttfb, llm_ttfb, tts_ttfb, status, error}
+let running    = false;
+let stopFlag   = false;
+let runCounter = 0;
+
+// ──────────────────────────────────────────────
+// File handling
+// ──────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('over');
+  addFiles(e.dataTransfer.files);
+}
+
+async function addFiles(fileList) {
+  for (const f of fileList) {
+    const buf = await f.arrayBuffer();
+    const ac = new AudioContext();
+    let dur = '?';
+    try { dur = (await ac.decodeAudioData(buf.slice(0))).duration.toFixed(1) + 's'; } catch {}
+    ac.close();
+    audioFiles.push({ name: f.name, buffer: buf, duration: dur });
+  }
+  renderFileList();
+}
+
+function removeFile(i) {
+  audioFiles.splice(i, 1);
+  renderFileList();
+}
+
+function renderFileList() {
+  const el = document.getElementById('file-list');
+  el.innerHTML = audioFiles.map((f, i) => `
+    <div class="file-item">
+      <span class="name">🎵 ${f.name}</span>
+      <span class="dur">${f.duration}</span>
+      <span class="remove" onclick="removeFile(${i})">×</span>
+    </div>
+  `).join('');
+}
+
+// ──────────────────────────────────────────────
+// Clock
+// ──────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}, 1000);
+
+// ──────────────────────────────────────────────
+// Benchmark orchestrator
+// ──────────────────────────────────────────────
+async function startBenchmark() {
+  if (running) return;
+  if (audioFiles.length === 0) { alert('Please add at least one audio file.'); return; }
+
+  running   = true;
+  stopFlag  = false;
+  setGlobalStatus('RUNNING');
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-stop').disabled  = false;
+
+  const concurrency = parseInt(document.getElementById('concurrency').value) || 1;
+  const repeats     = parseInt(document.getElementById('repeats').value) || 1;
+  const delay       = parseInt(document.getElementById('delay').value) || 0;
+
+  // Build job queue: [file × repeats] shuffled
+  const jobs = [];
+  for (let r = 0; r < repeats; r++) {
+    for (const f of audioFiles) jobs.push(f);
+  }
+
+  // Worker pool
+  const sem = new Semaphore(concurrency);
+  const promises = jobs.map(async (file) => {
+    if (stopFlag) return;
+    const release = await sem.acquire();
+    try {
+      if (stopFlag) return;
+      await runSingleBenchmark(file);
+      if (delay > 0) await sleep(delay);
+    } finally {
+      release();
+    }
+  });
+
+  await Promise.allSettled(promises);
+
+  running = false;
+  setGlobalStatus('DONE');
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled  = true;
+  updateSummary();
+}
+
+function stopBenchmark() {
+  stopFlag = true;
+  setGlobalStatus('STOPPING');
+}
+
+function clearResults() {
+  results = [];
+  runCounter = 0;
+  document.getElementById('run-log').innerHTML = '';
+  updateSummary();
+}
+
+// ──────────────────────────────────────────────
+// Single benchmark run
+// ──────────────────────────────────────────────
+function addLog(msg, level = 'info') {
+  const el = document.getElementById('bench-log');
+  if (!el) return;
+  const ts = new Date().toLocaleTimeString();
+  const colors = { info: '#94a3b8', warn: '#f59e0b', error: '#ef4444', ok: '#00ff88' };
+  const line = document.createElement('div');
+  line.style.cssText = `color:${colors[level]||colors.info};font-size:11px;margin-bottom:2px;word-break:break-all;`;
+  line.textContent = `[${ts}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+  if (level === 'error') console.error(msg);
+  else console.log(msg);
+}
+
+async function runSingleBenchmark(file) {
+  const runId     = ++runCounter;
+  const timeoutMs = (parseInt(document.getElementById('timeout').value) || 30) * 1000;
+  const apiBase   = document.getElementById('api-base').value.replace(/\/$/, '');
+  const webrtcUrl = document.getElementById('webrtc-url').value;
+
+  let iceServers;
+  try { iceServers = JSON.parse(document.getElementById('ice-json').value); }
+  catch (e) {
+    addLog(`ICE JSON parse error: ${e.message} — using Google STUN`, 'warn');
+    iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+  }
+
+  // 1. Create session
+  let sessionId;
+  try {
+    addLog(`[#${runId}] Creating session...`);
+    const r = await fetch(`${apiBase}/api/chat-sessions/create`, { method: 'POST' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    sessionId = d.session_id || d.id || crypto.randomUUID();
+    addLog(`[#${runId}] Session: ${sessionId}`);
+  } catch (e) {
+    sessionId = crypto.randomUUID();
+    addLog(`[#${runId}] Session create failed (${e.message}), using local id: ${sessionId}`, 'warn');
+  }
+
+  // Add placeholder row
+  const rowId = `row-${runId}`;
+  const tbody = document.getElementById('run-log');
+  const tr = document.createElement('tr');
+  tr.id = rowId;
+  tr.innerHTML = `<td>${runId}</td><td title="${file.name}">${file.name.slice(0,20)}</td><td class="sid">${sessionId.slice(0,8)}…</td>
+    <td class="e2e">…</td><td class="stt">…</td><td class="llm">…</td><td class="tts">…</td>
+    <td class="err-cell" style="color:var(--muted);font-size:10px;max-width:180px;word-break:break-all"></td>
+    <td><span class="tag tag-run">RUN</span></td>`;
+  tbody.prepend(tr);
+
+  const result = {
+    runId, file: file.name, sessionId,
+    e2e: null, stt_ttfb: null, llm_ttfb: null, tts_ttfb: null,
+    stt_transcript: null, llm_response: null, tts_text: null,
+    status: 'running', error: null
+  };
+  results.push(result);
+
+  // doWebRTCRun gets a cleanup callback so timeout can force-disconnect
+  let forceCleanup = null;
+  const runPromise = new Promise((res, rej) => {
+    doWebRTCRun(file, sessionId, webrtcUrl, iceServers, apiBase, addLog, runId,
+      (cleanupFn) => { forceCleanup = cleanupFn; }
+    ).then(res).catch(rej);
+  });
+
+  const timeoutHandle = setTimeout(() => {
+    addLog(`[#${runId}] Timeout after ${timeoutMs/1000}s — forcing disconnect`, 'warn');
+    if (forceCleanup) forceCleanup();
+  }, timeoutMs);
+
+  try {
+    const r = await runPromise;
+    clearTimeout(timeoutHandle);
+    Object.assign(result, r, { status: 'ok' });
+    addLog(`[#${runId}] ✓ e2e=${result.e2e?.toFixed(0)}ms stt=${result.stt_ttfb?.toFixed(0)}ms llm=${result.llm_ttfb?.toFixed(0)}ms tts=${result.tts_ttfb?.toFixed(0)}ms`, 'ok');
+  } catch (err) {
+    clearTimeout(timeoutHandle);
+    result.status = 'error';
+    result.error  = err.message;
+    addLog(`[#${runId}] ✗ ${err.message}`, 'error');
+  }
+
+  // Update row
+  const row = document.getElementById(rowId);
+  if (row) {
+    row.querySelector('.e2e').textContent = result.e2e != null ? result.e2e.toFixed(0) : '—';
+    row.querySelector('.stt').textContent = result.stt_ttfb != null ? result.stt_ttfb.toFixed(0) : '—';
+    row.querySelector('.llm').textContent = result.llm_ttfb != null ? result.llm_ttfb.toFixed(0) : '—';
+    row.querySelector('.tts').textContent = result.tts_ttfb != null ? result.tts_ttfb.toFixed(0) : '—';
+    if (result.error) row.querySelector('.err-cell').textContent = result.error;
+    const tag = row.querySelector('.tag');
+    if (result.status === 'ok') { tag.className = 'tag tag-ok'; tag.textContent = 'OK'; }
+    else { tag.className = 'tag tag-err'; tag.textContent = 'ERR'; }
+  }
+
+  updateSummary();
+}
+
+// ──────────────────────────────────────────────
+// WebRTC run: connect → inject audio → detect first audio chunk
+// ──────────────────────────────────────────────
+
+// Wait for bot to start speaking then go silent.
+// Returns a promise that resolves when silence is detected after speech.
+// onFirstAudio (optional): callback fired the instant first audio chunk arrives.
+function waitForBotSilence(audioCtx, botStream, label, log, onFirstAudio, silenceSec, fallbackSec) {
+  return new Promise(res => {
+    const src = audioCtx.createMediaStreamSource(botStream);
+    const proc = audioCtx.createScriptProcessor(1024, 1, 1);
+    const sink = audioCtx.createGain();
+    sink.gain.value = 0;
+    sink.connect(audioCtx.destination);
+
+    const THRESHOLD = 0.003;
+    const SILENCE_FRAMES = Math.ceil(audioCtx.sampleRate * silenceSec / 1024);
+    let started = false;
+    let silenceFrames = 0;
+    let firstFired = false;
+
+    const finish = () => {
+      src.disconnect(); proc.disconnect(); sink.disconnect();
+      res();
+    };
+
+    const fallback = setTimeout(() => {
+      log(`${label}: fallback timeout (never detected silence after speech)`, 'warn');
+      finish();
+    }, fallbackSec * 1000);
+
+    proc.onaudioprocess = (e) => {
+      const data = e.inputBuffer.getChannelData(0);
+      const rms = Math.sqrt(data.reduce((s, x) => s + x * x, 0) / data.length);
+      if (rms > THRESHOLD) {
+        if (!started) log(`${label}: audio started (RMS=${rms.toFixed(4)})`);
+        if (!firstFired && onFirstAudio) { firstFired = true; onFirstAudio(); }
+        started = true;
+        silenceFrames = 0;
+      } else if (started) {
+        silenceFrames++;
+        if (silenceFrames % 20 === 0) log(`${label}: silence ${(silenceFrames*1024/audioCtx.sampleRate).toFixed(1)}s / ${(SILENCE_FRAMES*1024/audioCtx.sampleRate).toFixed(1)}s`);
+        if (silenceFrames >= SILENCE_FRAMES) {
+          clearTimeout(fallback);
+          log(`${label}: silence detected — done`);
+          finish();
+        }
+      }
+    };
+
+    src.connect(proc);
+    proc.connect(sink);
+  });
+}
+
+async function doWebRTCRun(file, sessionId, webrtcUrl, iceServers, apiBase, log, runId, onCleanupReady) {
+  const L = (msg, level) => log(`[#${runId}] ${msg}`, level);
+  return new Promise(async (resolve, reject) => {
+    const audioCtx = new AudioContext();
+    try { await audioCtx.resume(); } catch(e) { L(`AudioContext resume failed: ${e.message}`, 'warn'); }
+    L(`AudioContext state: ${audioCtx.state}, sampleRate: ${audioCtx.sampleRate}`);
+
+    let pc = null;
+    let botStream = null;
+    let botAudioEl = null;
+    let silenceSrc = null;
+    let cleanedUp = false;
+
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      try { silenceSrc?.stop(); silenceSrc?.disconnect(); } catch {}
+      if (botAudioEl) { botAudioEl.pause(); botAudioEl.srcObject = null; botAudioEl.remove(); botAudioEl = null; }
+      try { pc?.close(); } catch {}
+      audioCtx.close();
+    };
+
+    if (onCleanupReady) onCleanupReady(() => {
+      L('Force cleanup (timeout)', 'warn');
+      cleanup();
+      reject(new Error('Timeout — force disconnected'));
+    });
+
+    try {
+      pc = new RTCPeerConnection({ iceServers });
+      L(`RTCPeerConnection created`);
+      pc.onconnectionstatechange = () => L(`PC state: ${pc.connectionState}`);
+      pc.oniceconnectionstatechange = () => L(`ICE: ${pc.iceConnectionState}`);
+
+      // ── Virtual mic: zero-filled buffer loop = true silence ──
+      const decodedBuf = await audioCtx.decodeAudioData(file.buffer.slice(0));
+      L(`Audio decoded: ${decodedBuf.duration.toFixed(2)}s`);
+      const dest = audioCtx.createMediaStreamDestination();
+
+      const zeroBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.02, audioCtx.sampleRate);
+      silenceSrc = audioCtx.createBufferSource();
+      silenceSrc.buffer = zeroBuf;
+      silenceSrc.loop = true;
+      silenceSrc.connect(dest);
+      silenceSrc.start();
+
+      // keepAlive so AudioContext graph keeps running
+      const keepAlive = audioCtx.createGain();
+      keepAlive.gain.value = 0;
+      keepAlive.connect(audioCtx.destination);
+
+      pc.addTrack(dest.stream.getAudioTracks()[0], dest.stream);
+      L(`Virtual mic added`);
+
+      // ── Bot track: MUST have <audio autoplay> to pull WebRTC audio into browser ──
+      pc.ontrack = (evt) => {
+        if (evt.track.kind !== 'audio') return;
+        botStream = evt.streams[0] || new MediaStream([evt.track]);
+        botAudioEl = document.createElement('audio');
+        botAudioEl.autoplay = true;
+        botAudioEl.srcObject = botStream;
+        document.body.appendChild(botAudioEl);
+        botAudioEl.play().catch(e => L(`audio.play(): ${e.message}`, 'warn'));
+        L(`Bot track received`);
+      };
+
+      // ── Offer / Answer ──
+      L(`Creating offer...`);
+      await pc.setLocalDescription(await pc.createOffer());
+      await new Promise(res => {
+        if (pc.iceGatheringState === 'complete') { res(); return; }
+        pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') res(); };
+        setTimeout(res, 3000);
+      });
+
+      L(`Sending offer...`);
+      const resp = await fetch(`${webrtcUrl}?session_id=${encodeURIComponent(sessionId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pc.localDescription)
+      });
+      if (!resp.ok) throw new Error(`Offer rejected: ${resp.status} ${await resp.text()}`);
+      await pc.setRemoteDescription(await resp.json());
+      L(`Answer set`);
+
+      // ── Wait connected ──
+      await new Promise((res, rej) => {
+        if (pc.connectionState === 'connected') { res(); return; }
+        pc.onconnectionstatechange = () => {
+          if (pc.connectionState === 'connected') res();
+          if (['failed', 'closed'].includes(pc.connectionState)) rej(new Error('WebRTC connection failed'));
+        };
+        setTimeout(() => rej(new Error('Connection timeout')), 10000);
+      });
+      L(`Connected! Waiting for bot track...`);
+
+      // ── Wait for bot track ──
+      await new Promise((res, rej) => {
+        if (botStream) { res(); return; }
+        const t = setTimeout(() => rej(new Error('Bot track timeout')), 8000);
+        const orig = pc.ontrack;
+        pc.ontrack = (evt) => {
+          orig && orig(evt);
+          if (botStream) { clearTimeout(t); res(); }
+        };
+      });
+
+      // ── STEP 1: Wait for greeting to finish (same pattern, no injection) ──
+      const silenceSec = parseFloat(document.getElementById('silence-detect').value) || 12;
+      const fallbackSec = parseFloat(document.getElementById('silence-fallback').value) || 120;
+      L(`Silence config: detect=${silenceSec}s, fallback=${fallbackSec}s`);
+
+      L(`Waiting for greeting...`);
+      await waitForBotSilence(audioCtx, botStream, 'Greeting', L, null, silenceSec, fallbackSec);
+      L(`Greeting done — injecting audio file`);
+
+      // ── STEP 2: Inject audio file ──
+      const fileSrc = audioCtx.createBufferSource();
+      fileSrc.buffer = decodedBuf;
+      fileSrc.connect(dest); // replaces silence
+
+      // Log mic RMS to confirm audio is flowing
+      const micMon = audioCtx.createScriptProcessor(1024, 1, 1);
+      const micSink = audioCtx.createGain(); micSink.gain.value = 0; micSink.connect(audioCtx.destination);
+      let micLogs = 0;
+      micMon.onaudioprocess = (e) => {
+        if (micLogs++ >= 5) { micMon.disconnect(); micSink.disconnect(); return; }
+        const rms = Math.sqrt(e.inputBuffer.getChannelData(0).reduce((s,x)=>s+x*x,0)/e.inputBuffer.length);
+        L(`Mic RMS: ${rms.toFixed(5)}`);
+      };
+      fileSrc.connect(micMon); micMon.connect(micSink);
+
+      let speechEndTs = null;
+      fileSrc.onended = () => {
+        speechEndTs = performance.now();
+        L(`File ended, speechEndTs=${speechEndTs.toFixed(0)}`);
+      };
+      fileSrc.start();
+
+      // ── STEP 3: Wait for bot response — same as greeting, capture firstChunkTs ──
+      L(`Waiting for bot response...`);
+      let firstChunkTs = null;
+      await waitForBotSilence(audioCtx, botStream, 'Response', L, () => {
+        firstChunkTs = performance.now();
+        if (speechEndTs) L(`e2e=${(firstChunkTs - speechEndTs).toFixed(0)}ms`, 'ok');
+      }, silenceSec, fallbackSec);
+
+      // ── STEP 4: Fetch server metrics then cleanup ──
+      L(`Bot done speaking — fetching metrics and disconnecting`);
+      let serverMetrics = { stt_ttfb: null, llm_ttfb: null, tts_ttfb: null, llm_proc: null };
+      let textOutputs = { stt_transcript: null, llm_response: null, tts_text: null };
+      try {
+        const r = await fetch(`${apiBase}/benchmark/session/${sessionId}`);
+        if (r.ok) {
+          const data = await r.json();
+          serverMetrics = parseServerMetrics(data.metrics || []);
+          const texts = data.texts || [];
+          const sttText = texts.filter(t => t.stage === 'stt').map(t => t.value).join(' | ');
+          const ttsText = texts.filter(t => t.stage === 'tts').map(t => t.value).join(' | ');
+          const llmText = texts.filter(t => t.stage === 'llm').map(t => t.value).join(' | ');
+          if (sttText) { textOutputs.stt_transcript = sttText; L(`STT transcript: "${sttText}"`, 'info'); }
+          if (llmText) { textOutputs.llm_response   = llmText; L(`LLM response:   "${llmText}"`, 'info'); }
+          if (ttsText) { textOutputs.tts_text        = ttsText; L(`TTS text:       "${ttsText}"`, 'info'); }
+        }
+      } catch {}
+
+      cleanup();
+      const e2e = (speechEndTs && firstChunkTs) ? firstChunkTs - speechEndTs : null;
+      resolve({ e2e, ...serverMetrics, ...textOutputs });
+
+    } catch (err) {
+      L(`Error: ${err.message}`, 'error');
+      cleanup();
+      reject(err);
+    }
+  });
+}
+
+// ──────────────────────────────────────────────
+// Parse server metrics
+// ──────────────────────────────────────────────
+function parseServerMetrics(metrics) {
+  const pick = (stage, metric) => {
+    const vals = metrics
+      .filter(m => m.stage === stage && m.metric === metric)
+      .map(m => m.value);
+    if (!vals.length) return null;
+    return vals[vals.length - 1]; // last occurrence
+  };
+
+  return {
+    stt_ttfb:  pick('stt', 'ttfb'),
+    llm_ttfb:  pick('llm', 'ttfb'),
+    tts_ttfb:  pick('tts', 'ttfb'),
+    llm_proc:  pick('llm', 'processing_time'),
+    stt_proc:  pick('stt', 'processing_time'),
+  };
+}
+
+// ──────────────────────────────────────────────
+// Summary stats
+// ──────────────────────────────────────────────
+function updateSummary() {
+  const ok = results.filter(r => r.status === 'ok');
+  const err = results.filter(r => r.status === 'error').length;
+
+  const avg = (arr) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+  const p95 = (arr) => {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a, b) => a - b);
+    return s[Math.floor(s.length * 0.95)];
+  };
+  const fmt = (v) => v != null ? v.toFixed(0) : '—';
+  const fmtColor = (v, el) => {
+    const val = fmt(v);
+    el.textContent = val;
+    el.className = 'mval';
+    if (v == null) return;
+    if (v > 2000) el.classList.add('danger');
+    else if (v > 1000) el.classList.add('warn');
+  };
+
+  const e2eVals = ok.map(r => r.e2e).filter(v => v != null);
+  fmtColor(avg(e2eVals), document.getElementById('m-e2e'));
+  fmtColor(p95(e2eVals), document.getElementById('m-e2e-p95'));
+  document.getElementById('m-runs').textContent = ok.length;
+  document.getElementById('m-err').textContent  = err;
+
+  const sttVals  = ok.map(r => r.stt_ttfb).filter(v => v != null);
+  const llmVals  = ok.map(r => r.llm_ttfb).filter(v => v != null);
+  const ttsVals  = ok.map(r => r.tts_ttfb).filter(v => v != null);
+  const procVals = ok.map(r => r.llm_proc).filter(v => v != null);
+
+  document.getElementById('s-stt').textContent  = fmt(avg(sttVals));
+  document.getElementById('s-llm').textContent  = fmt(avg(llmVals));
+  document.getElementById('s-tts').textContent  = fmt(avg(ttsVals));
+  document.getElementById('s-proc').textContent = fmt(avg(procVals));
+
+  // Breakdown bars
+  const avgStt  = avg(sttVals)  || 0;
+  const avgLlm  = avg(llmVals)  || 0;
+  const avgTts  = avg(ttsVals)  || 0;
+  const avgProc = avg(procVals) || 0;
+  const total = avgStt + avgLlm + avgTts + avgProc;
+
+  if (total > 0 && ok.length > 0) {
+    document.getElementById('breakdown-card').style.display = '';
+    const pct = (v) => total > 0 ? (v / total * 100).toFixed(1) : 0;
+    document.getElementById('breakdown').innerHTML = `
+      <div class="breakdown-row">
+        <span class="blabel">STT TTFB</span>
+        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-stt" style="width:${pct(avgStt)}%"></div></div>
+        <span class="bval">${fmt(avgStt)} ms</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="blabel">LLM TTFB</span>
+        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-llm" style="width:${pct(avgLlm)}%"></div></div>
+        <span class="bval">${fmt(avgLlm)} ms</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="blabel">LLM Processing</span>
+        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-llm" style="width:${pct(avgProc)}%" style="opacity:.6"></div></div>
+        <span class="bval">${fmt(avgProc)} ms</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="blabel">TTS TTFB</span>
+        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-tts" style="width:${pct(avgTts)}%"></div></div>
+        <span class="bval">${fmt(avgTts)} ms</span>
+      </div>
+    `;
+  }
+}
+
+function exportCSV() {
+  if (!results.length) { alert('No data to export.'); return; }
+  const cols = ['runId','file','sessionId','status','e2e','stt_ttfb','llm_ttfb','tts_ttfb','llm_proc','stt_proc','stt_transcript','llm_response','tts_text','error'];
+  const rows = results.map(r => cols.map(k => {
+    const v = r[k];
+    if (v == null) return '';
+    if (typeof v === 'string' && (v.includes(',') || v.includes('"') || v.includes('\n')))
+      return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  }).join(','));
+  const csv = [cols.join(','), ...rows].join('\n');
+  download(`benchmark_${ts()}.csv`, csv, 'text/csv');
+}
+
+function exportJSON() {
+  if (!results.length) { alert('No data to export.'); return; }
+  const payload = {
+    exported_at: new Date().toISOString(),
+    config: {
+      api_base:        document.getElementById('api-base').value,
+      webrtc_url:      document.getElementById('webrtc-url').value,
+      concurrency:     document.getElementById('concurrency').value,
+      repeats:         document.getElementById('repeats').value,
+      silence_detect:  document.getElementById('silence-detect').value,
+      silence_fallback:document.getElementById('silence-fallback').value,
+    },
+    results,
+  };
+  download(`benchmark_${ts()}.json`, JSON.stringify(payload, null, 2), 'application/json');
+}
+
+function ts() {
+  return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+}
+
+function download(filename, text, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function setGlobalStatus(s) {
+  const el = document.getElementById('global-status');
+  el.textContent = s;
+  el.className = 'pill-status' + (s === 'RUNNING' ? ' running' : '');
+}
+
+
+</script>
+</body>
+</html>

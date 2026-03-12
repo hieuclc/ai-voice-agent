@@ -15,16 +15,11 @@ _lock = Lock()
 # session_id -> list of metric dicts
 _store: dict[str, list[dict]] = defaultdict(list)
 
+# session_id -> list of text dicts {stage, key, value, ts}
+_text_store: dict[str, list[dict]] = defaultdict(list)
+
 
 def collect_metric(session_id: str, stage: str, metric: str, value: float, unit: str = "ms"):
-    """
-    Record a single metric event for a session.
-
-    stage: 'stt' | 'llm' | 'tts'
-    metric: 'ttfb' | 'processing_time' | 'usage_chars' | ...
-    value: numeric value
-    unit: 'ms' | 'chars' | ...
-    """
     entry = {
         "ts": time.time(),
         "stage": stage,
@@ -36,11 +31,29 @@ def collect_metric(session_id: str, stage: str, metric: str, value: float, unit:
         _store[session_id].append(entry)
 
 
+def collect_text(session_id: str, stage: str, key: str, value: str):
+    """Store a text output (STT transcript, LLM response, TTS text)."""
+    entry = {
+        "ts": time.time(),
+        "stage": stage,
+        "key": key,
+        "value": value,
+    }
+    with _lock:
+        _text_store[session_id].append(entry)
+
+
 def get_metrics(session_id: str) -> list[dict]:
     with _lock:
         return list(_store.get(session_id, []))
 
 
+def get_texts(session_id: str) -> list[dict]:
+    with _lock:
+        return list(_text_store.get(session_id, []))
+
+
 def clear_metrics(session_id: str):
     with _lock:
         _store.pop(session_id, None)
+        _text_store.pop(session_id, None)

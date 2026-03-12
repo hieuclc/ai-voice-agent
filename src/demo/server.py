@@ -25,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from transcription_handler import TranscriptHandler
 from uuid import uuid4
 
-from benchmark_metrics import get_metrics, clear_metrics
+from benchmark_metrics import get_metrics, get_texts, clear_metrics
 # Load environment variables
 load_dotenv(override=True)
 
@@ -142,7 +142,8 @@ async def create_chat_session():
 @app.get("/benchmark/session/{session_id}")
 async def get_benchmark_metrics(session_id: str):
     metrics = get_metrics(session_id)
-    return {"session_id": session_id, "metrics": metrics}
+    texts   = get_texts(session_id)
+    return {"session_id": session_id, "metrics": metrics, "texts": texts}
 
 @app.delete("/benchmark/session/{session_id}")
 async def clear_benchmark_metrics(session_id: str):
