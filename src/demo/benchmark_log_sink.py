@@ -28,15 +28,25 @@ current_session_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "current_session_id", default=None
 )
 
+
+# Each tuple: (compiled_regex, stage, metric, unit, multiplier)
+# NOTE: All patterns use a single capture group for the numeric value.
+# The value group index is always group(1).
 _PATTERNS = [
-    (re.compile(r"(OpenAI)?LLMService.*?TTFB:\s*([\d.]+)", re.I),      "llm", "ttfb",            "ms",    1000),
-    (re.compile(r"(OpenAI)?STTService.*?TTFB:\s*([\d.]+)", re.I),      "stt", "ttfb",            "ms",    1000),
-    (re.compile(r"(OpenAI)?TTSService.*?TTFB:\s*([\d.]+)", re.I),      "tts", "ttfb",            "ms",    1000),
-    (re.compile(r"(OpenAI)?LLMService.*?processing time:\s*([\d.]+)", re.I), "llm", "processing_time", "ms", 1000),
-    (re.compile(r"(OpenAI)?STTService.*?processing time:\s*([\d.]+)", re.I), "stt", "processing_time", "ms", 1000),
-    (re.compile(r"(OpenAI)?TTSService.*?processing time:\s*([\d.]+)", re.I), "tts", "processing_time", "ms", 1000),
-    (re.compile(r"(OpenAI)?TTSService.*?usage characters:\s*([\d.]+)", re.I), "tts", "usage_chars", "chars", 1),
-    (re.compile(r"(OpenAI)?LLMService.*?usage.*?tokens.*?(\d+)", re.I), "llm", "usage_tokens", "tokens", 1),
+    # LLM — must come before TTS/STT to avoid cross-matching
+    (re.compile(r"LLMService[^T]*?TTFB:\s*([\d.]+)", re.I),                  "llm", "ttfb",            "ms",    1000),
+    (re.compile(r"LLMService[^T]*?processing time:\s*([\d.]+)", re.I),        "llm", "processing_time", "ms",    1000),
+    (re.compile(r"LLMService.*?usage.*?tokens.*?(\d+)", re.I),                "llm", "usage_tokens",    "tokens", 1),
+
+    # STT — explicit STTService (not TTSService)
+    (re.compile(r"STTService.*?TTFB:\s*([\d.]+)", re.I),                      "stt", "ttfb",            "ms",    1000),
+    (re.compile(r"STTService.*?processing time:\s*([\d.]+)", re.I),           "stt", "processing_time", "ms",    1000),
+
+    # TTS — match any class containing "TTS" (OpenAITTSService, CustomTTSService, etc.)
+    # Deliberately broad: catches custom subclasses in ttsv2.py regardless of class name.
+    (re.compile(r"TTS\w*\s*(?:#\d+\s*)?TTFB:\s*([\d.]+)", re.I),            "tts", "ttfb",            "ms",    1000),
+    (re.compile(r"TTS\w*\s*(?:#\d+\s*)?processing time:\s*([\d.]+)", re.I), "tts", "processing_time", "ms",    1000),
+    (re.compile(r"TTS\w*\s*(?:#\d+\s*)?usage characters:\s*([\d.]+)", re.I),"tts", "usage_chars",     "chars", 1),
 ]
 
 # Text patterns — capture transcript/response content
@@ -67,7 +77,7 @@ class BenchmarkLogSink:
             m = pattern.search(text)
             if m:
                 try:
-                    raw = float(m.group(2))
+                    raw = float(m.group(1))
                     collect_metric(session_id, stage, metric, raw * mult, unit)
                 except (IndexError, ValueError):
                     pass
