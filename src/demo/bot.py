@@ -35,15 +35,14 @@ from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 # from pipecat.services.openai.tts import OpenAITTSService
 from ttsv2 import OpenAITTSService
-from stt import OpenAISTTService
+# from stt import OpenAISTTService
+from pipecat.services.openai.stt import OpenAISTTService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.processors.transcript_processor import TranscriptProcessor
 
 # from transcription_handler import TranscriptHandler
-from mcp_service import MCPClient
-from mcp.client.session_group import StreamableHttpParameters
 logger.info("✅ All components loaded successfully!")
 
 load_dotenv(override=True)
@@ -114,12 +113,13 @@ async def run_bot(webrtc_connection, session_id):
     stt = OpenAISTTService(
         model="gpt-4o-mini-transcribe",
         api_key=os.getenv("OPENAI_API_KEY"),
+        base_url = "http://localhost:8003/v1"
     )
 
     tts = OpenAITTSService(
         model = "gpt-4o-mini-tts",
         api_key=os.getenv("OPENAI_API_KEY"),
-        base_url = "http://localhost:8001/v1",
+        # base_url = "http://localhost:8001/v1",
         voice = "alloy"
     )
 
