@@ -1,9 +1,12 @@
 """
 benchmark_log_sink.py - singleton, import once in server.py
+benchmark_log_sink.py - singleton, import once in server.py
 """
 
 import re
 import contextvars
+from datetime import datetime
+from collections import defaultdict
 from datetime import datetime
 from collections import defaultdict
 from benchmark_metrics import collect_metric, collect_text
@@ -39,8 +42,36 @@ _TTS_PROC_RE  = re.compile(r"TTS\w*\s*(?:#\d+\s*)?processing time:\s*([\d.]+)", 
 _TTS_CHARS_RE = re.compile(r"TTS\w*\s*(?:#\d+\s*)?usage characters:\s*([\d.]+)", re.I)
 _LLM_TTFB_RE  = re.compile(r"LLMService[^T]*?TTFB:", re.I)
 
+_TS_FMT = "%Y-%m-%d %H:%M:%S.%f"
+_TS_RE  = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)")
+
+
+def _parse_ts(line: str) -> "datetime | None":
+    m = _TS_RE.search(line)
+    if not m:
+        return None
+    try:
+        return datetime.strptime(m.group(1), _TS_FMT)
+    except ValueError:
+        return None
+
+
+_IMMEDIATE_PATTERNS = [
+    (re.compile(r"LLMService[^T]*?TTFB:\s*([\d.]+)", re.I),           "llm", "ttfb",            "ms",     1000),
+    (re.compile(r"LLMService.*?usage.*?tokens.*?(\d+)", re.I),         "llm", "usage_tokens",    "tokens", 1),
+    (re.compile(r"STTService.*?TTFB:\s*([\d.]+)", re.I),               "stt", "ttfb",            "ms",     1000),
+    (re.compile(r"STTService.*?processing time:\s*([\d.]+)", re.I),    "stt", "processing_time", "ms",     1000),
+    (re.compile(r"LLMService[^T]*?processing time:\s*([\d.]+)", re.I), "llm", "processing_time", "ms",     1000),
+]
+
+_TTS_GEN_RE   = re.compile(r"Generating TTS \[(.+?)\]", re.I)
+_TTS_PROC_RE  = re.compile(r"TTS\w*\s*(?:#\d+\s*)?processing time:\s*([\d.]+)", re.I)
+_TTS_CHARS_RE = re.compile(r"TTS\w*\s*(?:#\d+\s*)?usage characters:\s*([\d.]+)", re.I)
+_LLM_TTFB_RE  = re.compile(r"LLMService[^T]*?TTFB:", re.I)
+
 _TEXT_PATTERNS = [
     (re.compile(r"TranscriptionFrame.*?text=['\"](.+?)['\"]", re.I), "stt", "transcript"),
+    (re.compile(r"Transcription:\s*\[?(.+?)\]?\s*$", re.I),          "stt", "transcript"),
     (re.compile(r"Transcription:\s*\[?(.+?)\]?\s*$", re.I),          "stt", "transcript"),
     (re.compile(r"LLMFullResponseEnd.*?text=['\"](.+?)['\"]", re.I), "llm", "response"),
 ]
@@ -79,14 +110,22 @@ class BenchmarkLogSink:
         line = str(message)
         sid  = current_session_id.get()
         if not sid:
+        line = str(message)
+        sid  = current_session_id.get()
+        if not sid:
             return
 
         ts = _parse_ts(line)
 
         for pattern, stage, metric, unit, mult in _IMMEDIATE_PATTERNS:
             m = pattern.search(line)
+        ts = _parse_ts(line)
+
+        for pattern, stage, metric, unit, mult in _IMMEDIATE_PATTERNS:
+            m = pattern.search(line)
             if m:
                 try:
+                    collect_metric(sid, stage, metric, float(m.group(1)) * mult, unit)
                     collect_metric(sid, stage, metric, float(m.group(1)) * mult, unit)
                 except (IndexError, ValueError):
                     pass
@@ -124,6 +163,7 @@ class BenchmarkLogSink:
                 pass
 
         for pattern, stage, key in _TEXT_PATTERNS:
+            m = pattern.search(line)
             m = pattern.search(line)
             if m:
                 collect_text(sid, stage, key, m.group(1).strip())

@@ -111,7 +111,7 @@ async def run_bot(webrtc_connection, session_id):
     stt = OpenAISTTService(
         model="gpt-4o-mini-transcribe",
         api_key=os.getenv("OPENAI_API_KEY"),
-        base_url = "http://localhost:8003/v1"
+        base_url = "http://localhost:8004/v1"
     )
 
     tts = OpenAITTSService(
