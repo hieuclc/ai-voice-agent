@@ -33,8 +33,8 @@ from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
 from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
-from pipecat.services.openai.tts import OpenAITTSService
-# from ttsv2 import OpenAITTSService
+# from pipecat.services.openai.tts import OpenAITTSService
+from ttsv2 import OpenAITTSService
 # from stt import OpenAISTTService
 from pipecat.services.openai.stt import OpenAISTTService
 from pipecat.services.openai.llm import OpenAILLMService
@@ -111,13 +111,13 @@ async def run_bot(webrtc_connection, session_id):
     stt = OpenAISTTService(
         model="gpt-4o-mini-transcribe",
         api_key=os.getenv("OPENAI_API_KEY"),
-        base_url = "http://localhost:8004/v1"
+        base_url = "http://localhost:8005/v1"
     )
 
     tts = OpenAITTSService(
         model = "gpt-4o-mini-tts",
         api_key=os.getenv("OPENAI_API_KEY"),
-        # base_url = "http://localhost:8001/v1",
+        base_url = "http://localhost:8001/v1",
         voice = "alloy"
     )
 
