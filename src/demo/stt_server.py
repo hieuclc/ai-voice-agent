@@ -1,167 +1,61 @@
 """
-stt_server.py — ChunkFormer STT server with dual concurrency strategy
+stt_server.py — ChunkFormer STT, latency-optimized for fast GPU inference
 
-  GPU  →  1 process, N asyncio batch-worker tasks (pipeline trick)
-           CUDA serializes kernel calls anyway; spawning more processes
-           only wastes VRAM without adding throughput.
-
-  CPU  →  N worker processes via multiprocessing (true parallelism)
-           Each process owns a full model copy and a real OS thread/core.
-           mp.Queue bridges HTTP process ↔ inference workers.
+Design rationale:
+  - Inference = 37ms → batching adds wait overhead, not throughput
+  - asyncio.to_thread = ~10-30ms overhead per call → replaced with
+    a dedicated ThreadPoolExecutor (1 thread) so the GPU thread is
+    always warm and never recreated
+  - Queue + future round-trip removed for the common single-request case
+  - ThreadPoolExecutor(1): GPU calls serialize naturally, no CUDA conflict
+  - For true concurrency (multiple simultaneous callers), increase
+    max_workers — CUDA will time-slice but 37ms inference means
+    queuing is still fast
 """
 
 import asyncio
-import time
 import argparse
-import uuid
+import time
 import torch
-import multiprocessing as mp
-from multiprocessing import Process
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uvicorn
-from typing import List, Optional
+from typing import Optional
 
 # =========================
-# SHARED CONFIG
+# CONFIG
 # =========================
-MAX_BATCH_SIZE   = 8
-MAX_BATCH_WAIT   = 0.02   # seconds
-QUEUE_SIZE       = 200
-REQUEST_TIMEOUT  = 20
-NUM_WORKERS      = 4      # async tasks (GPU) OR inference processes (CPU)
+REQUEST_TIMEOUT = 20
+# 1 thread = GPU calls serialize (safe, no CUDA conflict)
+# Increase to 2-3 if you have multiple simultaneous callers and
+# are willing to trade VRAM for concurrency
+GPU_THREADS = 1
 
-IS_GPU = torch.cuda.is_available()
-
-
-# =========================
-# INFERENCE CORE  (shared by both strategies)
-# =========================
-
-def _run_batch(model, audios: List[bytes]) -> List[str]:
-    results = []
-    for audio in audios:
-        text = model.endless_decode(
-            audio_bytes=audio,
-            chunk_size=64,
-            left_context_size=128,
-            right_context_size=128,
-            total_batch_duration=14400,
-            return_timestamps=False,
-        )
-        results.append(text)
-    return results
+_model = None
+_executor: Optional[ThreadPoolExecutor] = None
+_loop: Optional[asyncio.AbstractEventLoop] = None
 
 
 # =========================
-# ── STRATEGY A: GPU ──
-#    N asyncio tasks, 1 shared model
+# INFERENCE
 # =========================
 
-# Module-level so lifespan and endpoint can both access
-_gpu_model   = None
-_gpu_queue: Optional[asyncio.Queue] = None
-
-
-async def _gpu_batch_worker(worker_id: int):
-    print(f"[GPU worker {worker_id}] started")
-    while True:
-        batch:   List[bytes]          = []
-        futures: List[asyncio.Future] = []
-        start = time.time()
-
-        while len(batch) < MAX_BATCH_SIZE:
-            timeout = MAX_BATCH_WAIT - (time.time() - start)
-            if timeout <= 0:
-                break
-            try:
-                req = await asyncio.wait_for(_gpu_queue.get(), timeout=timeout)
-                batch.append(req["audio"])
-                futures.append(req["future"])
-            except asyncio.TimeoutError:
-                break
-
-        if not batch:
-            continue
-
-        try:
-            # to_thread releases the event loop while GPU is busy
-            texts = await asyncio.to_thread(_run_batch, _gpu_model, batch)
-            for fut, text in zip(futures, texts):
-                if not fut.done():
-                    fut.set_result(text)
-        except Exception as exc:
-            for fut in futures:
-                if not fut.done():
-                    fut.set_exception(exc)
-
-
-# =========================
-# ── STRATEGY B: CPU ──
-#    N processes, each with its own model copy
-#    mp.Queue for IPC, asyncio Future resolved by a dispatcher task
-# =========================
-
-# Set in __main__ before any fork/spawn
-_cpu_request_queue: Optional[mp.Queue] = None
-_cpu_result_queue:  Optional[mp.Queue] = None
-
-# Maps request_id → asyncio.Future (main process only)
-_pending = {}
-
-
-def _cpu_inference_worker(worker_id: int, req_q: mp.Queue, res_q: mp.Queue):
-    """Runs in its own OS process. No asyncio, no GPU."""
-    from chunkformer import ChunkFormerModel
-
-    print(f"[CPU worker {worker_id}] loading model...")
-    model = ChunkFormerModel.from_pretrained("khanhld/chunkformer-ctc-large-vie")
-    model.eval()
-    print(f"[CPU worker {worker_id}] ready")
-
-    while True:
-        batch_ids:    List[str]   = []
-        batch_audios: List[bytes] = []
-        start = time.time()
-
-        while len(batch_ids) < MAX_BATCH_SIZE:
-            timeout = MAX_BATCH_WAIT - (time.time() - start)
-            if timeout <= 0:
-                break
-            try:
-                item = req_q.get(timeout=max(timeout, 0.001))
-                batch_ids.append(item[0])
-                batch_audios.append(item[1])
-            except Exception:
-                break   # queue.Empty
-
-        if not batch_ids:
-            continue
-
-        try:
-            texts = _run_batch(model, batch_audios)
-            for rid, text in zip(batch_ids, texts):
-                res_q.put((rid, text, None))
-        except Exception as exc:
-            for rid in batch_ids:
-                res_q.put((rid, None, exc))
-
-
-async def _cpu_result_dispatcher():
-    """Polls the cross-process result queue and resolves asyncio Futures."""
-    while True:
-        try:
-            rid, text, exc = _cpu_result_queue.get_nowait()
-            fut = _pending.pop(rid, None)
-            if fut and not fut.done():
-                if exc:
-                    fut.set_exception(exc)
-                else:
-                    fut.set_result(text)
-        except Exception:
-            pass    # queue.Empty
-        await asyncio.sleep(0.005)
+def _infer(audio: bytes) -> str:
+    """Runs in the dedicated GPU thread. No asyncio, no overhead."""
+    t0 = time.perf_counter()
+    text = _model.endless_decode(
+        audio_bytes=audio,
+        chunk_size=64,
+        left_context_size=128,
+        right_context_size=128,
+        total_batch_duration=14400,
+        return_timestamps=False,
+    )
+    ms = (time.perf_counter() - t0) * 1000
+    print(f"[infer] {ms:.1f}ms → {repr(text[:60])}")
+    return text
 
 
 # =========================
@@ -170,54 +64,43 @@ async def _cpu_result_dispatcher():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _gpu_model, _gpu_queue
+    global _model, _executor, _loop
 
-    if IS_GPU:
-        # ── GPU strategy ──────────────────────────────────────────────────
-        print(f"[GPU mode] Loading model on cuda...")
-        from chunkformer import ChunkFormerModel
-        _gpu_queue  = asyncio.Queue(maxsize=QUEUE_SIZE)
-        _gpu_model  = ChunkFormerModel.from_pretrained(
-            "khanhld/chunkformer-ctc-large-vie"
-        ).to("cuda")
-        _gpu_model.eval()
-        torch.set_grad_enabled(False)
-        print(f"[GPU mode] Spawning {NUM_WORKERS} async batch workers")
-        tasks = [asyncio.create_task(_gpu_batch_worker(i)) for i in range(NUM_WORKERS)]
+    _loop = asyncio.get_running_loop()
 
-        yield
+    print("Loading ChunkFormer model on GPU...")
+    from chunkformer import ChunkFormerModel
+    _model = ChunkFormerModel.from_pretrained(
+        "khanhld/chunkformer-ctc-large-vie"
+    ).to("cuda" if torch.cuda.is_available() else "cpu")
+    _model.eval()
+    torch.set_grad_enabled(False)
 
-        for t in tasks:
-            t.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+    # Warm up — first inference is always slower due to CUDA JIT
+    print("Warming up model...")
+    import wave, struct, io
+    buf = io.BytesIO()
+    with wave.open(buf, 'wb') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(16000)
+        wf.writeframes(struct.pack('<1600h', *([0] * 1600)))  # 0.1s silence
+    _infer(buf.getvalue())
+    print("Model ready ✓")
 
-    else:
-        # ── CPU strategy ──────────────────────────────────────────────────
-        print(f"[CPU mode] Spawning {NUM_WORKERS} inference processes")
-        procs = []
-        for i in range(NUM_WORKERS):
-            p = Process(
-                target=_cpu_inference_worker,
-                args=(i, _cpu_request_queue, _cpu_result_queue),
-                daemon=True,
-            )
-            p.start()
-            procs.append(p)
+    # Single persistent thread keeps the GPU context warm
+    _executor = ThreadPoolExecutor(max_workers=GPU_THREADS, thread_name_prefix="gpu")
 
-        dispatcher = asyncio.create_task(_cpu_result_dispatcher())
+    yield
 
-        yield
-
-        dispatcher.cancel()
-        for p in procs:
-            p.terminate()
+    _executor.shutdown(wait=False)
 
 
 # =========================
 # FASTAPI APP
 # =========================
 
-app = FastAPI(title="ChunkFormer STT Server", version="3.0", lifespan=lifespan)
+app = FastAPI(title="ChunkFormer STT Server", version="4.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -237,67 +120,59 @@ async def transcribe(
     model_name: str        = Form(None),
     language:   str        = Form(None),
 ):
+    t0 = time.perf_counter()
     audio = await file.read()
-    loop  = asyncio.get_running_loop()
-    fut   = loop.create_future()   # register BEFORE enqueue → no race condition
-
-    if IS_GPU:
-        req = {"audio": audio, "future": fut}
-        try:
-            await asyncio.wait_for(_gpu_queue.put(req), timeout=5)
-        except asyncio.TimeoutError:
-            return {"error": "server overloaded"}
-    else:
-        rid = str(uuid.uuid4())
-        _pending[rid] = fut
-        try:
-            _cpu_request_queue.put_nowait((rid, audio))
-        except Exception:
-            _pending.pop(rid, None)
-            return {"error": "server overloaded"}
+    t1 = time.perf_counter()
 
     try:
-        text = await asyncio.wait_for(fut, timeout=REQUEST_TIMEOUT)
+        # Run inference in the dedicated GPU thread
+        # loop.run_in_executor with a pre-warmed ThreadPoolExecutor
+        # avoids the ~10-30ms thread-spawn overhead of asyncio.to_thread
+        text = await asyncio.wait_for(
+            _loop.run_in_executor(_executor, _infer, audio),
+            timeout=REQUEST_TIMEOUT,
+        )
     except asyncio.TimeoutError:
         return {"error": "request timeout"}
     except Exception as e:
         return {"error": str(e)}
+
+    t2 = time.perf_counter()
+    print(f"[request] read={1000*(t1-t0):.1f}ms infer={1000*(t2-t1):.1f}ms total={1000*(t2-t0):.1f}ms")
 
     return {"text": text}
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "device": "cuda" if IS_GPU else "cpu"}
+    return {"status": "ok", "device": "cuda" if torch.cuda.is_available() else "cpu"}
 
 
 # =========================
 # ENTRY POINT
 # =========================
 
-if __name__ == "__main__":
+def main():
+    global GPU_THREADS
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--host",    default="0.0.0.0")
-    parser.add_argument("--port",    type=int, default=8003)
-    parser.add_argument("--workers", type=int, default=NUM_WORKERS,
-                        help="async tasks (GPU) or processes (CPU)")
+    parser.add_argument("--port",    type=int, default=8004)
+    parser.add_argument("--threads", type=int, default=GPU_THREADS)
     args = parser.parse_args()
 
-    NUM_WORKERS = args.workers   # propagate CLI override
+    GPU_THREADS = args.threads
 
-    if not IS_GPU:
-        # CPU: queues must exist before any Process is forked
-        mp.set_start_method("spawn", force=True)
-        _cpu_request_queue = mp.Queue(maxsize=QUEUE_SIZE)
-        _cpu_result_queue  = mp.Queue(maxsize=QUEUE_SIZE * NUM_WORKERS)
-
-    device_label = "cuda" if IS_GPU else f"cpu ({NUM_WORKERS} workers)"
-    print(f"Starting STT server on {device_label}")
+    print(f"Starting STT server on port {args.port}, GPU_THREADS={GPU_THREADS}")
 
     uvicorn.run(
-        "stt_server:app",
+        app,
         host=args.host,
         port=args.port,
         reload=False,
-        workers=1,  # HTTP concurrency = asyncio, not uvicorn forks
+        workers=1,
     )
+
+
+if __name__ == "__main__":
+    main()
