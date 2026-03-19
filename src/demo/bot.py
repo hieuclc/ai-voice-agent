@@ -119,7 +119,7 @@ async def run_bot(webrtc_connection, session_id):
     tts = OpenAITTSService(
         model = "gpt-4o-mini-tts",
         api_key=os.getenv("OPENAI_API_KEY"),
-        # base_url = "http://localhost:8001/v1",
+        base_url = "http://localhost:8001/v1",
         voice = "alloy"
     )
 
