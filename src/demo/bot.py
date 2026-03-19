@@ -47,9 +47,7 @@ logger.info("✅ All components loaded successfully!")
 
 load_dotenv(override=True)
 
-from benchmark_log_sink import BenchmarkLogSink, current_session_id
-_benchmark_sink = BenchmarkLogSink()
-logger.add(_benchmark_sink, format="{message}")
+from benchmark_log_sink import current_session_id
 
 # ---------------------------------------------------------------------------
 # Thinking sentence prefixes — phải khớp với THINKING_SENTENCES_* trong agent.py
@@ -113,7 +111,7 @@ async def run_bot(webrtc_connection, session_id):
     stt = OpenAISTTService(
         model="gpt-4o-mini-transcribe",
         api_key=os.getenv("OPENAI_API_KEY"),
-        base_url = "http://localhost:8003/v1"
+        base_url = "http://localhost:8004/v1"
     )
 
     tts = OpenAITTSService(

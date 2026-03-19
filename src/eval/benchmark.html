@@ -251,7 +251,8 @@
       <div class="metrics-grid">
         <div class="metric-box"><div class="mval" id="s-stt">—</div><div class="mlabel">STT TTFB (avg)</div><div class="msub">ms</div></div>
         <div class="metric-box"><div class="mval" id="s-llm">—</div><div class="mlabel">LLM TTFB (avg)</div><div class="msub">ms</div></div>
-        <div class="metric-box"><div class="mval" id="s-tts">—</div><div class="mlabel">TTS TTFB (avg)</div><div class="msub">ms</div></div>
+        <div class="metric-box"><div class="mval" id="s-tts-ttfb">—</div><div class="mlabel">TTS TTFB (avg)</div><div class="msub">ms · time to first audio</div></div>
+        <div class="metric-box"><div class="mval" id="s-tts-proc">—</div><div class="mlabel">TTS Proc (avg)</div><div class="msub">ms · total generation</div></div>
         <div class="metric-box"><div class="mval" id="s-proc">—</div><div class="mlabel">LLM Proc (avg)</div><div class="msub">ms</div></div>
       </div>
     </div>
@@ -271,7 +272,7 @@
             <tr>
               <th>#</th><th>File</th><th>Session</th>
               <th>E2E (ms)</th>
-              <th>STT (ms)</th><th>LLM (ms)</th><th>TTS (ms)</th>
+              <th>STT (ms)</th><th>LLM (ms)</th><th>TTS TTFB (ms)</th><th>TTS Proc (ms)</th>
               <th>Error</th><th>Status</th>
             </tr>
           </thead>
@@ -315,6 +316,7 @@ class Semaphore {
 let audioFiles = [];     // {name, buffer, duration}
 let results    = [];     // {runId, file, sessionId, e2e, stt_ttfb, llm_ttfb, tts_ttfb, status, error}
 let running    = false;
+let currentAbort = null;
 let stopFlag   = false;
 let runCounter = 0;
 
@@ -369,8 +371,9 @@ async function startBenchmark() {
   if (running) return;
   if (audioFiles.length === 0) { alert('Please add at least one audio file.'); return; }
 
-  running   = true;
-  stopFlag  = false;
+  running      = true;
+  stopFlag     = false;
+  currentAbort = new AbortController();
   setGlobalStatus('RUNNING');
   document.getElementById('btn-start').disabled = true;
   document.getElementById('btn-stop').disabled  = false;
@@ -379,38 +382,43 @@ async function startBenchmark() {
   const repeats     = parseInt(document.getElementById('repeats').value) || 1;
   const delay       = parseInt(document.getElementById('delay').value) || 0;
 
-  // Build job queue: [file × repeats] shuffled
+  // Build job queue: repeat each file `repeats` times, interleaved across files
   const jobs = [];
   for (let r = 0; r < repeats; r++) {
     for (const f of audioFiles) jobs.push(f);
   }
 
-  // Worker pool
-  const sem = new Semaphore(concurrency);
-  const promises = jobs.map(async (file) => {
-    if (stopFlag) return;
-    const release = await sem.acquire();
-    try {
-      if (stopFlag) return;
-      await runSingleBenchmark(file);
-      if (delay > 0) await sleep(delay);
-    } finally {
-      release();
+  // N concurrent lanes each pulling from a shared queue one job at a time.
+  // This ensures stopFlag is checked before every job, and each lane only
+  // starts the next run after the current one fully completes.
+  const queue = [...jobs];
+  const runLane = async () => {
+    while (queue.length > 0) {
+      if (stopFlag) break;
+      const file = queue.shift();
+      if (!file) break;
+      await runSingleBenchmark(file, currentAbort.signal);
+      if (stopFlag) break;
+      if (delay > 0 && queue.length > 0) await sleep(delay);
     }
-  });
+  };
 
-  await Promise.allSettled(promises);
+  await Promise.allSettled(Array.from({ length: concurrency }, runLane));
 
-  running = false;
-  setGlobalStatus('DONE');
+  running      = false;
+  currentAbort = null;
+  setGlobalStatus(stopFlag ? 'STOPPED' : 'DONE');
   document.getElementById('btn-start').disabled = false;
   document.getElementById('btn-stop').disabled  = true;
   updateSummary();
 }
 
 function stopBenchmark() {
+  if (!running) return;
   stopFlag = true;
+  if (currentAbort) currentAbort.abort();
   setGlobalStatus('STOPPING');
+  document.getElementById('btn-stop').disabled = true;
 }
 
 function clearResults() {
@@ -437,7 +445,7 @@ function addLog(msg, level = 'info') {
   else console.log(msg);
 }
 
-async function runSingleBenchmark(file) {
+async function runSingleBenchmark(file, signal) {
   const runId     = ++runCounter;
   const timeoutMs = (parseInt(document.getElementById('timeout').value) || 30) * 1000;
   const apiBase   = document.getElementById('api-base').value.replace(/\/$/, '');
@@ -449,6 +457,9 @@ async function runSingleBenchmark(file) {
     addLog(`ICE JSON parse error: ${e.message} — using Google STUN`, 'warn');
     iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
   }
+
+  // 0. Abort guard
+  if (signal?.aborted) return;
 
   // 1. Create session
   let sessionId;
@@ -470,14 +481,14 @@ async function runSingleBenchmark(file) {
   const tr = document.createElement('tr');
   tr.id = rowId;
   tr.innerHTML = `<td>${runId}</td><td title="${file.name}">${file.name.slice(0,20)}</td><td class="sid">${sessionId.slice(0,8)}…</td>
-    <td class="e2e">…</td><td class="stt">…</td><td class="llm">…</td><td class="tts">…</td>
+    <td class="e2e">…</td><td class="stt">…</td><td class="llm">…</td><td class="tts">…</td><td class="tts-proc">…</td>
     <td class="err-cell" style="color:var(--muted);font-size:10px;max-width:180px;word-break:break-all"></td>
     <td><span class="tag tag-run">RUN</span></td>`;
   tbody.prepend(tr);
 
   const result = {
     runId, file: file.name, sessionId,
-    e2e: null, stt_ttfb: null, llm_ttfb: null, tts_ttfb: null,
+    e2e: null, stt_ttfb: null, llm_ttfb: null, tts_ttfb: null, tts_proc: null,
     stt_transcript: null, llm_response: null, tts_text: null,
     status: 'running', error: null
   };
@@ -487,7 +498,11 @@ async function runSingleBenchmark(file) {
   let forceCleanup = null;
   const runPromise = new Promise((res, rej) => {
     doWebRTCRun(file, sessionId, webrtcUrl, iceServers, apiBase, addLog, runId,
-      (cleanupFn) => { forceCleanup = cleanupFn; }
+      (cleanupFn) => {
+        forceCleanup = cleanupFn;
+        // Wire AbortSignal so stop button kills the live WebRTC run
+        if (signal) signal.addEventListener('abort', () => cleanupFn('Stopped by user'), { once: true });
+      }
     ).then(res).catch(rej);
   });
 
@@ -500,12 +515,19 @@ async function runSingleBenchmark(file) {
     const r = await runPromise;
     clearTimeout(timeoutHandle);
     Object.assign(result, r, { status: 'ok' });
-    addLog(`[#${runId}] ✓ e2e=${result.e2e?.toFixed(0)}ms stt=${result.stt_ttfb?.toFixed(0)}ms llm=${result.llm_ttfb?.toFixed(0)}ms tts=${result.tts_ttfb?.toFixed(0)}ms`, 'ok');
+    const _f = v => (v != null && !isNaN(v)) ? (+v).toFixed(0) : '—';
+    addLog(`[#${runId}] ✓ e2e=${_f(result.e2e)}ms stt=${_f(result.stt_ttfb)}ms llm=${_f(result.llm_ttfb)}ms tts_ttfb=${_f(result.tts_ttfb)}ms tts_proc=${_f(result.tts_proc)}ms`, 'ok');
   } catch (err) {
     clearTimeout(timeoutHandle);
-    result.status = 'error';
-    result.error  = err.message;
-    addLog(`[#${runId}] ✗ ${err.message}`, 'error');
+    if (err.name === 'AbortError' || stopFlag) {
+      result.status = 'stopped';
+      result.error  = 'Stopped by user';
+      addLog(`[#${runId}] ⏹ Stopped`, 'warn');
+    } else {
+      result.status = 'error';
+      result.error  = err.message;
+      addLog(`[#${runId}] ✗ ${err.message}`, 'error');
+    }
   }
 
   // Update row
@@ -515,10 +537,12 @@ async function runSingleBenchmark(file) {
     row.querySelector('.stt').textContent = result.stt_ttfb != null ? result.stt_ttfb.toFixed(0) : '—';
     row.querySelector('.llm').textContent = result.llm_ttfb != null ? result.llm_ttfb.toFixed(0) : '—';
     row.querySelector('.tts').textContent = result.tts_ttfb != null ? result.tts_ttfb.toFixed(0) : '—';
+    row.querySelector('.tts-proc').textContent = result.tts_proc != null ? result.tts_proc.toFixed(0) : '—';
     if (result.error) row.querySelector('.err-cell').textContent = result.error;
     const tag = row.querySelector('.tag');
-    if (result.status === 'ok') { tag.className = 'tag tag-ok'; tag.textContent = 'OK'; }
-    else { tag.className = 'tag tag-err'; tag.textContent = 'ERR'; }
+    if (result.status === 'ok')      { tag.className = 'tag tag-ok';  tag.textContent = 'OK'; }
+    else if (result.status === 'stopped') { tag.className = 'tag tag-run'; tag.textContent = 'STOP'; }
+    else                                  { tag.className = 'tag tag-err'; tag.textContent = 'ERR'; }
   }
 
   updateSummary();
@@ -601,10 +625,13 @@ async function doWebRTCRun(file, sessionId, webrtcUrl, iceServers, apiBase, log,
       audioCtx.close();
     };
 
-    if (onCleanupReady) onCleanupReady(() => {
-      L('Force cleanup (timeout)', 'warn');
+    if (onCleanupReady) onCleanupReady((reason) => {
+      const msg = reason || 'Timeout — force disconnected';
+      L(`Force cleanup: ${msg}`, 'warn');
       cleanup();
-      reject(new Error('Timeout — force disconnected'));
+      const err = new Error(msg);
+      if (msg === 'Stopped by user') err.name = 'AbortError';
+      reject(err);
     });
 
     try {
@@ -770,11 +797,12 @@ function parseServerMetrics(metrics) {
   };
 
   return {
-    stt_ttfb:  pick('stt', 'ttfb'),
-    llm_ttfb:  pick('llm', 'ttfb'),
-    tts_ttfb:  pick('tts', 'ttfb'),
-    llm_proc:  pick('llm', 'processing_time'),
-    stt_proc:  pick('stt', 'processing_time'),
+    stt_ttfb:  pick('stt', 'ttfb')            ?? null,
+    llm_ttfb:  pick('llm', 'ttfb')            ?? null,
+    tts_ttfb:  pick('tts', 'ttfb')            ?? null,
+    llm_proc:  pick('llm', 'processing_time') ?? null,
+    stt_proc:  pick('stt', 'processing_time') ?? null,
+    tts_proc:  pick('tts', 'processing_time') ?? null,
   };
 }
 
@@ -807,22 +835,25 @@ function updateSummary() {
   document.getElementById('m-runs').textContent = ok.length;
   document.getElementById('m-err').textContent  = err;
 
-  const sttVals  = ok.map(r => r.stt_ttfb).filter(v => v != null);
-  const llmVals  = ok.map(r => r.llm_ttfb).filter(v => v != null);
-  const ttsVals  = ok.map(r => r.tts_ttfb).filter(v => v != null);
-  const procVals = ok.map(r => r.llm_proc).filter(v => v != null);
+  const sttVals     = ok.map(r => r.stt_ttfb).filter(v => v != null);
+  const llmVals     = ok.map(r => r.llm_ttfb).filter(v => v != null);
+  const ttsVals     = ok.map(r => r.tts_ttfb).filter(v => v != null);
+  const ttsProcVals = ok.map(r => r.tts_proc).filter(v => v != null);
+  const procVals    = ok.map(r => r.llm_proc).filter(v => v != null);
 
-  document.getElementById('s-stt').textContent  = fmt(avg(sttVals));
-  document.getElementById('s-llm').textContent  = fmt(avg(llmVals));
-  document.getElementById('s-tts').textContent  = fmt(avg(ttsVals));
-  document.getElementById('s-proc').textContent = fmt(avg(procVals));
+  document.getElementById('s-stt').textContent      = fmt(avg(sttVals));
+  document.getElementById('s-llm').textContent      = fmt(avg(llmVals));
+  document.getElementById('s-tts-ttfb').textContent = fmt(avg(ttsVals));
+  document.getElementById('s-tts-proc').textContent = fmt(avg(ttsProcVals));
+  document.getElementById('s-proc').textContent     = fmt(avg(procVals));
 
   // Breakdown bars
-  const avgStt  = avg(sttVals)  || 0;
-  const avgLlm  = avg(llmVals)  || 0;
-  const avgTts  = avg(ttsVals)  || 0;
-  const avgProc = avg(procVals) || 0;
-  const total = avgStt + avgLlm + avgTts + avgProc;
+  const avgStt     = avg(sttVals)     || 0;
+  const avgLlm     = avg(llmVals)     || 0;
+  const avgTts     = avg(ttsVals)     || 0;
+  const avgTtsProc = avg(ttsProcVals) || 0;
+  const avgProc    = avg(procVals)    || 0;
+  const total = avgStt + avgLlm + avgTts + avgTtsProc + avgProc;
 
   if (total > 0 && ok.length > 0) {
     document.getElementById('breakdown-card').style.display = '';
@@ -840,7 +871,7 @@ function updateSummary() {
       </div>
       <div class="breakdown-row">
         <span class="blabel">LLM Processing</span>
-        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-llm" style="width:${pct(avgProc)}%" style="opacity:.6"></div></div>
+        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-llm" style="width:${pct(avgProc)}%;opacity:.6"></div></div>
         <span class="bval">${fmt(avgProc)} ms</span>
       </div>
       <div class="breakdown-row">
@@ -848,13 +879,18 @@ function updateSummary() {
         <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-tts" style="width:${pct(avgTts)}%"></div></div>
         <span class="bval">${fmt(avgTts)} ms</span>
       </div>
+      <div class="breakdown-row">
+        <span class="blabel">TTS Total Proc</span>
+        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-tts" style="width:${pct(avgTtsProc)}%;opacity:.55"></div></div>
+        <span class="bval">${fmt(avgTtsProc)} ms</span>
+      </div>
     `;
   }
 }
 
 function exportCSV() {
   if (!results.length) { alert('No data to export.'); return; }
-  const cols = ['runId','file','sessionId','status','e2e','stt_ttfb','llm_ttfb','tts_ttfb','llm_proc','stt_proc','stt_transcript','llm_response','tts_text','error'];
+  const cols = ['runId','file','sessionId','status','e2e','stt_ttfb','llm_ttfb','tts_ttfb','tts_proc','llm_proc','stt_proc','stt_transcript','llm_response','tts_text','error'];
   const rows = results.map(r => cols.map(k => {
     const v = r[k];
     if (v == null) return '';

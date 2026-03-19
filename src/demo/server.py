@@ -26,6 +26,9 @@ from transcription_handler import TranscriptHandler
 from uuid import uuid4
 
 from benchmark_metrics import get_metrics, get_texts, clear_metrics
+from benchmark_log_sink import benchmark_sink, current_session_id
+logger.add(benchmark_sink, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}")
+
 # Load environment variables
 load_dotenv(override=True)
 
@@ -141,6 +144,7 @@ async def create_chat_session():
 
 @app.get("/benchmark/session/{session_id}")
 async def get_benchmark_metrics(session_id: str):
+    benchmark_sink.flush_session(session_id)  # flush turn cuối
     metrics = get_metrics(session_id)
     texts   = get_texts(session_id)
     return {"session_id": session_id, "metrics": metrics, "texts": texts}
