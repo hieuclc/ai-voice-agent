@@ -34,7 +34,7 @@ from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 # from pipecat.services.openai.tts import OpenAITTSService
-from ttsv2 import OpenAITTSService
+from ttsv2 import ZipVoiceTTSService
 # from stt import OpenAISTTService
 from pipecat.services.openai.stt import OpenAISTTService
 from pipecat.services.openai.llm import OpenAILLMService
@@ -114,11 +114,16 @@ async def run_bot(webrtc_connection, session_id):
         base_url = "http://localhost:8005/v1"
     )
 
-    tts = OpenAITTSService(
-        model = "gpt-4o-mini-tts",
-        api_key=os.getenv("OPENAI_API_KEY"),
-        base_url = "http://localhost:8001/v1",
-        voice = "alloy"
+    # tts = OpenAITTSService(
+    #     model = "gpt-4o-mini-tts",
+    #     api_key=os.getenv("OPENAI_API_KEY"),
+    #     base_url = "http://localhost:8001/v1",
+    #     voice = "alloy"
+    # )
+
+    tts = ZipVoiceTTSService(
+        triton_url="localhost:8002",
+        model_name="zipvoice",
     )
 
     llm = OpenAILLMService(model = "gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"), base_url = "http://localhost:8000/v1")
