@@ -89,7 +89,7 @@ class ZipVoiceTTSService(TTSService):
         return (np.clip(wav, -1.0, 1.0) * 32767).astype(np.int16)
 
     @traced_tts
-    async def run_tts(self, text: str) -> AsyncGenerator[Frame, None]:
+    async def run_tts(self, text: str, language: str = "vi") -> AsyncGenerator[Frame, None]:
         logger.debug(f"ZipVoiceTTS: [{text}]")
         try:
             yield TTSStartedFrame()

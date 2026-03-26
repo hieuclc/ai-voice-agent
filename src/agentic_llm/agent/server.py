@@ -26,6 +26,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 import asyncio
 
@@ -44,6 +45,19 @@ LLM_MODEL       = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 
 # Domains mà cần tool call → cần emit thinking sentences
 _TOOL_DOMAINS = {"law", "admission", "tour"}
+
+# AsyncOpenAI client dùng để stream trực tiếp cho normal_talk
+_openai_client: Optional[AsyncOpenAI] = None
+
+
+def _get_openai_client() -> AsyncOpenAI:
+    global _openai_client
+    if _openai_client is None:
+        _openai_client = AsyncOpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url=OPENAI_BASE_URL,
+        )
+    return _openai_client
 
 
 # ---------------------------------------------------------------------------
@@ -76,30 +90,42 @@ class ChatCompletionRequest(BaseModel):
 
 def _strip_pipecat_persona(messages: list[ChatMessage]) -> list[ChatMessage]:
     """
-    Pipecat luôn đặt persona prompt là system message đầu tiên (index 0).
-    Backend có system prompt riêng cho từng domain → strip persona để tránh conflict.
+    Strip persona system prompt (index 0) cho tool domains (law/admission/tour).
+    Backend có system prompt riêng cho từng domain → tránh conflict.
 
-    Các message khác giữ nguyên, bao gồm:
-    - System message thứ hai (greeting instruction lúc kickstart)
-    - Toàn bộ human/assistant history từ transcript_handler
+    KHÔNG strip cho normal_talk — persona prompt của Pipecat đã đủ tốt
+    (tiếng Việt, không markdown, giọng tự nhiên) và bỏ đi sẽ mất context.
     """
     if messages and messages[0].role == "system":
         return messages[1:]
     return messages
 
 
-def to_lc_messages(messages: list[ChatMessage]) -> list:
-    cleaned = _strip_pipecat_persona(messages)
+def to_lc_messages(messages: list[ChatMessage], strip_persona: bool = True) -> list:
+    """
+    Convert ChatMessage list sang LangChain messages.
+
+    strip_persona=True  : dùng cho tool domains, bỏ system prompt đầu tiên.
+    strip_persona=False : dùng cho normal_talk, giữ nguyên toàn bộ messages.
+    """
+    source = _strip_pipecat_persona(messages) if strip_persona else messages
     out = []
-    for m in cleaned:
+    for m in source:
         if m.role == "system":
             out.append(SystemMessage(content=m.content))
         elif m.role == "user":
             out.append(HumanMessage(content=m.content))
         elif m.role == "assistant":
-            # Lọc bỏ thinking sentences khỏi history để tránh nhiễu context
             out.append(AIMessage(content=m.content))
     return out
+
+
+def to_openai_messages(messages: list[ChatMessage]) -> list[dict]:
+    """
+    Convert ChatMessage list sang OpenAI-format dicts, giữ nguyên toàn bộ
+    (kể cả system prompt đầu tiên) — dùng cho normal_talk direct stream.
+    """
+    return [{"role": m.role, "content": m.content} for m in messages]
 
 
 # ---------------------------------------------------------------------------
@@ -133,26 +159,23 @@ def _chunk_payload(
 
 async def stream_agent_response(
     graph,
-    lc_messages: list,
+    raw_messages: list[ChatMessage],
     model: str,
     completion_id: str,
 ) -> AsyncIterator[str]:
     """
     Stream agent response.
 
-    Chiến lược:
-    1. Pre-route nhanh để biết domain TRƯỚC khi ainvoke toàn bộ graph.
-       - Nếu domain thuộc {law, admission, tour}: emit thinking ngay lập tức,
-         rồi chạy ainvoke song song với thinking producer.
-       - Nếu domain là normal_talk: bỏ qua thinking, ainvoke thẳng, stream từng từ.
-    2. Domain được truyền vào initial_state["domain"] → route_node trong graph
-       bỏ qua LLM call thứ hai (không tốn thêm round-trip).
-    3. Sau khi ainvoke xong, stream từng từ của normalized text ra client.
+    normal_talk:
+      - Giữ nguyên persona system prompt từ Pipecat (không strip).
+      - Stream trực tiếp qua AsyncOpenAI.create(), bypass hoàn toàn graph
+        và TTSNormalizerAgent.
+      - Token đầu tiên về ~200ms thay vì ~1.6s.
 
-    Thinking sentences:
-    - Gửi KHÔNG có \n\n wrapping để SimpleTextAggregator nhận diện ngay
-    - Mỗi thinking sentence là một sentence hoàn chỉnh kết thúc bằng dấu chấm
-    - Theo sau bởi một space để force aggregator flush ngay lập tức
+    Tool domains (law/admission/tour):
+      - Strip persona prompt, inject domain system prompt riêng.
+      - Emit thinking sentence ngay lập tức.
+      - ainvoke graph song song, sau đó stream qua TTSNormalizerAgent.
     """
     from agent import (
         THINKING_INTERVAL_SECONDS,
@@ -165,47 +188,51 @@ async def stream_agent_response(
     # ------------------------------------------------------------------
     # Bước 1: Pre-route — xác định domain nhanh
     # ------------------------------------------------------------------
-    domain = await pre_route(lc_messages)
+    # Pre-route dùng lc_messages (bỏ system[0]) để không bị nhiễu bởi persona
+    lc_messages_for_route = to_lc_messages(raw_messages, strip_persona=True)
+    domain = await pre_route(lc_messages_for_route)
     logger.info("stream_agent_response: pre_route → %s", domain)
 
     needs_thinking = domain in _TOOL_DOMAINS
 
-    initial_state = {
-        "messages":          lc_messages,
-        "hop_count":         0,
-        "thinking_streamed": False,
-        "domain":            domain,   # pre-seeded → route_node bỏ qua LLM call
-        "skip_tts":          True,     # server tự stream TTS, bỏ qua tts_node trong graph
-    }
-
     # ------------------------------------------------------------------
-    # Bước 2: Nhánh normal_talk — không cần thinking, không cần TTS LLM
+    # Bước 2: normal_talk — direct OpenAI stream, giữ nguyên persona prompt
     # ------------------------------------------------------------------
     if not needs_thinking:
-        raw_text: list[str] = []
-        try:
-            result = await graph.ainvoke(initial_state)
-            for msg in reversed(result["messages"]):
-                if isinstance(msg, AIMessage) and not getattr(msg, "tool_calls", None) and msg.content.strip():
-                    raw_text.append(msg.content)
-                    break
-        except Exception as exc:
-            logger.error("normal_talk ainvoke error: %s", exc)
+        openai_messages = to_openai_messages(raw_messages)
+        client = _get_openai_client()
 
-        text = raw_text[0] if raw_text else ""
-        if text:
-            words = text.split(" ")
-            for i, word in enumerate(words):
-                chunk = word if i == len(words) - 1 else word + " "
-                yield _sse(_chunk_payload(completion_id, model, {"content": chunk}))
+        try:
+            stream = await client.chat.completions.create(
+                model=model,
+                messages=openai_messages,
+                stream=True,
+                temperature=0,
+            )
+            async for chunk in stream:
+                delta = chunk.choices[0].delta if chunk.choices else None
+                if delta and delta.content:
+                    yield _sse(_chunk_payload(completion_id, model, {"content": delta.content}))
+        except Exception as exc:
+            logger.error("normal_talk direct stream error: %s", exc)
 
         yield _sse(_chunk_payload(completion_id, model, {}, finish_reason="stop"))
         yield _sse_done()
         return
 
     # ------------------------------------------------------------------
-    # Bước 3: Nhánh tool agents (law / admission / tour) — có thinking
+    # Bước 3: Tool domains — strip persona, dùng domain system prompt
     # ------------------------------------------------------------------
+    lc_messages = to_lc_messages(raw_messages, strip_persona=True)
+
+    initial_state = {
+        "messages":          lc_messages,
+        "hop_count":         0,
+        "thinking_streamed": False,
+        "domain":            domain,
+        "skip_tts":          True,
+    }
+
     output_queue: asyncio.Queue = asyncio.Queue()
     agent_done_event = asyncio.Event()
     raw_agent_text: list[str] = []
@@ -247,15 +274,6 @@ async def stream_agent_response(
             if kind == "done":
                 break
             elif kind == "thinking":
-                # FIX: Gửi thành 2 SSE event RIÊNG BIỆT → 2 TextFrame khác nhau.
-                #
-                # SimpleTextAggregator dùng cross-frame lookahead:
-                #   Frame 1: "...đợi."  → thấy period, đánh dấu potential boundary,
-                #                         nhưng CHƯA flush — đang chờ frame tiếp theo.
-                #   Frame 2: " "        → confirm boundary → flush ngay lập tức.
-                #
-                # Nếu gộp thành 1 chunk "...đợi. " → chỉ có 1 TextFrame duy nhất
-                # → aggregator vẫn chờ frame tiếp → buffer lại 6-7 giây.
                 logger.info("Emitting thinking sentence: %r", value)
                 yield _sse(_chunk_payload(completion_id, model, {"content": value}))
                 yield _sse(_chunk_payload(completion_id, model, {"content": " "}))
@@ -265,8 +283,7 @@ async def stream_agent_response(
             agent_task.cancel()
 
     # ------------------------------------------------------------------
-    # Bước 4: Stream TTS normalize — yield token ngay khi LLM trả về,
-    # không đợi full normalize xong → giảm latency đáng kể.
+    # Bước 4: Stream TTS normalize cho tool domains
     # ------------------------------------------------------------------
     raw_text = raw_agent_text[0] if raw_agent_text else ""
     if raw_text:
@@ -277,7 +294,6 @@ async def stream_agent_response(
                 if token_chunk:
                     yield _sse(_chunk_payload(completion_id, model, {"content": token_chunk}))
         else:
-            # Fallback khi không có TTS agent
             words = raw_text.split(" ")
             for i, word in enumerate(words):
                 chunk = word if i == len(words) - 1 else word + " "
@@ -292,11 +308,6 @@ async def stream_agent_response(
 # ---------------------------------------------------------------------------
 
 async def get_full_response(graph, lc_messages: list) -> str:
-    """
-    Invoke graph và lấy AIMessage cuối.
-    Domain được pre-route trước để tránh gọi LLM route 2 lần.
-    TTS đã được xử lý bên trong graph bởi tts_node.
-    """
     domain = await pre_route(lc_messages)
     result = await graph.ainvoke(
         {
@@ -366,13 +377,13 @@ async def chat_completions(request: ChatCompletionRequest):
     if not request.messages:
         raise HTTPException(status_code=400, detail="messages must not be empty")
 
-    lc_messages   = to_lc_messages(request.messages)
     completion_id = f"chatcmpl-{uuid.uuid4().hex}"
     model         = request.model
 
     if request.stream:
         return StreamingResponse(
-            stream_agent_response(graph, lc_messages, model, completion_id),
+            # Truyền raw_messages để normal_talk có thể giữ persona prompt
+            stream_agent_response(graph, request.messages, model, completion_id),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -381,6 +392,7 @@ async def chat_completions(request: ChatCompletionRequest):
             },
         )
 
+    lc_messages = to_lc_messages(request.messages, strip_persona=True)
     content = await get_full_response(graph, lc_messages)
     return JSONResponse({
         "id": completion_id,

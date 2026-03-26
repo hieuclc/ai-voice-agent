@@ -43,6 +43,7 @@ from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.processors.transcript_processor import TranscriptProcessor
 
 # from transcription_handler import TranscriptHandler
+from tts_chunker import TTSChunkerProcessor, ChunkMode
 logger.info("✅ All components loaded successfully!")
 
 load_dotenv(override=True)
@@ -117,7 +118,7 @@ async def run_bot(webrtc_connection, session_id):
     # tts = OpenAITTSService(
     #     model = "gpt-4o-mini-tts",
     #     api_key=os.getenv("OPENAI_API_KEY"),
-    #     base_url = "http://localhost:8001/v1",
+    #     # base_url = "http://localhost:8001/v1",
     #     voice = "alloy"
     # )
 
@@ -139,20 +140,7 @@ async def run_bot(webrtc_connection, session_id):
 
     3. Chỉ trả về nội dung trả lời, không giải thích thêm, không định dạng đặc biệt. Các cụm từ viết tắt phải được viết **in hoa**. Mỗi câu phải có từ 4 từ trở lên.
 
-    4. Khi người dùng hỏi theo hướng tư vấn hoặc ra quyết định:
-    - Luôn so sánh với ít nhất một mốc thời gian hoặc tình huống liên quan.
-    - Nhận xét xu hướng hoặc khác biệt chính dựa trên dữ liệu đã có.
-    - Đưa ra lời khuyên HỮU ÍCH dựa trên xu hướng đó, nhưng phải kèm điều kiện hoặc lưu ý rủi ro.
-
-    5. Khi người dùng hỏi "có nên mua", "có nên bán", "đầu tư":
-    - KHÔNG được chỉ dựa trên dữ liệu của một ngày hay một đối tượng.
-    - BẮT BUỘC phải sử dụng dữ liệu nhiều mốc (ít nhất 2-3 mốc gần nhất).
-    - Nếu chưa có dữ liệu, phải gọi tool để bổ sung trước khi trả lời.
-    - Sau khi phân tích, phải đưa ra khuyến nghị rõ ràng, nhưng luôn nêu ít nhất một rủi ro hoặc trường hợp khiến khuyến nghị không còn phù hợp.
-
-    6. Tránh trả lời chung chung hoặc trung lập; khuyến nghị cần cụ thể, nhưng không khẳng định chắc chắn cho mọi tình huống.
-
-
+    4. Câu đầu tiên chỉ được phép có tối đa 5 từ, và kết thúc bằng dấu chấm.
     '''
 
     messages = [
@@ -176,15 +164,16 @@ async def run_bot(webrtc_connection, session_id):
     context = LLMContext(messages)
     context_aggregator = LLMContextAggregatorPair(
         context,
-        user_params=LLMUserAggregatorParams(
-            user_turn_strategies=UserTurnStrategies(
-                stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
-            ),
-        ),
+        # user_params=LLMUserAggregatorParams(
+        #     user_turn_strategies=UserTurnStrategies(
+        #         stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
+        #     ),
+        # ),
     )
 
     rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
     thinking_processor = ThinkingSentenceProcessor()
+    tts_chunker = TTSChunkerProcessor(mode=ChunkMode.PUNCT_ONLY)
 
     pipeline = Pipeline(
         [
@@ -194,6 +183,7 @@ async def run_bot(webrtc_connection, session_id):
             transcript.user(),
             context_aggregator.user(),   # User responses
             llm,                         # LLM
+            tts_chunker,                 # Custom chunker: low-latency first chunk + sentence split
             thinking_processor,          # Convert thinking sentences → TTSSpeakFrame (bypass aggregator)
             tts,                         # TTS
             transport.output(),          # Transport bot output
