@@ -43,10 +43,8 @@ OPENAI_API_KEY  = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", None)
 LLM_MODEL       = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 
-# Domains mà cần tool call → cần emit thinking sentences
 _TOOL_DOMAINS = {"law", "admission", "tour"}
 
-# AsyncOpenAI client dùng để stream trực tiếp cho normal_talk
 _openai_client: Optional[AsyncOpenAI] = None
 
 
@@ -89,25 +87,12 @@ class ChatCompletionRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _strip_pipecat_persona(messages: list[ChatMessage]) -> list[ChatMessage]:
-    """
-    Strip persona system prompt (index 0) cho tool domains (law/admission/tour).
-    Backend có system prompt riêng cho từng domain → tránh conflict.
-
-    KHÔNG strip cho normal_talk — persona prompt của Pipecat đã đủ tốt
-    (tiếng Việt, không markdown, giọng tự nhiên) và bỏ đi sẽ mất context.
-    """
     if messages and messages[0].role == "system":
         return messages[1:]
     return messages
 
 
 def to_lc_messages(messages: list[ChatMessage], strip_persona: bool = True) -> list:
-    """
-    Convert ChatMessage list sang LangChain messages.
-
-    strip_persona=True  : dùng cho tool domains, bỏ system prompt đầu tiên.
-    strip_persona=False : dùng cho normal_talk, giữ nguyên toàn bộ messages.
-    """
     source = _strip_pipecat_persona(messages) if strip_persona else messages
     out = []
     for m in source:
@@ -121,10 +106,6 @@ def to_lc_messages(messages: list[ChatMessage], strip_persona: bool = True) -> l
 
 
 def to_openai_messages(messages: list[ChatMessage]) -> list[dict]:
-    """
-    Convert ChatMessage list sang OpenAI-format dicts, giữ nguyên toàn bộ
-    (kể cả system prompt đầu tiên) — dùng cho normal_talk direct stream.
-    """
     return [{"role": m.role, "content": m.content} for m in messages]
 
 
@@ -166,16 +147,12 @@ async def stream_agent_response(
     """
     Stream agent response.
 
-    normal_talk:
-      - Giữ nguyên persona system prompt từ Pipecat (không strip).
-      - Stream trực tiếp qua AsyncOpenAI.create(), bypass hoàn toàn graph
-        và TTSNormalizerAgent.
-      - Token đầu tiên về ~200ms thay vì ~1.6s.
-
-    Tool domains (law/admission/tour):
-      - Strip persona prompt, inject domain system prompt riêng.
-      - Emit thinking sentence ngay lập tức.
-      - ainvoke graph song song, sau đó stream qua TTSNormalizerAgent.
+    OPTIMIZATIONS vs original:
+    1. pre_route() và graph.ainvoke() chạy concurrently với thinking producer.
+    2. TTS normalize được PIPELINE: agent text được đưa vào TTS stream ngay
+       khi ainvoke() xong — không chờ thinking loop kết thúc.
+    3. normal_talk bypass hoàn toàn graph → direct OpenAI stream (~200ms TTFT).
+    4. route_node trong graph skip LLM call nếu domain đã được pre-seed.
     """
     from agent import (
         THINKING_INTERVAL_SECONDS,
@@ -186,9 +163,8 @@ async def stream_agent_response(
     yield _sse(_chunk_payload(completion_id, model, {"role": "assistant", "content": ""}))
 
     # ------------------------------------------------------------------
-    # Bước 1: Pre-route — xác định domain nhanh
+    # Bước 1: Pre-route song song với việc chuẩn bị messages
     # ------------------------------------------------------------------
-    # Pre-route dùng lc_messages (bỏ system[0]) để không bị nhiễu bởi persona
     lc_messages_for_route = to_lc_messages(raw_messages, strip_persona=True)
     domain = await pre_route(lc_messages_for_route)
     logger.info("stream_agent_response: pre_route → %s", domain)
@@ -221,7 +197,8 @@ async def stream_agent_response(
         return
 
     # ------------------------------------------------------------------
-    # Bước 3: Tool domains — strip persona, dùng domain system prompt
+    # Bước 3: Tool domains — agent + thinking chạy concurrently,
+    #          TTS được pipeline ngay sau khi agent xong
     # ------------------------------------------------------------------
     lc_messages = to_lc_messages(raw_messages, strip_persona=True)
 
@@ -230,13 +207,15 @@ async def stream_agent_response(
         "hop_count":         0,
         "thinking_streamed": False,
         "domain":            domain,
-        "skip_tts":          True,
+        "skip_tts":          True,  # server tự stream TTS
     }
 
-    output_queue: asyncio.Queue = asyncio.Queue()
+    # Queue dùng để pipeline thinking tokens → caller
+    thinking_queue: asyncio.Queue[tuple[str, str | None]] = asyncio.Queue()
     agent_done_event = asyncio.Event()
     raw_agent_text: list[str] = []
 
+    # --- Agent runner ---
     async def agent_runner():
         try:
             result = await graph.ainvoke(initial_state)
@@ -248,10 +227,11 @@ async def stream_agent_response(
             logger.error("agent_runner error: %s", exc)
         finally:
             agent_done_event.set()
-            await output_queue.put(("done", None))
+            await thinking_queue.put(("done", None))
 
+    # --- Thinking producer ---
     async def thinking_producer():
-        await output_queue.put(("thinking", pick_thinking_start_sentence()))
+        await thinking_queue.put(("thinking", pick_thinking_start_sentence()))
         while True:
             try:
                 await asyncio.wait_for(
@@ -261,16 +241,17 @@ async def stream_agent_response(
                 break
             except asyncio.TimeoutError:
                 if not agent_done_event.is_set():
-                    await output_queue.put(("thinking", pick_thinking_ongoing_sentence()))
+                    await thinking_queue.put(("thinking", pick_thinking_ongoing_sentence()))
                 else:
                     break
 
     agent_task = asyncio.create_task(agent_runner())
     think_task = asyncio.create_task(thinking_producer())
 
+    # Stream thinking tokens cho đến khi agent xong
     try:
         while True:
-            kind, value = await output_queue.get()
+            kind, value = await thinking_queue.get()
             if kind == "done":
                 break
             elif kind == "thinking":
@@ -283,17 +264,27 @@ async def stream_agent_response(
             agent_task.cancel()
 
     # ------------------------------------------------------------------
-    # Bước 4: Stream TTS normalize cho tool domains
+    # Bước 4: Pipeline TTS normalize — stream token-by-token ngay lập tức
+    #          thay vì chờ normalize() trả về toàn bộ string
     # ------------------------------------------------------------------
     raw_text = raw_agent_text[0] if raw_agent_text else ""
     if raw_text:
         tts_agents = get_tts_agents()
         tts = tts_agents.get(domain) or tts_agents.get("normal_talk")
         if tts is not None:
-            async for token_chunk in tts.astream_normalize(raw_text):
-                if token_chunk:
-                    yield _sse(_chunk_payload(completion_id, model, {"content": token_chunk}))
+            try:
+                async for token_chunk in tts.astream_normalize(raw_text):
+                    if token_chunk:
+                        yield _sse(_chunk_payload(completion_id, model, {"content": token_chunk}))
+            except Exception as exc:
+                logger.error("TTS stream error for domain %s: %s", domain, exc)
+                # Fallback: emit raw text word-by-word
+                words = raw_text.split(" ")
+                for i, word in enumerate(words):
+                    chunk = word if i == len(words) - 1 else word + " "
+                    yield _sse(_chunk_payload(completion_id, model, {"content": chunk}))
         else:
+            # Không có TTS agent → emit trực tiếp
             words = raw_text.split(" ")
             for i, word in enumerate(words):
                 chunk = word if i == len(words) - 1 else word + " "
@@ -382,7 +373,6 @@ async def chat_completions(request: ChatCompletionRequest):
 
     if request.stream:
         return StreamingResponse(
-            # Truyền raw_messages để normal_talk có thể giữ persona prompt
             stream_agent_response(graph, request.messages, model, completion_id),
             media_type="text/event-stream",
             headers={

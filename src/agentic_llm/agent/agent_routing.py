@@ -41,15 +41,14 @@ from tts_normalizer import TTSNormalizerAgent, create_tts_normalizers
 logger = logging.getLogger(__name__)
 
 # TTS per-domain singletons — dict {domain: TTSNormalizerAgent}
-# Khởi tạo trong create_router_agent() khi có đủ config
 _tts_agents: dict[str, TTSNormalizerAgent] = {}
 
 
 def get_tts_agents() -> dict[str, TTSNormalizerAgent]:
-    """Trả về dict TTS agents hiện tại. Dùng bởi server.py để stream normalize."""
     return _tts_agents
 
-# Router LLM singleton — dùng bởi pre_route() trong server.py
+
+# Router LLM singleton
 _router_llm_instance: Optional[ChatOpenAI] = None
 
 MAX_HOPS = 6
@@ -251,22 +250,9 @@ async def _route(query: str, llm: ChatOpenAI) -> str:
         return "normal_talk"
 
 
-# ---------------------------------------------------------------------------
-# Public helper — gọi từ server.py để pre-route trước khi ainvoke graph
-# ---------------------------------------------------------------------------
-
 async def pre_route(messages: list) -> str:
     """
     Phân loại nhanh domain từ danh sách messages.
-
-    Xử lý đặc biệt cho Pipecat:
-    - Pipecat luôn có 1 SystemMessage đầu tiên (persona/kickstart) — bỏ qua khi route.
-    - Kickstart call: chỉ có SystemMessage, không có HumanMessage → normal_talk.
-    - Kickstart trigger rỗng hoặc ngắn (< 3 ký tự) → normal_talk.
-    - Các HumanMessage thực sự → gọi router LLM để phân loại.
-
-    Server.py gọi hàm này TRƯỚC khi ainvoke graph, sau đó truyền domain vào
-    initial_state["domain"] để route_node bỏ qua LLM call thứ hai.
     """
     if _router_llm_instance is None:
         logger.warning("pre_route called before create_router_agent — defaulting to normal_talk")
@@ -296,7 +282,7 @@ class RouterState(TypedDict):
     hop_count:         int
     thinking_streamed: bool
     domain:            str
-    skip_tts:          bool  # nếu True, tts_node trả về nguyên state (server tự stream TTS)
+    skip_tts:          bool
 
 
 # ---------------------------------------------------------------------------
@@ -313,16 +299,16 @@ def _build_router_graph(
     tts_agents: dict[str, TTSNormalizerAgent],
 ):
     # ------------------------------------------------------------------
-    # route_node
+    # route_node — FAST PATH: skip LLM call nếu domain đã được pre-seed
     # ------------------------------------------------------------------
     async def route_node(state: RouterState) -> dict:
+        # Domain đã được pre_route() seed từ server.py → bỏ qua LLM call
         if state.get("domain") and state["domain"] in _VALID_DOMAINS:
             logger.info("ROUTER: domain pre-seeded as %s, skipping LLM", state["domain"])
             return {}
 
         user_msgs = [m for m in state["messages"] if isinstance(m, HumanMessage)]
         if not user_msgs:
-            logger.info("ROUTER: no HumanMessage → normal_talk")
             return {"domain": "normal_talk"}
 
         domain = await _route(user_msgs[-1].content, router_llm)
@@ -349,12 +335,8 @@ def _build_router_graph(
     async def run_normal_talk(state: RouterState) -> dict:
         """
         Agent xã giao — không dùng tool, trả lời trực tiếp từ LLM.
-
-        Kickstart:    [{system: "Say hello..."}]
-          → convert greeting instruction thành HumanMessage để LLM thực thi
-
-        Regular turn: [{human}, {ai}, ..., {human}]
-          → inject normal_talk prompt, giữ nguyên history
+        NOTE: normal_talk thường được bypass hoàn toàn bởi server.py
+        (direct stream qua AsyncOpenAI). Node này chỉ chạy trong non-streaming path.
         """
         raw = list(state["messages"])
         system_msgs  = [m for m in raw if isinstance(m, SystemMessage)]
@@ -370,19 +352,16 @@ def _build_router_graph(
         return {"messages": [response], "hop_count": state["hop_count"]}
 
     # ------------------------------------------------------------------
-    # TTS normalization node — dùng đúng agent theo domain
+    # TTS normalization node
     # ------------------------------------------------------------------
     async def tts_node(state: RouterState) -> dict:
         """
-        Node TTS duy nhất trong toàn bộ pipeline.
-        Chọn TTSNormalizerAgent theo domain trong state → normalize đúng context.
-        Tìm AIMessage cuối, normalize, thay thế in-place.
-
-        Nếu state["skip_tts"] is True (do server.py set), bỏ qua normalize —
-        server sẽ tự stream TTS trực tiếp qua TTSNormalizerAgent.astream_normalize().
+        Normalize TTS cho non-streaming path.
+        skip_tts=True (set bởi server.py khi streaming) → no-op,
+        server tự stream TTS qua TTSNormalizerAgent.astream_normalize().
         """
         if state.get("skip_tts", False):
-            return {}  # no-op: giữ nguyên messages để server tự xử lý
+            return {}
 
         domain = state.get("domain", "normal_talk")
         tts    = tts_agents.get(domain) or tts_agents.get("normal_talk")
@@ -463,7 +442,6 @@ def create_router_agent(
     api_key  = openai_api_key or os.environ.get("OPENAI_API_KEY")
     base_url = openai_base_url
 
-    # TTS per-domain instances
     global _tts_agents
     _tts_agents = create_tts_normalizers(
         model=model,

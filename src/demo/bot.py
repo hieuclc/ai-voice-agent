@@ -127,7 +127,7 @@ async def run_bot(webrtc_connection, session_id):
         model_name="zipvoice",
     )
 
-    llm = OpenAILLMService(model = "gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"), base_url = "http://localhost:8000/v1")
+    llm = OpenAILLMService(model = "Qwen/Qwen3-4B-Instruct-2507", api_key=os.getenv("OPENAI_API_KEY"), base_url = "http://localhost:8000/v1")
 
     prompt = r'''
     Bạn là một trợ lý giọng nói Tiếng Việt chuyên tư vấn cho người dùng.
