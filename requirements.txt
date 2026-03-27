@@ -26,3 +26,4 @@ pandas
 openpyxl
 datasets
 tqdm
+tritonclient[grpc]
