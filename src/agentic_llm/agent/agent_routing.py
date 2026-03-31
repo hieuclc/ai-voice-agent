@@ -206,6 +206,7 @@ def _normal_talk_system_prompt(date: str) -> str:
 
 QUY TẮC:
 - Luôn trả lời bằng tiếng Việt.
+- Câu đầu tiên của phản hồi phải có dưới 10 từ.
 - Ngắn gọn, tự nhiên như đang trò chuyện trực tiếp.
 - Tuyệt đối không dùng markdown, bullet, số thứ tự, emoji, header, dấu gạch đầu dòng.
 - Không giải thích cách suy nghĩ.
