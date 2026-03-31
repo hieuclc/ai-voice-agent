@@ -66,28 +66,30 @@ _TEXT_PATTERNS = [
 
 class BenchmarkLogSink:
     def __init__(self):
-        self._in_turn:             dict = defaultdict(bool)
-        self._llm_call_ts:         dict = defaultdict(lambda: None)  # LLM TTFB log timestamp
-        self._tts_first_gen_ts:    dict = defaultdict(lambda: None)  # timestamp of first "Generating TTS"
-        self._tts_first_proc_done_ts: dict = defaultdict(lambda: None)  # timestamp when first TTS proc finishes
-        self._tts_first_proc_ms:   dict = defaultdict(lambda: None)  # value of first TTS processing_time (ms)
-        self._tts_proc_count:      dict = defaultdict(int)
-        self._tts_proc_acc_s:      dict = defaultdict(float)         # accumulated seconds
-        self._tts_chars_acc:       dict = defaultdict(float)
-        self._tts_texts:           dict = defaultdict(list)
-        self._flushed:             dict = defaultdict(bool)
+        self._in_turn:                dict = defaultdict(bool)
+        self._llm_call_ts:            dict = defaultdict(lambda: None)
+        self._tts_first_gen_ts:       dict = defaultdict(lambda: None)
+        self._tts_first_proc_done_ts: dict = defaultdict(lambda: None)
+        self._tts_first_proc_ms:      dict = defaultdict(lambda: None)
+        self._tts_proc_count:         dict = defaultdict(int)
+        self._tts_proc_acc_s:         dict = defaultdict(float)
+        self._tts_chars_acc:          dict = defaultdict(float)
+        self._tts_texts:              dict = defaultdict(list)
+        self._flushed:                dict = defaultdict(bool)
+        self._send_audio_collected:   dict = defaultdict(bool)  # ← thêm vào đây
 
     def _reset_turn(self, sid):
-        self._in_turn[sid]               = False
-        self._llm_call_ts[sid]           = None
-        self._tts_first_gen_ts[sid]      = None
+        self._in_turn[sid]                = False
+        self._llm_call_ts[sid]            = None
+        self._tts_first_gen_ts[sid]       = None
         self._tts_first_proc_done_ts[sid] = None
-        self._tts_first_proc_ms[sid]     = None
-        self._tts_proc_count[sid]        = 0
-        self._tts_proc_acc_s[sid]        = 0.0
-        self._tts_chars_acc[sid]         = 0.0
-        self._tts_texts[sid]             = []
-        self._flushed[sid]               = False
+        self._tts_first_proc_ms[sid]      = None
+        self._tts_proc_count[sid]         = 0
+        self._tts_proc_acc_s[sid]         = 0.0
+        self._tts_chars_acc[sid]          = 0.0
+        self._tts_texts[sid]              = []
+        self._flushed[sid]                = False
+        self._send_audio_collected[sid]   = False  # ← reset ở đây
 
     def flush_session(self, sid: str):
         """Call from GET /benchmark/session/{sid} before returning metrics."""
@@ -121,7 +123,6 @@ class BenchmarkLogSink:
             self._llm_call_ts[sid] = ts
 
         # ── First TTS gen line → end of LLM streaming lag ────────────────
-        # "ZipVoiceTTS: [text]" is logged by ttsv2:run_tts once per chunk
         tts_gen_match = _TTS_GEN_RE.search(line)
         if tts_gen_match:
             text = tts_gen_match.group(1).strip()
@@ -137,7 +138,6 @@ class BenchmarkLogSink:
                 self._tts_proc_acc_s[sid] += val_s
                 self._tts_proc_count[sid] += 1
 
-                # First TTS chunk finished
                 if self._in_turn[sid] and self._tts_first_proc_done_ts[sid] is None and ts is not None:
                     self._tts_first_proc_done_ts[sid] = ts
                     self._tts_first_proc_ms[sid] = val_s * 1000
@@ -152,14 +152,17 @@ class BenchmarkLogSink:
             except ValueError:
                 pass
 
-        # ── Bot started speaking → send_audio_time can be calculated ─────
+        # ── Bot started speaking → send_audio_time (chỉ collect 1 lần/turn) ─
         if _BOT_SPEAKING_RE.search(line):
-            if self._in_turn[sid] and not self._flushed[sid]:
+            if (self._in_turn[sid]
+                    and not self._flushed[sid]
+                    and not self._send_audio_collected[sid]):  # ← guard
                 first_proc_done_ts = self._tts_first_proc_done_ts[sid]
                 if first_proc_done_ts is not None and ts is not None:
                     send_audio_ms = (ts - first_proc_done_ts).total_seconds() * 1000
-                    if send_audio_ms >= 0:
+                    if 0 <= send_audio_ms < 5000:  # sanity check: bỏ qua nếu > 5s
                         collect_metric(sid, "tts", "send_audio_time", send_audio_ms, "ms")
+                        self._send_audio_collected[sid] = True  # ← đánh dấu đã collect
 
         # ── Text patterns ─────────────────────────────────────────────────
         for pattern, stage, key in _TEXT_PATTERNS:
@@ -171,30 +174,23 @@ class BenchmarkLogSink:
         llm_ts        = self._llm_call_ts[sid]
         first_gen_ts  = self._tts_first_gen_ts[sid]
 
-        # llm_time = LLM TTFB timestamp → first "Generating TTS" timestamp
         if llm_ts is not None and first_gen_ts is not None:
             llm_time_ms = (first_gen_ts - llm_ts).total_seconds() * 1000
             if llm_time_ms >= 0:
                 collect_metric(sid, "llm", "llm_time", llm_time_ms, "ms")
 
-        # first_sentence = processing time of the very first TTS chunk
         first_proc_ms = self._tts_first_proc_ms[sid]
         if first_proc_ms is not None:
             collect_metric(sid, "tts", "first_sentence", first_proc_ms, "ms")
 
-        # total_time = from first "Generating TTS" to last TTS proc done
-        # We approximate as the sum of all TTS processing times (they run
-        # mostly sequentially in pipecat's ZipVoiceTTS pipeline).
         proc_acc_s = self._tts_proc_acc_s[sid]
         if proc_acc_s > 0:
             collect_metric(sid, "tts", "total_time", proc_acc_s * 1000, "ms")
 
-        # chars
         chars = self._tts_chars_acc[sid]
         if chars > 0:
             collect_metric(sid, "tts", "usage_chars", chars, "chars")
 
-        # full TTS text
         texts = self._tts_texts[sid]
         if texts:
             collect_text(sid, "tts", "text", " | ".join(texts))
