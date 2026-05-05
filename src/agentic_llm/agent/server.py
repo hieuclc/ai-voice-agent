@@ -17,21 +17,29 @@ import logging
 import os
 import time
 import uuid
-from dotenv import load_dotenv
+from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import AsyncIterator, Optional
 
-from contextlib import asynccontextmanager
-
+import asyncio
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from openai import AsyncOpenAI
 from pydantic import BaseModel
-import asyncio
 
-from agent import preload_bge_model
-from agent_routing import create_router_agent, pre_route, get_tts_agents
+from agent_routing import (
+    create_router_agent,
+    get_tts_agents,
+    pick_thinking_ongoing_sentence,
+    pick_thinking_start_sentence,
+    pre_route,
+    preload_bge_model,
+    THINKING_INTERVAL_SECONDS,
+    _normal_talk_system_prompt,
+)
 
 EXTRA_TOOLS: list = []
 
@@ -59,7 +67,7 @@ def _get_openai_client() -> AsyncOpenAI:
 
 
 # ---------------------------------------------------------------------------
-# OpenAI request / response models
+# Request / response models
 # ---------------------------------------------------------------------------
 
 class ChatMessage(BaseModel):
@@ -83,7 +91,7 @@ class ChatCompletionRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# LangChain message conversion
+# Message conversion helpers
 # ---------------------------------------------------------------------------
 
 def _strip_pipecat_persona(messages: list[ChatMessage]) -> list[ChatMessage]:
@@ -116,8 +124,10 @@ def to_openai_messages(messages: list[ChatMessage]) -> list[dict]:
 def _sse(data: dict) -> str:
     return f"data: {json.dumps(data)}\n\n"
 
+
 def _sse_done() -> str:
     return "data: [DONE]\n\n"
+
 
 def _chunk_payload(
     completion_id: str,
@@ -144,40 +154,27 @@ async def stream_agent_response(
     model: str,
     completion_id: str,
 ) -> AsyncIterator[str]:
-    """
-    Stream agent response.
-
-    OPTIMIZATIONS vs original:
-    1. pre_route() và graph.ainvoke() chạy concurrently với thinking producer.
-    2. TTS normalize được PIPELINE: agent text được đưa vào TTS stream ngay
-       khi ainvoke() xong — không chờ thinking loop kết thúc.
-    3. normal_talk bypass hoàn toàn graph → direct OpenAI stream (~200ms TTFT).
-    4. route_node trong graph skip LLM call nếu domain đã được pre-seed.
-    """
-    from agent import (
-        THINKING_INTERVAL_SECONDS,
-        pick_thinking_start_sentence,
-        pick_thinking_ongoing_sentence,
-    )
-
     yield _sse(_chunk_payload(completion_id, model, {"role": "assistant", "content": ""}))
 
-    # ------------------------------------------------------------------
-    # Bước 1: Pre-route song song với việc chuẩn bị messages
-    # ------------------------------------------------------------------
+    # Pre-route
     lc_messages_for_route = to_lc_messages(raw_messages, strip_persona=True)
     domain = await pre_route(lc_messages_for_route)
     logger.info("stream_agent_response: pre_route → %s", domain)
 
-    needs_thinking = domain in _TOOL_DOMAINS
+    # ------------------------------------------------------------------
+    # normal_talk — bypass graph, direct OpenAI stream with correct prompt
+    # ------------------------------------------------------------------
+    if domain not in _TOOL_DOMAINS:
+        date = datetime.now().strftime("%d/%m/%Y")
+        nt_prompt = _normal_talk_system_prompt(date)
 
-    # ------------------------------------------------------------------
-    # Bước 2: normal_talk — direct OpenAI stream, giữ nguyên persona prompt
-    # ------------------------------------------------------------------
-    if not needs_thinking:
-        openai_messages = to_openai_messages(raw_messages)
+        stripped = _strip_pipecat_persona(raw_messages)
+        openai_messages = [
+            {"role": "system", "content": nt_prompt},
+            *to_openai_messages(stripped),
+        ]
+
         client = _get_openai_client()
-
         try:
             stream = await client.chat.completions.create(
                 model=model,
@@ -197,8 +194,7 @@ async def stream_agent_response(
         return
 
     # ------------------------------------------------------------------
-    # Bước 3: Tool domains — agent + thinking chạy concurrently,
-    #          TTS được pipeline ngay sau khi agent xong
+    # Tool domains — agent + thinking concurrently
     # ------------------------------------------------------------------
     lc_messages = to_lc_messages(raw_messages, strip_persona=True)
 
@@ -207,65 +203,57 @@ async def stream_agent_response(
         "hop_count":         0,
         "thinking_streamed": False,
         "domain":            domain,
-        "skip_tts":          True,  # server tự stream TTS
+        "skip_tts":          True,
     }
 
-    # Queue dùng để pipeline thinking tokens → caller
-    thinking_queue: asyncio.Queue[tuple[str, str | None]] = asyncio.Queue()
+    # agent_done_event: set khi agent hoàn thành (dù thành công hay lỗi)
     agent_done_event = asyncio.Event()
     raw_agent_text: list[str] = []
 
-    # --- Agent runner ---
     async def agent_runner():
         try:
             result = await graph.ainvoke(initial_state)
             for msg in reversed(result["messages"]):
-                if isinstance(msg, AIMessage) and not getattr(msg, "tool_calls", None) and msg.content.strip():
+                if (
+                    isinstance(msg, AIMessage)
+                    and not getattr(msg, "tool_calls", None)
+                    and msg.content.strip()
+                ):
                     raw_agent_text.append(msg.content)
                     break
         except Exception as exc:
             logger.error("agent_runner error: %s", exc)
         finally:
             agent_done_event.set()
-            await thinking_queue.put(("done", None))
 
-    # --- Thinking producer ---
-    async def thinking_producer():
-        await thinking_queue.put(("thinking", pick_thinking_start_sentence()))
-        while True:
-            try:
-                await asyncio.wait_for(
-                    asyncio.shield(agent_done_event.wait()),
-                    timeout=THINKING_INTERVAL_SECONDS,
-                )
-                break
-            except asyncio.TimeoutError:
-                if not agent_done_event.is_set():
-                    await thinking_queue.put(("thinking", pick_thinking_ongoing_sentence()))
-                else:
-                    break
-
+    # Khởi động agent task
     agent_task = asyncio.create_task(agent_runner())
-    think_task = asyncio.create_task(thinking_producer())
-
-    # Stream thinking tokens cho đến khi agent xong
-    try:
-        while True:
-            kind, value = await thinking_queue.get()
-            if kind == "done":
-                break
-            elif kind == "thinking":
-                logger.info("Emitting thinking sentence: %r", value)
-                yield _sse(_chunk_payload(completion_id, model, {"content": value}))
-                yield _sse(_chunk_payload(completion_id, model, {"content": " "}))
-    finally:
-        think_task.cancel()
-        if not agent_task.done():
-            agent_task.cancel()
 
     # ------------------------------------------------------------------
-    # Bước 4: Pipeline TTS normalize — stream token-by-token ngay lập tức
-    #          thay vì chờ normalize() trả về toàn bộ string
+    # Emit thinking sentences TRỰC TIẾP (không dùng queue)
+    # Vòng lặp này thoát ngay khi agent_done_event được set.
+    # ------------------------------------------------------------------
+    yield _sse(_chunk_payload(completion_id, model, {"content": pick_thinking_start_sentence() + "\n"}))
+
+    while not agent_done_event.is_set():
+        try:
+            await asyncio.wait_for(
+                asyncio.shield(agent_done_event.wait()),
+                timeout=THINKING_INTERVAL_SECONDS,
+            )
+            # agent_done_event được set → thoát vòng lặp
+            break
+        except asyncio.TimeoutError:
+            # Kiểm tra lại trước khi emit để tránh race condition
+            if agent_done_event.is_set():
+                break
+            yield _sse(_chunk_payload(completion_id, model, {"content": pick_thinking_ongoing_sentence() + "\n"}))
+
+    # Đảm bảo agent task hoàn thành trước khi đọc kết quả
+    await agent_task
+
+    # ------------------------------------------------------------------
+    # Stream TTS normalized output
     # ------------------------------------------------------------------
     raw_text = raw_agent_text[0] if raw_agent_text else ""
     if raw_text:
@@ -281,14 +269,11 @@ async def stream_agent_response(
                 # Fallback: emit raw text word-by-word
                 words = raw_text.split(" ")
                 for i, word in enumerate(words):
-                    chunk = word if i == len(words) - 1 else word + " "
-                    yield _sse(_chunk_payload(completion_id, model, {"content": chunk}))
+                    yield _sse(_chunk_payload(completion_id, model, {"content": word if i == len(words) - 1 else word + " "}))
         else:
-            # Không có TTS agent → emit trực tiếp
             words = raw_text.split(" ")
             for i, word in enumerate(words):
-                chunk = word if i == len(words) - 1 else word + " "
-                yield _sse(_chunk_payload(completion_id, model, {"content": chunk}))
+                yield _sse(_chunk_payload(completion_id, model, {"content": word if i == len(words) - 1 else word + " "}))
 
     yield _sse(_chunk_payload(completion_id, model, {}, finish_reason="stop"))
     yield _sse_done()
