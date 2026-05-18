@@ -30,15 +30,20 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
+# ---------------------------------------------------------------------------
+# Imports từ refactored modules
+# ---------------------------------------------------------------------------
 from agent_routing import (
+    _normal_talk_system_prompt,
     create_router_agent,
     get_tts_agents,
+    pre_route,
+)
+from utils import (
+    THINKING_INTERVAL_SECONDS,
     pick_thinking_ongoing_sentence,
     pick_thinking_start_sentence,
-    pre_route,
-    preload_bge_model,
-    THINKING_INTERVAL_SECONDS,
-    _normal_talk_system_prompt,
+    preload_models,
 )
 
 EXTRA_TOOLS: list = []
@@ -162,13 +167,13 @@ async def stream_agent_response(
     logger.info("stream_agent_response: pre_route → %s", domain)
 
     # ------------------------------------------------------------------
-    # normal_talk — bypass graph, direct OpenAI stream with correct prompt
+    # normal_talk — bypass graph, direct OpenAI stream với đúng prompt
     # ------------------------------------------------------------------
     if domain not in _TOOL_DOMAINS:
-        date = datetime.now().strftime("%d/%m/%Y")
+        date      = datetime.now().strftime("%d/%m/%Y")
         nt_prompt = _normal_talk_system_prompt(date)
 
-        stripped = _strip_pipecat_persona(raw_messages)
+        stripped        = _strip_pipecat_persona(raw_messages)
         openai_messages = [
             {"role": "system", "content": nt_prompt},
             *to_openai_messages(stripped),
@@ -230,10 +235,13 @@ async def stream_agent_response(
     agent_task = asyncio.create_task(agent_runner())
 
     # ------------------------------------------------------------------
-    # Emit thinking sentences TRỰC TIẾP (không dùng queue)
+    # Emit thinking sentences trực tiếp (không dùng queue)
     # Vòng lặp này thoát ngay khi agent_done_event được set.
     # ------------------------------------------------------------------
-    yield _sse(_chunk_payload(completion_id, model, {"content": pick_thinking_start_sentence() + "\n"}))
+    yield _sse(_chunk_payload(
+        completion_id, model,
+        {"content": pick_thinking_start_sentence() + "\n"},
+    ))
 
     while not agent_done_event.is_set():
         try:
@@ -241,13 +249,14 @@ async def stream_agent_response(
                 asyncio.shield(agent_done_event.wait()),
                 timeout=THINKING_INTERVAL_SECONDS,
             )
-            # agent_done_event được set → thoát vòng lặp
             break
         except asyncio.TimeoutError:
-            # Kiểm tra lại trước khi emit để tránh race condition
             if agent_done_event.is_set():
                 break
-            yield _sse(_chunk_payload(completion_id, model, {"content": pick_thinking_ongoing_sentence() + "\n"}))
+            yield _sse(_chunk_payload(
+                completion_id, model,
+                {"content": pick_thinking_ongoing_sentence() + "\n"},
+            ))
 
     # Đảm bảo agent task hoàn thành trước khi đọc kết quả
     await agent_task
@@ -269,11 +278,13 @@ async def stream_agent_response(
                 # Fallback: emit raw text word-by-word
                 words = raw_text.split(" ")
                 for i, word in enumerate(words):
-                    yield _sse(_chunk_payload(completion_id, model, {"content": word if i == len(words) - 1 else word + " "}))
+                    chunk_text = word if i == len(words) - 1 else word + " "
+                    yield _sse(_chunk_payload(completion_id, model, {"content": chunk_text}))
         else:
             words = raw_text.split(" ")
             for i, word in enumerate(words):
-                yield _sse(_chunk_payload(completion_id, model, {"content": word if i == len(words) - 1 else word + " "}))
+                chunk_text = word if i == len(words) - 1 else word + " "
+                yield _sse(_chunk_payload(completion_id, model, {"content": chunk_text}))
 
     yield _sse(_chunk_payload(completion_id, model, {}, finish_reason="stop"))
     yield _sse_done()
@@ -305,14 +316,18 @@ async def get_full_response(graph, lc_messages: list) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Startup: loading BGE-M3 embedding model…")
-    await preload_bge_model()
+    logger.info("Startup: loading models (BGE-M3 + Reranker)…")
+    await preload_models()
     logger.info("Startup: all services ready.")
     yield
     logger.info("Shutdown: bye.")
 
 
-app = FastAPI(title="RAG Agent – OpenAI Compatible API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="RAG Agent – OpenAI Compatible API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -344,7 +359,14 @@ async def health():
 async def list_models():
     return {
         "object": "list",
-        "data": [{"id": LLM_MODEL, "object": "model", "created": int(time.time()), "owned_by": "rag-agent"}],
+        "data": [
+            {
+                "id": LLM_MODEL,
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "rag-agent",
+            }
+        ],
     }
 
 

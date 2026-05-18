@@ -35,7 +35,6 @@ from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 # from pipecat.services.openai.tts import OpenAITTSService
 from ttsv2 import ZipVoiceTTSService
-# from stt import OpenAISTTService
 from pipecat.services.openai.stt import OpenAISTTService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import TransportParams
@@ -48,7 +47,8 @@ logger.info("✅ All components loaded successfully!")
 
 load_dotenv(override=True)
 
-from benchmark_log_sink import current_session_id
+from utils import current_session_id
+
 
 # ---------------------------------------------------------------------------
 # Thinking sentence prefixes — phải khớp với THINKING_SENTENCES_* trong agent.py
@@ -69,18 +69,6 @@ def _is_thinking_sentence(text: str) -> bool:
 
 
 class ThinkingSentenceProcessor(FrameProcessor):
-    """
-    Đặt giữa llm và tts trong pipeline.
-
-    Vấn đề: SimpleTextAggregator (aggregate_sentences=True) dùng cross-frame
-    lookahead — buffer câu thinking cho đến khi thấy chữ hoa đầu câu tiếp theo
-    → delay 6-7 giây trước khi TTS xử lý.
-
-    Fix: intercept TextFrame chứa thinking sentence, convert thành TTSSpeakFrame.
-    TTSService xử lý TTSSpeakFrame bằng _push_tts_frames(AggregationType.SENTENCE)
-    — hoàn toàn bypass SimpleTextAggregator.
-    Các TextFrame bình thường (response tokens) vẫn đi qua aggregator như cũ.
-    """
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
@@ -112,22 +100,19 @@ async def run_bot(webrtc_connection, session_id):
     stt = OpenAISTTService(
         model="gpt-4o-mini-transcribe",
         api_key=os.getenv("OPENAI_API_KEY"),
-        base_url = "http://localhost:8005/v1"
+        base_url = os.getenv("STT_BASE_URL")
     )
 
-    # tts = OpenAITTSService(
-    #     model = "gpt-4o-mini-tts",
-    #     api_key=os.getenv("OPENAI_API_KEY"),
-    #     # base_url = "http://localhost:8001/v1",
-    #     voice = "alloy"
-    # )
-
     tts = ZipVoiceTTSService(
-        triton_url="localhost:8002",
+        triton_url=os.getenv("TTS_BASE_URL"),
         model_name="zipvoice",
     )
 
-    llm = OpenAILLMService(model = "Qwen/Qwen3-4B-Instruct-2507", api_key=os.getenv("OPENAI_API_KEY"), base_url = "http://localhost:8000/v1")
+    llm = OpenAILLMService(
+        model = os.getenv("LLM_MODEL_NAME"),
+        api_key=os.getenv("OPENAI_API_KEY"),
+        base_url = os.getenv("LLM_BASE_URL")
+    )
 
     prompt = r'''
     Bạn là một trợ lý giọng nói Tiếng Việt chuyên tư vấn cho người dùng.

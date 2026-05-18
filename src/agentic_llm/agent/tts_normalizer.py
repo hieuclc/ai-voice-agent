@@ -473,33 +473,3 @@ def create_tts_normalizers(
         )
         for domain in _PROMPT_BUILDERS
     }
-
-
-# ============================================================
-# Self-test
-# ============================================================
-
-if __name__ == "__main__":
-    import asyncio
-
-    TEST_CASES: list[tuple[str, str]] = [
-        ("law",  "Theo Nghị định 168/2024/NĐ-CP, phạt từ 18.000.000 đồng đến 20.000.000 đồng."),
-        ("law",  "UBND TP.HCM xử phạt vi phạm ATGT từ 800.000 đến 1.000.000 đồng."),
-        ("law",  "**Lưu ý:** Các hạng A1, A và B1 cần mang GPLX."),
-        ("admission", "Điểm chuẩn ngành CN12 năm 2025 là 28,19. Học phí 44.000.000 VND/năm."),
-        ("admission", "Chỉ tiêu CN1: 420, CN12: 80, CN18: 60."),
-        ("admission", "Sinh viên tốt nghiệp có thể làm về IT, AI và IoT."),
-        ("tour", "TOUR PHÚ QUỐC MÙA XUÂN 3N2Đ | GRAND WORLD - VINWONDERS - SAFARI"),
-        ("tour", "Tour Miền Bắc 5N4Đ | Tam Chúc – Ninh Bình – Hạ Long"),
-        ("tour", "Giá tour 5.990.000 VND, bao gồm buffet sáng."),
-        ("normal_talk", "Xin chào! Tôi có thể giúp gì cho bạn hôm nay?"),
-    ]
-
-    async def run():
-        agents = create_tts_normalizers()
-        for domain, text in TEST_CASES:
-            result = await agents[domain].anormalize(text)
-            print(f"[{domain:12s}] IN : {text}")
-            print(f"             OUT: {result}\n")
-
-    asyncio.run(run())

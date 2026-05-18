@@ -25,8 +25,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from transcription_handler import TranscriptHandler
 from uuid import uuid4
 
-from benchmark_metrics import get_metrics, get_texts, clear_metrics
-from benchmark_log_sink import benchmark_sink, current_session_id
+from utils import get_metrics, get_texts, clear_metrics, benchmark_sink, current_session_id
+import asyncio
 
 # Thêm sau khi tạo app:
 logger.add(benchmark_sink, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}")
@@ -37,24 +37,8 @@ load_dotenv(override=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    yield  # Run app
+    yield
     await small_webrtc_handler.close()
-
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     yield
-#     logger.warning("FastAPI shutting down...")
-
-#     # 1️⃣ Cancel all bot tasks
-#     for task in list(active_bot_tasks):
-#         task.cancel()
-
-#     await asyncio.gather(*active_bot_tasks, return_exceptions=True)
-
-#     # 2️⃣ Close WebRTC handler (aiortc)
-#     await small_webrtc_handler.close()
-
-#     logger.warning("Shutdown complete")
 
 
 app = FastAPI(lifespan = lifespan)
@@ -82,26 +66,13 @@ small_webrtc_handler = SmallWebRTCRequestHandler(
 
 transcript_handler = TranscriptHandler(session_id = None)
 
-import asyncio
-
 active_bot_tasks: set[asyncio.Task] = set()
 
 @app.post("/api/offer")
 async def offer(request: SmallWebRTCRequest, background_tasks: BackgroundTasks, session_id = Query(...)):
-    """Handle WebRTC offer requests via SmallWebRTCRequestHandler."""
-    # Prepare runner arguments with the callback to run your bot
     async def webrtc_connection_callback(connection):
         background_tasks.add_task(run_bot, connection, session_id)
-    # async def webrtc_connection_callback(connection):
-    #     task = asyncio.create_task(run_bot(connection))
-    #     active_bot_tasks.add(task)
 
-    #     def _done(t: asyncio.Task):
-    #         active_bot_tasks.discard(t)
-
-    #     task.add_done_callback(_done)
-
-    # Delegate handling to SmallWebRTCRequestHandler
     answer = await small_webrtc_handler.handle_web_request(
         request=request,
         webrtc_connection_callback=webrtc_connection_callback,
@@ -136,7 +107,7 @@ async def load_chat_session(session_id: str):
         )
 
     return session
-from uuid import uuid4
+
 @app.post("/api/chat-sessions/create")
 async def create_chat_session():
     session_id = uuid4()
@@ -146,7 +117,7 @@ async def create_chat_session():
 
 @app.get("/benchmark/session/{session_id}")
 async def get_benchmark_metrics(session_id: str):
-    benchmark_sink.flush_session(session_id)  # flush turn cuối
+    benchmark_sink.flush_session(session_id)
     metrics = get_metrics(session_id)
     texts   = get_texts(session_id)
     return {"session_id": session_id, "metrics": metrics, "texts": texts}
@@ -155,12 +126,6 @@ async def get_benchmark_metrics(session_id: str):
 async def clear_benchmark_metrics(session_id: str):
     clear_metrics(session_id)
     return {"status": "cleared"}
-
-# @app.get("/")
-# async def serve_index():
-#     return FileResponse("index.html")
-
-
 
 
 if __name__ == "__main__":

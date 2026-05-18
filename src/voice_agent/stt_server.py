@@ -1,18 +1,3 @@
-"""
-stt_server.py — ChunkFormer STT, latency-optimized for fast GPU inference
-
-Design rationale:
-  - Inference = 37ms → batching adds wait overhead, not throughput
-  - asyncio.to_thread = ~10-30ms overhead per call → replaced with
-    a dedicated ThreadPoolExecutor (1 thread) so the GPU thread is
-    always warm and never recreated
-  - Queue + future round-trip removed for the common single-request case
-  - ThreadPoolExecutor(1): GPU calls serialize naturally, no CUDA conflict
-  - For true concurrency (multiple simultaneous callers), increase
-    max_workers — CUDA will time-slice but 37ms inference means
-    queuing is still fast
-"""
-
 import asyncio
 import argparse
 import logging
@@ -24,10 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uvicorn
 from typing import Optional
-
-# =========================
-# LOGGING
-# =========================
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,13 +22,7 @@ logging.getLogger("root").addFilter(
 logger = logging.getLogger("stt_server")
 
 
-# =========================
-# CONFIG
-# =========================
 REQUEST_TIMEOUT = 20
-# 1 thread = GPU calls serialize (safe, no CUDA conflict)
-# Increase to 2-3 if you have multiple simultaneous callers and
-# are willing to trade VRAM for concurrency
 GPU_THREADS = 1
 
 _model = None
@@ -87,11 +62,6 @@ def _resolve_device(requested: str) -> str:
         logger.info("No GPU detected — running on CPU")
         return "cpu"
 
-
-# =========================
-# INFERENCE
-# =========================
-
 def _infer(audio: bytes) -> str:
     """Runs in the dedicated GPU thread. No asyncio, no overhead."""
     t0 = time.perf_counter()
@@ -107,11 +77,6 @@ def _infer(audio: bytes) -> str:
     logger.info("infer: %.1fms → %r", ms, text[:60])
     return text
 
-
-# =========================
-# LIFESPAN
-# =========================
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _model, _executor
@@ -123,10 +88,10 @@ async def lifespan(app: FastAPI):
     ).to(_device)
     _model.eval()
     torch.set_grad_enabled(False)
-    logger.info("Model loaded on %s", _device.upper())
 
-    # Warm up — first inference is always slower due to CUDA JIT
+    logger.info("Model loaded on %s", _device.upper())
     logger.info("Warming up model...")
+
     import wave, struct, io
     buf = io.BytesIO()
     with wave.open(buf, 'wb') as wf:
@@ -137,7 +102,6 @@ async def lifespan(app: FastAPI):
         _infer(buf.getvalue())
     logger.info("Model ready ✓")
 
-    # Single persistent thread keeps the GPU context warm
     _executor = ThreadPoolExecutor(max_workers=GPU_THREADS, thread_name_prefix="gpu")
 
     yield
@@ -145,10 +109,6 @@ async def lifespan(app: FastAPI):
     _executor.shutdown(wait=False)
     logger.info("Executor shut down")
 
-
-# =========================
-# FASTAPI APP
-# =========================
 
 app = FastAPI(title="ChunkFormer STT Server", version="4.2", lifespan=lifespan)
 app.add_middleware(
@@ -158,11 +118,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# =========================
-# ENDPOINT
-# =========================
 
 @app.post("/v1/audio/transcriptions")
 async def transcribe(
@@ -174,10 +129,6 @@ async def transcribe(
     audio = await file.read()
     t1 = time.perf_counter()
 
-    # Use get_running_loop() here instead of a captured global _loop.
-    # A global loop reference can go stale if the loop is restarted
-    # (e.g. during testing or edge-case reloads), causing silent failures.
-    # get_running_loop() always returns the live loop for this coroutine.
     loop = asyncio.get_running_loop()
 
     try:
@@ -207,11 +158,6 @@ async def transcribe(
 def health():
     logger.debug("Health check — device=%s", _device)
     return {"status": "ok", "device": _device}
-
-
-# =========================
-# ENTRY POINT
-# =========================
 
 def main():
     global GPU_THREADS, _device
