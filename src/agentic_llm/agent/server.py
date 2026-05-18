@@ -167,7 +167,7 @@ async def stream_agent_response(
     logger.info("stream_agent_response: pre_route → %s", domain)
 
     # ------------------------------------------------------------------
-    # normal_talk — bypass graph, direct OpenAI stream với đúng prompt
+    # normal_talk — gọi OpenAI, gom full text, rồi stream qua TTS normalizer
     # ------------------------------------------------------------------
     if domain not in _TOOL_DOMAINS:
         date      = datetime.now().strftime("%d/%m/%Y")
@@ -179,20 +179,40 @@ async def stream_agent_response(
             *to_openai_messages(stripped),
         ]
 
-        client = _get_openai_client()
+        client   = _get_openai_client()
+        raw_text = ""
         try:
-            stream = await client.chat.completions.create(
+            resp = await client.chat.completions.create(
                 model=model,
                 messages=openai_messages,
-                stream=True,
+                stream=False,
                 temperature=0,
             )
-            async for chunk in stream:
-                delta = chunk.choices[0].delta if chunk.choices else None
-                if delta and delta.content:
-                    yield _sse(_chunk_payload(completion_id, model, {"content": delta.content}))
+            raw_text = resp.choices[0].message.content or ""
         except Exception as exc:
-            logger.error("normal_talk direct stream error: %s", exc)
+            logger.error("normal_talk LLM error: %s", exc)
+
+        if raw_text:
+            tts_agents = get_tts_agents()
+            tts = tts_agents.get("normal_talk")
+            if tts is not None:
+                try:
+                    async for token_chunk in tts.astream_normalize(raw_text):
+                        if token_chunk:
+                            yield _sse(_chunk_payload(completion_id, model, {"content": token_chunk}))
+                except Exception as exc:
+                    logger.error("normal_talk TTS stream error: %s", exc)
+                    # Fallback: emit raw text word-by-word
+                    words = raw_text.split(" ")
+                    for i, word in enumerate(words):
+                        chunk_text = word if i == len(words) - 1 else word + " "
+                        yield _sse(_chunk_payload(completion_id, model, {"content": chunk_text}))
+            else:
+                # Không có TTS agent: emit raw text word-by-word
+                words = raw_text.split(" ")
+                for i, word in enumerate(words):
+                    chunk_text = word if i == len(words) - 1 else word + " "
+                    yield _sse(_chunk_payload(completion_id, model, {"content": chunk_text}))
 
         yield _sse(_chunk_payload(completion_id, model, {}, finish_reason="stop"))
         yield _sse_done()
@@ -390,14 +410,24 @@ async def chat_completions(request: ChatCompletionRequest):
         )
 
     lc_messages = to_lc_messages(request.messages, strip_persona=True)
-    content = await get_full_response(graph, lc_messages)
+    content     = await get_full_response(graph, lc_messages)
     return JSONResponse({
-        "id": completion_id,
-        "object": "chat.completion",
+        "id":      completion_id,
+        "object":  "chat.completion",
         "created": int(time.time()),
-        "model": model,
-        "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
-        "usage": {"prompt_tokens": -1, "completion_tokens": -1, "total_tokens": -1},
+        "model":   model,
+        "choices": [
+            {
+                "index":         0,
+                "message":       {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {
+            "prompt_tokens":     -1,
+            "completion_tokens": -1,
+            "total_tokens":      -1,
+        },
     })
 
 
