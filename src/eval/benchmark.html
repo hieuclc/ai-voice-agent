@@ -249,13 +249,11 @@
     <div>
       <div class="section-label" style="margin-bottom:12px">Summary — Server-side</div>
       <div class="metrics-grid">
-        <div class="metric-box"><div class="mval" id="s-stt">—</div><div class="mlabel">STT TTFB (avg)</div><div class="msub">ms</div></div>
-        <div class="metric-box"><div class="mval" id="s-llm">—</div><div class="mlabel">LLM TTFB (avg)</div><div class="msub">ms</div></div>
-        <div class="metric-box"><div class="mval" id="s-tts-ttfb">—</div><div class="mlabel">TTS TTFB (avg)</div><div class="msub">ms · LLM TTFB → first gen</div></div>
-        <div class="metric-box"><div class="mval" id="s-t2fa">—</div><div class="mlabel">Time to First Audio (avg)</div><div class="msub">ms · LLM TTFB → audio ready</div></div>
-        <div class="metric-box"><div class="mval" id="s-fsp">—</div><div class="mlabel">1st Sentence TTS (avg)</div><div class="msub">ms · processing time câu đầu tiên</div></div>
-        <div class="metric-box"><div class="mval" id="s-tts-proc">—</div><div class="mlabel">TTS Proc (avg)</div><div class="msub">ms · total generation</div></div>
-        <div class="metric-box"><div class="mval" id="s-proc">—</div><div class="mlabel">LLM Proc (avg)</div><div class="msub">ms</div></div>
+        <div class="metric-box"><div class="mval" id="s-stt">—</div><div class="mlabel">STT (avg)</div><div class="msub">ms · speech → transcript</div></div>
+        <div class="metric-box"><div class="mval" id="s-llm-time">—</div><div class="mlabel">LLM Time (avg)</div><div class="msub">ms · LLM call → first TTS gen</div></div>
+        <div class="metric-box"><div class="mval" id="s-tts-first">—</div><div class="mlabel">TTS 1st Sentence (avg)</div><div class="msub">ms · first chunk proc time</div></div>
+        <div class="metric-box"><div class="mval" id="s-send-audio">—</div><div class="mlabel">Send Audio (avg)</div><div class="msub">ms · TTS done → bot speaking</div></div>
+        <div class="metric-box"><div class="mval" id="s-tts-total">—</div><div class="mlabel">TTS Total (avg)</div><div class="msub">ms · all chunks combined</div></div>
       </div>
     </div>
 
@@ -274,7 +272,7 @@
             <tr>
               <th>#</th><th>File</th><th>Session</th>
               <th>E2E (ms)</th>
-              <th>STT (ms)</th><th>LLM (ms)</th><th>TTS TTFB (ms)</th><th>T2FA (ms)</th><th>1st Sent (ms)</th><th>TTS Proc (ms)</th>
+              <th>STT (ms)</th><th>LLM Time (ms)</th><th>TTS 1st (ms)</th><th>Send Audio (ms)</th><th>TTS Total (ms)</th>
               <th>Error</th><th>Status</th>
             </tr>
           </thead>
@@ -483,14 +481,14 @@ async function runSingleBenchmark(file, signal) {
   const tr = document.createElement('tr');
   tr.id = rowId;
   tr.innerHTML = `<td>${runId}</td><td title="${file.name}">${file.name.slice(0,20)}</td><td class="sid">${sessionId.slice(0,8)}…</td>
-    <td class="e2e">…</td><td class="stt">…</td><td class="llm">…</td><td class="tts">…</td><td class="t2fa">…</td><td class="tts-fsp">…</td><td class="tts-proc">…</td>
+    <td class="e2e">…</td><td class="stt">…</td><td class="llm-time">…</td><td class="tts-first">…</td><td class="send-audio">…</td><td class="tts-total">…</td>
     <td class="err-cell" style="color:var(--muted);font-size:10px;max-width:180px;word-break:break-all"></td>
     <td><span class="tag tag-run">RUN</span></td>`;
   tbody.prepend(tr);
 
   const result = {
     runId, file: file.name, sessionId,
-    e2e: null, stt_ttfb: null, llm_ttfb: null, tts_ttfb: null, tts_t2fa: null, tts_fsp: null, tts_proc: null,
+    e2e: null, stt_proc: null, llm_time: null, tts_first: null, send_audio: null, tts_total: null,
     stt_transcript: null, llm_response: null, tts_text: null,
     status: 'running', error: null
   };
@@ -518,7 +516,7 @@ async function runSingleBenchmark(file, signal) {
     clearTimeout(timeoutHandle);
     Object.assign(result, r, { status: 'ok' });
     const _f = v => (v != null && !isNaN(v)) ? (+v).toFixed(0) : '—';
-    addLog(`[#${runId}] ✓ e2e=${_f(result.e2e)}ms stt=${_f(result.stt_ttfb)}ms llm=${_f(result.llm_ttfb)}ms tts_ttfb=${_f(result.tts_ttfb)}ms tts_proc=${_f(result.tts_proc)}ms`, 'ok');
+    addLog(`[#${runId}] ✓ e2e=${_f(result.e2e)}ms stt=${_f(result.stt_proc)}ms llm_time=${_f(result.llm_time)}ms tts_first=${_f(result.tts_first)}ms send_audio=${_f(result.send_audio)}ms tts_total=${_f(result.tts_total)}ms`, 'ok');
   } catch (err) {
     clearTimeout(timeoutHandle);
     if (err.name === 'AbortError' || stopFlag) {
@@ -535,13 +533,12 @@ async function runSingleBenchmark(file, signal) {
   // Update row
   const row = document.getElementById(rowId);
   if (row) {
-    row.querySelector('.e2e').textContent = result.e2e != null ? result.e2e.toFixed(0) : '—';
-    row.querySelector('.stt').textContent = result.stt_ttfb != null ? result.stt_ttfb.toFixed(0) : '—';
-    row.querySelector('.llm').textContent = result.llm_ttfb != null ? result.llm_ttfb.toFixed(0) : '—';
-    row.querySelector('.tts').textContent      = result.tts_ttfb != null ? result.tts_ttfb.toFixed(0) : '—';
-    row.querySelector('.t2fa').textContent      = result.tts_t2fa != null ? result.tts_t2fa.toFixed(0) : '—';
-    row.querySelector('.tts-fsp').textContent   = result.tts_fsp  != null ? result.tts_fsp.toFixed(0)  : '—';
-    row.querySelector('.tts-proc').textContent = result.tts_proc != null ? result.tts_proc.toFixed(0) : '—';
+    row.querySelector('.e2e').textContent        = result.e2e        != null ? result.e2e.toFixed(0)        : '—';
+    row.querySelector('.stt').textContent        = result.stt_proc   != null ? result.stt_proc.toFixed(0)   : '—';
+    row.querySelector('.llm-time').textContent   = result.llm_time   != null ? result.llm_time.toFixed(0)   : '—';
+    row.querySelector('.tts-first').textContent  = result.tts_first  != null ? result.tts_first.toFixed(0)  : '—';
+    row.querySelector('.send-audio').textContent = result.send_audio != null ? result.send_audio.toFixed(0) : '—';
+    row.querySelector('.tts-total').textContent  = result.tts_total  != null ? result.tts_total.toFixed(0)  : '—';
     if (result.error) row.querySelector('.err-cell').textContent = result.error;
     const tag = row.querySelector('.tag');
     if (result.status === 'ok')      { tag.className = 'tag tag-ok';  tag.textContent = 'OK'; }
@@ -759,7 +756,7 @@ async function doWebRTCRun(file, sessionId, webrtcUrl, iceServers, apiBase, log,
 
       // ── STEP 4: Fetch server metrics then cleanup ──
       L(`Bot done speaking — fetching metrics and disconnecting`);
-      let serverMetrics = { stt_ttfb: null, llm_ttfb: null, tts_ttfb: null, tts_t2fa: null, tts_fsp: null, llm_proc: null };
+      let serverMetrics = { stt_proc: null, llm_time: null, tts_first: null, send_audio: null, tts_total: null };
       let textOutputs = { stt_transcript: null, llm_response: null, tts_text: null };
       try {
         const r = await fetch(`${apiBase}/benchmark/session/${sessionId}`);
@@ -801,14 +798,11 @@ function parseServerMetrics(metrics) {
   };
 
   return {
-    stt_ttfb:  pick('stt', 'ttfb')            ?? null,
-    llm_ttfb:  pick('llm', 'ttfb')            ?? null,
-    tts_ttfb:  pick('tts', 'ttfb')                 ?? null,
-    tts_t2fa:  pick('tts', 'time_to_first_audio') ?? null,
-    tts_fsp:   pick('tts', 'first_sentence_proc') ?? null,
-    llm_proc:  pick('llm', 'processing_time')     ?? null,
-    stt_proc:  pick('stt', 'processing_time')     ?? null,
-    tts_proc:  pick('tts', 'processing_time')     ?? null,
+    stt_proc:   pick('stt', 'processing_time') ?? null,
+    llm_time:   pick('llm', 'llm_time')        ?? null,
+    tts_first:  pick('tts', 'first_sentence')  ?? null,
+    send_audio: pick('tts', 'send_audio_time') ?? null,
+    tts_total:  pick('tts', 'total_time')      ?? null,
   };
 }
 
@@ -841,58 +835,48 @@ function updateSummary() {
   document.getElementById('m-runs').textContent = ok.length;
   document.getElementById('m-err').textContent  = err;
 
-  const sttVals     = ok.map(r => r.stt_ttfb).filter(v => v != null);
-  const llmVals     = ok.map(r => r.llm_ttfb).filter(v => v != null);
-  const ttsVals     = ok.map(r => r.tts_ttfb).filter(v => v != null);
-  const t2faVals    = ok.map(r => r.tts_t2fa).filter(v => v != null);
-  const fspVals     = ok.map(r => r.tts_fsp).filter(v => v != null);
-  const ttsProcVals = ok.map(r => r.tts_proc).filter(v => v != null);
-  const procVals    = ok.map(r => r.llm_proc).filter(v => v != null);
+  const sttVals       = ok.map(r => r.stt_proc).filter(v => v != null);
+  const llmTimeVals   = ok.map(r => r.llm_time).filter(v => v != null);
+  const ttsFirstVals  = ok.map(r => r.tts_first).filter(v => v != null);
+  const sendAudioVals = ok.map(r => r.send_audio).filter(v => v != null);
+  const ttsTotalVals  = ok.map(r => r.tts_total).filter(v => v != null);
 
-  document.getElementById('s-stt').textContent      = fmt(avg(sttVals));
-  document.getElementById('s-llm').textContent      = fmt(avg(llmVals));
-  document.getElementById('s-tts-ttfb').textContent = fmt(avg(ttsVals));
-  document.getElementById('s-t2fa').textContent      = fmt(avg(t2faVals));
-  document.getElementById('s-fsp').textContent       = fmt(avg(fspVals));
-  document.getElementById('s-tts-proc').textContent = fmt(avg(ttsProcVals));
-  document.getElementById('s-proc').textContent     = fmt(avg(procVals));
+  document.getElementById('s-stt').textContent        = fmt(avg(sttVals));
+  document.getElementById('s-llm-time').textContent   = fmt(avg(llmTimeVals));
+  document.getElementById('s-tts-first').textContent  = fmt(avg(ttsFirstVals));
+  document.getElementById('s-send-audio').textContent = fmt(avg(sendAudioVals));
+  document.getElementById('s-tts-total').textContent  = fmt(avg(ttsTotalVals));
 
   // Breakdown bars
-  const avgStt     = avg(sttVals)     || 0;
-  const avgLlm     = avg(llmVals)     || 0;
-  const avgTts     = avg(ttsVals)     || 0;
-  const avgTtsProc = avg(ttsProcVals) || 0;
-  const avgProc    = avg(procVals)    || 0;
-  const total = avgStt + avgLlm + avgTts + avgTtsProc + avgProc;
+  const avgStt       = avg(sttVals)       || 0;
+  const avgLlmTime   = avg(llmTimeVals)   || 0;
+  const avgTtsFirst  = avg(ttsFirstVals)  || 0;
+  const avgSendAudio = avg(sendAudioVals) || 0;
+  const total = avgStt + avgLlmTime + avgTtsFirst + avgSendAudio;
 
   if (total > 0 && ok.length > 0) {
     document.getElementById('breakdown-card').style.display = '';
     const pct = (v) => total > 0 ? (v / total * 100).toFixed(1) : 0;
     document.getElementById('breakdown').innerHTML = `
       <div class="breakdown-row">
-        <span class="blabel">STT TTFB</span>
+        <span class="blabel">STT</span>
         <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-stt" style="width:${pct(avgStt)}%"></div></div>
         <span class="bval">${fmt(avgStt)} ms</span>
       </div>
       <div class="breakdown-row">
-        <span class="blabel">LLM TTFB</span>
-        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-llm" style="width:${pct(avgLlm)}%"></div></div>
-        <span class="bval">${fmt(avgLlm)} ms</span>
+        <span class="blabel">LLM Time</span>
+        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-llm" style="width:${pct(avgLlmTime)}%"></div></div>
+        <span class="bval">${fmt(avgLlmTime)} ms</span>
       </div>
       <div class="breakdown-row">
-        <span class="blabel">LLM Processing</span>
-        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-llm" style="width:${pct(avgProc)}%;opacity:.6"></div></div>
-        <span class="bval">${fmt(avgProc)} ms</span>
+        <span class="blabel">TTS 1st Sentence</span>
+        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-tts" style="width:${pct(avgTtsFirst)}%"></div></div>
+        <span class="bval">${fmt(avgTtsFirst)} ms</span>
       </div>
       <div class="breakdown-row">
-        <span class="blabel">TTS TTFB</span>
-        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-tts" style="width:${pct(avgTts)}%"></div></div>
-        <span class="bval">${fmt(avgTts)} ms</span>
-      </div>
-      <div class="breakdown-row">
-        <span class="blabel">TTS Total Proc</span>
-        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-tts" style="width:${pct(avgTtsProc)}%;opacity:.55"></div></div>
-        <span class="bval">${fmt(avgTtsProc)} ms</span>
+        <span class="blabel">Send Audio</span>
+        <div class="breakdown-bar-wrap"><div class="breakdown-bar bar-net" style="width:${pct(avgSendAudio)}%"></div></div>
+        <span class="bval">${fmt(avgSendAudio)} ms</span>
       </div>
     `;
   }
@@ -900,7 +884,7 @@ function updateSummary() {
 
 function exportCSV() {
   if (!results.length) { alert('No data to export.'); return; }
-  const cols = ['runId','file','sessionId','status','e2e','stt_ttfb','llm_ttfb','tts_ttfb','tts_t2fa','tts_fsp','tts_proc','llm_proc','stt_proc','stt_transcript','llm_response','tts_text','error'];
+  const cols = ['runId','file','sessionId','status','e2e','stt_proc','llm_time','tts_first','send_audio','tts_total','stt_transcript','llm_response','tts_text','error'];
   const rows = results.map(r => cols.map(k => {
     const v = r[k];
     if (v == null) return '';
