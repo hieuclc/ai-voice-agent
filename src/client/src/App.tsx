@@ -301,6 +301,30 @@ export default function App() {
     [apiHeaders],
   );
 
+  const deleteSession = useCallback(
+    async (sessionId: string) => {
+      try {
+        const response = await fetch(`${SESSIONS_API}/${sessionId}`, {
+          method: 'DELETE',
+          headers: apiHeaders,
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to delete session (${response.status})`);
+        }
+        // Nếu session đang được chọn thì reset
+        if (selectedSessionId === sessionId) {
+          setSelectedSessionId(null);
+          setMessages([]);
+        }
+        await fetchSessions();
+      } catch (err) {
+        console.error(err);
+        setError((err as Error).message);
+      }
+    },
+    [apiHeaders, fetchSessions, selectedSessionId],
+  );
+
   const createNewSession = useCallback(async () => {
     try {
       const response = await fetch(`${SESSIONS_API}/create`, {
@@ -563,21 +587,36 @@ export default function App() {
               <div className="empty">No sessions yet</div>
             )}
             {sessions.map((session) => (
-              <button
+              <div
                 key={session.id}
                 className={`session-item ${
                   selectedSessionId === session.id ? 'active' : ''
                 }`}
-                onClick={() => handleSessionSelect(session.id)}
-                disabled={isConnecting}
               >
-                <div className="session-title">{sessionLabel(session)}</div>
-                {session.updated_at && (
-                  <div className="session-meta">
-                    Updated {new Date(session.updated_at).toLocaleString()}
-                  </div>
-                )}
-              </button>
+                <button
+                  className="session-select-btn"
+                  onClick={() => handleSessionSelect(session.id)}
+                  disabled={isConnecting}
+                >
+                  <div className="session-title">{sessionLabel(session)}</div>
+                  {session.updated_at && (
+                    <div className="session-meta">
+                      Updated {new Date(session.updated_at).toLocaleString()}
+                    </div>
+                  )}
+                </button>
+                <button
+                  className="session-delete-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteSession(session.id);
+                  }}
+                  disabled={isConnecting || (isConnected && activeSessionId === session.id)}
+                  title="Delete session"
+                >
+                  ✕
+                </button>
+              </div>
             ))}
           </div>
         </div>

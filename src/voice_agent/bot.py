@@ -137,14 +137,15 @@ async def run_bot(webrtc_connection, session_id):
 
     transcript = TranscriptProcessor()
 
-    # transcript_handler = TranscriptHandler(session_id = session_id)
-    # await transcript_handler.load_session()
-    # if transcript_handler.messages:
-    #     for message in transcript_handler.messages:
-    #         messages.append({
-    #             "role": message.role,
-    #             "content": message.content
-    #         })
+    # from transcription_handler import TranscriptHandler
+    transcript_handler = TranscriptHandler(session_id=session_id)
+    await transcript_handler.load_session()
+    if transcript_handler.messages:
+        for message in transcript_handler.messages:
+            messages.append({
+                "role": message.role,
+                "content": message.content
+            })
 
     context = LLMContext(messages)
     context_aggregator = LLMContextAggregatorPair(
@@ -189,14 +190,14 @@ async def run_bot(webrtc_connection, session_id):
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
         logger.info(f"Client connected")
-        # Kick off the conversation.
-        # if not transcript_handler.messages:
-        messages.append({"role": "system", "content": "Hãy nói câu sau: 'Xin chào bạn, tôi có thể giúp gì cho bạn hôm nay.'"})
-        await task.queue_frames([LLMRunFrame()])
+        if not transcript_handler.messages:
+            # Session mới: yêu cầu LLM đọc câu chào
+            messages.append({"role": "system", "content": "Hãy nói câu sau: 'Xin chào bạn, tôi có thể giúp gì cho bạn hôm nay.'"})
+            await task.queue_frames([LLMRunFrame()])
 
-    # @transcript.event_handler("on_transcript_update")
-    # async def on_transcript_update(processor, frame):
-    #     await transcript_handler.on_transcript_update(processor, frame)
+    @transcript.event_handler("on_transcript_update")
+    async def on_transcript_update(processor, frame):
+        await transcript_handler.on_transcript_update(processor, frame)
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):

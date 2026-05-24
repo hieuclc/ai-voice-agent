@@ -108,8 +108,14 @@ async def load_chat_session(session_id: str):
 
     return session
 
-@app.post("/api/chat-sessions/create")
-async def create_chat_session():
+@app.delete("/api/chat-sessions/{session_id}")
+async def delete_chat_session(session_id: str):
+    logger.debug(f"Deleting chat session '{session_id}'")
+    await transcript_handler.clear_session_by_id(session_id)
+    return {"status": "deleted", "session_id": session_id}
+
+
+
     session_id = uuid4()
     logger.debug(f"Creating chat session '{session_id}'")
     

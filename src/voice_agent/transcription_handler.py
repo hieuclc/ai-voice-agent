@@ -1,3 +1,4 @@
+import asyncio
 from loguru import logger
 from typing import Optional, List
 from datetime import datetime
@@ -154,8 +155,8 @@ class TranscriptHandler:
         for msg in frame.messages:
             self.messages.append(msg)
 
-        # Auto-save after each update
-        await self.save_messages()
+        # Fire-and-forget: không block pipeline, save chạy ngầm
+        asyncio.create_task(self.save_messages())
 
     async def get_context(self, max_messages: Optional[int] = None) -> List[dict]:
         """Get conversation context for LLM.
@@ -178,6 +179,14 @@ class TranscriptHandler:
             logger.info(f"Cleared session '{self.session_id}'")
         except PyMongoError as e:
             logger.error(f"Error clearing session: {e}")
+
+    async def clear_session_by_id(self, session_id: str):
+        """Delete any session by id from database (does not touch in-memory messages)."""
+        try:
+            result = await self.collection.delete_one({"session_id": session_id})
+            logger.info(f"Deleted session '{session_id}' (deleted_count={result.deleted_count})")
+        except PyMongoError as e:
+            logger.error(f"Error deleting session '{session_id}': {e}")
 
     async def close(self):
         """Close MongoDB connection gracefully."""
@@ -218,5 +227,3 @@ class TranscriptHandler:
             except PyMongoError as e:
                 logger.error(f"Error fetching all chat histories: {e}")
                 return []
-        
-    
