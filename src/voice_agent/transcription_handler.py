@@ -26,9 +26,9 @@ class TranscriptHandler:
     def __init__(
         self,
         session_id: str,
-        mongo_uri: str = "mongodb://admin:admin123@localhost:27017",
-        database_name: str = "voice_agent",
-        collection_name: str = "transcripts",
+        mongo_uri: str,
+        database_name: str,
+        collection_name: str,
         output_file: Optional[str] = None,
     ):
         """Initialize handler with MongoDB connection and session ID.

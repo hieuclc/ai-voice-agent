@@ -17,7 +17,7 @@ import asyncio
 import logging
 import os
 import random
-from typing import Optional
+from typing import Literal, Annotated, Optional
 
 import numpy as np
 import torch
@@ -28,6 +28,14 @@ from qdrant_client import AsyncQdrantClient
 from qdrant_client import models as qmodels
 
 from reranker import Reranker
+
+from langgraph.prebuilt import ToolNode
+from langgraph.graph import END, StateGraph
+from langgraph.graph.message import add_messages
+from langchain_core.messages import BaseMessage, AIMessage, SystemMessage
+from langchain_core.tools import BaseTool
+
+from typing_extensions import TypedDict
 
 load_dotenv(override=True)
 logger = logging.getLogger(__name__)
@@ -95,6 +103,71 @@ def pick_thinking_start_sentence() -> str:
 
 def pick_thinking_ongoing_sentence() -> str:
     return random.choice(_THINKING_SENTENCES_ONGOING)
+
+
+# ---------------------------------------------------------------------------
+# build_sub_agent — generic agent factory (dùng bởi tất cả domain agents)
+# ---------------------------------------------------------------------------
+
+class AgentState(TypedDict):
+    messages:          Annotated[list[BaseMessage], add_messages]
+    hop_count:         int
+    thinking_streamed: bool
+
+def build_sub_agent(
+    llm_with_tools,
+    tools: list[BaseTool],
+    system_prompt: str,
+):
+    """
+    Factory tạo một LangGraph sub-agent từ LLM đã bind tools + danh sách tools + system prompt.
+
+    Args:
+        llm_with_tools : LLM đã gọi .bind_tools(tools).
+        tools          : Danh sách BaseTool tương ứng.
+        system_prompt  : System prompt cho agent này.
+
+    Returns:
+        Compiled LangGraph (AgentState).
+    """
+    tool_node = ToolNode(tools)
+
+    async def call_model(state: AgentState) -> dict:
+        messages = list(state["messages"])
+        if not messages or not isinstance(messages[0], SystemMessage):
+            messages = [SystemMessage(content=system_prompt)] + messages
+        try:
+            response = await llm_with_tools.ainvoke(messages)
+        except Exception as exc:
+            import traceback
+            logger.error(
+                "LLM call failed [%s]: %s\n%s",
+                type(exc).__name__, exc, traceback.format_exc(),
+            )
+            raise
+        return {"messages": [response], "hop_count": state["hop_count"]}
+
+    async def run_tools(state: AgentState) -> dict:
+        result = await tool_node.ainvoke(state)
+        return {**result, "hop_count": state["hop_count"] + 1, "thinking_streamed": False}
+
+    def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
+        last = state["messages"][-1]
+        if isinstance(last, AIMessage) and last.tool_calls and state["hop_count"] < MAX_HOPS:
+            return "tools"
+        return "__end__"
+
+    graph = StateGraph(AgentState)
+    graph.add_node("agent", call_model)
+    graph.add_node("tools", run_tools)
+    graph.set_entry_point("agent")
+    graph.add_conditional_edges(
+        "agent",
+        should_continue,
+        {"tools": "tools", "__end__": END},
+    )
+    graph.add_edge("tools", "agent")
+    return graph.compile()
 
 
 # ---------------------------------------------------------------------------

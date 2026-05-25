@@ -23,7 +23,6 @@ logger = logging.getLogger("stt_server")
 
 
 REQUEST_TIMEOUT = 20
-GPU_THREADS = 1
 
 _model = None
 _executor: Optional[ThreadPoolExecutor] = None
@@ -83,9 +82,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("Loading ChunkFormer model...")
     from chunkformer import ChunkFormerModel
-    _model = ChunkFormerModel.from_pretrained(
-        "khanhld/chunkformer-ctc-large-vie"
-    ).to(_device)
+    _model = ChunkFormerModel.from_pretrained("khanhld/chunkformer-ctc-large-vie").to(_device)
     _model.eval()
     torch.set_grad_enabled(False)
 
@@ -102,7 +99,7 @@ async def lifespan(app: FastAPI):
         _infer(buf.getvalue())
     logger.info("Model ready ✓")
 
-    _executor = ThreadPoolExecutor(max_workers=GPU_THREADS, thread_name_prefix="gpu")
+    _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gpu")
 
     yield
 
@@ -160,12 +157,11 @@ def health():
     return {"status": "ok", "device": _device}
 
 def main():
-    global GPU_THREADS, _device
+    global _device
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--host",    default="0.0.0.0")
     parser.add_argument("--port",    type=int, default=8005)
-    parser.add_argument("--threads", type=int, default=GPU_THREADS)
     parser.add_argument(
         "--device",
         default="auto",
@@ -179,15 +175,14 @@ def main():
     )
     args = parser.parse_args()
 
-    GPU_THREADS = args.threads
     logging.getLogger().setLevel(args.log_level.upper())
 
     # Resolve + log device before anything else starts
     _device = _resolve_device(args.device)
 
     logger.info(
-        "Starting STT server — host=%s port=%d device=%s threads=%d",
-        args.host, args.port, _device.upper(), GPU_THREADS,
+        "Starting STT server — host=%s port=%d device=%s",
+        args.host, args.port, _device.upper(),
     )
 
     uvicorn.run(

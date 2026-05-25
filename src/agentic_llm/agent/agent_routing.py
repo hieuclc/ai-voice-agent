@@ -21,19 +21,17 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Optional
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
 
 from tts_normalizer import TTSNormalizerAgent, create_tts_normalizers
 from utils import (
-    MAX_HOPS,
     THINKING_INTERVAL_SECONDS,
     THINKING_RESPONSE_DELAY_SECONDS,
     pick_thinking_ongoing_sentence,
@@ -45,7 +43,6 @@ logger = logging.getLogger(__name__)
 
 # Re-export để server.py import từ một chỗ
 __all__ = [
-    "build_sub_agent",
     "create_router_agent",
     "pre_route",
     "get_tts_agents",
@@ -61,78 +58,11 @@ __all__ = [
 # Graph states
 # ---------------------------------------------------------------------------
 
-class AgentState(TypedDict):
-    messages:          Annotated[list[BaseMessage], add_messages]
-    hop_count:         int
-    thinking_streamed: bool
-
-
 class RouterState(TypedDict):
     messages:          Annotated[list[BaseMessage], add_messages]
     hop_count:         int
     thinking_streamed: bool
     domain:            str
-    skip_tts:          bool
-
-
-# ---------------------------------------------------------------------------
-# build_sub_agent — generic agent factory (dùng bởi tất cả domain agents)
-# ---------------------------------------------------------------------------
-
-def build_sub_agent(
-    llm_with_tools,
-    tools: list[BaseTool],
-    system_prompt: str,
-):
-    """
-    Factory tạo một LangGraph sub-agent từ LLM đã bind tools + danh sách tools + system prompt.
-
-    Args:
-        llm_with_tools : LLM đã gọi .bind_tools(tools).
-        tools          : Danh sách BaseTool tương ứng.
-        system_prompt  : System prompt cho agent này.
-
-    Returns:
-        Compiled LangGraph (AgentState).
-    """
-    tool_node = ToolNode(tools)
-
-    async def call_model(state: AgentState) -> dict:
-        messages = list(state["messages"])
-        if not messages or not isinstance(messages[0], SystemMessage):
-            messages = [SystemMessage(content=system_prompt)] + messages
-        try:
-            response = await llm_with_tools.ainvoke(messages)
-        except Exception as exc:
-            import traceback
-            logger.error(
-                "LLM call failed [%s]: %s\n%s",
-                type(exc).__name__, exc, traceback.format_exc(),
-            )
-            raise
-        return {"messages": [response], "hop_count": state["hop_count"]}
-
-    async def run_tools(state: AgentState) -> dict:
-        result = await tool_node.ainvoke(state)
-        return {**result, "hop_count": state["hop_count"] + 1, "thinking_streamed": False}
-
-    def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
-        last = state["messages"][-1]
-        if isinstance(last, AIMessage) and last.tool_calls and state["hop_count"] < MAX_HOPS:
-            return "tools"
-        return "__end__"
-
-    graph = StateGraph(AgentState)
-    graph.add_node("agent", call_model)
-    graph.add_node("tools", run_tools)
-    graph.set_entry_point("agent")
-    graph.add_conditional_edges(
-        "agent",
-        should_continue,
-        {"tools": "tools", "__end__": END},
-    )
-    graph.add_edge("tools", "agent")
-    return graph.compile()
 
 
 # ---------------------------------------------------------------------------
@@ -233,7 +163,6 @@ def _build_router_graph(
     tour_graph,
     normal_talk_llm: ChatOpenAI,
     normal_talk_system_prompt: str,
-    tts_agents: dict[str, TTSNormalizerAgent],
 ):
     async def route_node(state: RouterState) -> dict:
         if state.get("domain") and state["domain"] in _VALID_DOMAINS:
@@ -274,42 +203,6 @@ def _build_router_graph(
         response = await normal_talk_llm.ainvoke(messages)
         return {"messages": [response], "hop_count": state["hop_count"]}
 
-    async def tts_node(state: RouterState) -> dict:
-        if state.get("skip_tts", False):
-            return {}
-
-        domain = state.get("domain", "normal_talk")
-        tts    = tts_agents.get(domain) or tts_agents.get("normal_talk")
-
-        messages = list(state["messages"])
-        for i in range(len(messages) - 1, -1, -1):
-            msg = messages[i]
-            if isinstance(msg, AIMessage) and isinstance(msg.content, str) and msg.content.strip():
-                if tts is not None:
-                    try:
-                        normalized = await tts.anormalize(msg.content)
-                        logger.debug(
-                            "TTS [%s] normalized %d→%d chars",
-                            domain, len(msg.content), len(normalized),
-                        )
-                    except Exception as exc:
-                        logger.warning(
-                            "TTS [%s] normalize error, keeping original: %s", domain, exc
-                        )
-                        normalized = msg.content
-                else:
-                    normalized = msg.content
-
-                new_msg = AIMessage(
-                    content=normalized,
-                    id=msg.id,
-                    name=getattr(msg, "name", None),
-                    additional_kwargs=msg.additional_kwargs,
-                )
-                messages = messages[:i] + [new_msg] + messages[i + 1:]
-                break
-        return {"messages": messages}
-
     def dispatch(state: RouterState) -> str:
         return state.get("domain", "normal_talk")
 
@@ -319,8 +212,7 @@ def _build_router_graph(
     g.add_node("admission",   run_admission)
     g.add_node("tour",        run_tour)
     g.add_node("normal_talk", run_normal_talk)
-    g.add_node("tts",         tts_node)
-
+    
     g.set_entry_point("router")
     g.add_conditional_edges(
         "router",
@@ -333,11 +225,10 @@ def _build_router_graph(
         },
     )
 
-    g.add_edge("law",         "tts")
-    g.add_edge("admission",   "tts")
-    g.add_edge("tour",        "tts")
-    g.add_edge("normal_talk", "tts")
-    g.add_edge("tts",         END)
+    g.add_edge("law",         END)
+    g.add_edge("admission",   END)
+    g.add_edge("tour",        END)
+    g.add_edge("normal_talk", END)
 
     return g.compile()
 
@@ -413,5 +304,4 @@ def create_router_agent(
         tour_graph,
         normal_talk_llm,
         nt_system_prompt,
-        tts_agents=_tts_agents,
     )

@@ -40,7 +40,7 @@ cho hệ thống tìm kiếm vector (Qdrant hybrid search).
 NHIỆM VỤ: Tách câu hỏi thành 1-3 keyword query ngắn gọn, tập trung vào thực thể chính.
 
 QUY TẮC:
-1. Mỗi query: 3–8 từ, chứa tên ngành/mã ngành/năm/loại thông tin cần tìm.
+1. Mỗi query: 3-8 từ, chứa tên ngành/mã ngành/năm/loại thông tin cần tìm.
 2. LUÔN có một query chứa TÊN NGÀNH CHÍNH XÁC như trong câu hỏi gốc.
 3. Tách riêng: một query cho điểm chuẩn, một query cho học phí nếu cần cả hai.
 4. Bỏ hết ngữ cảnh cá nhân ("tôi đạt", "con tôi", "năm nay mình").
@@ -222,7 +222,7 @@ def build_admission_agent(
     Returns:
         Compiled LangGraph sub-agent.
     """
-    from agent_routing import build_sub_agent
+    from utils import build_sub_agent
 
     global _rewriter_llm_ref
     _rewriter_llm_ref = rewriter_llm

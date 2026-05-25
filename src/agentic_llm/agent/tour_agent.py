@@ -743,7 +743,7 @@ def build_tour_agent(
     Returns:
         Compiled LangGraph sub-agent.
     """
-    from agent_routing import build_sub_agent
+    from utils import build_sub_agent
 
     global _rewriter_llm_ref
     _rewriter_llm_ref = rewriter_llm

@@ -118,9 +118,6 @@ class Reranker:
         if not documents:
             return []
 
-        if len(documents) <= top_k:
-            return documents
-
         t0    = time.time()
         pairs = [[query, doc["text"]] for doc in documents]
 
@@ -134,11 +131,7 @@ class Reranker:
 
         scores = np.array(scores, dtype=np.float32)
 
-        if len(scores) > top_k:
-            top_idx = np.argpartition(scores, -top_k)[-top_k:]
-            top_idx = top_idx[np.argsort(scores[top_idx])[::-1]]
-        else:
-            top_idx = np.argsort(scores)[::-1][:top_k]
+        top_idx = np.argsort(scores)[::-1][:top_k]
 
         result = []
         for i in top_idx:

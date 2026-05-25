@@ -48,18 +48,7 @@ DIGIT_MAP = {
 }
 
 
-# Tập ký tự chữ thường tiếng Việt có dấu — dùng cho boundary lookbehind/lookahead
-_VI_LOWER = "a-záàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ"
-
-# Match token bắt đầu bằng CHỮ HOA, tiếp theo là CHỮ HOA hoặc SỐ (≥0 ký tự).
-# Boundary Unicode-aware: không match nếu đứng liền chữ thường/hoa/số khác.
-_ABBR_RE = re.compile(
-    rf"(?<![{_VI_LOWER}A-Z0-9\-])"   # không đứng sau chữ/số/dấu gạch ngang
-    r"[A-Z][A-Z0-9]*"                 # token: chữ HOA đầu + CHỮ HOA/SỐ tiếp theo
-    rf"(?![{_VI_LOWER}ĐA-Z0-9\-])",  # không đứng trước chữ/số/Đ/dấu gạch ngang
-    re.UNICODE,
-)
-
+_ABBR_RE = re.compile(r"\b[A-Z][A-Z0-9]*\b")
 
 def _is_code_token(token: str) -> bool:
     """Token có cả chữ lẫn số xen kẽ → mã kỹ thuật (A1, B2, CN12, QH2026...) → giữ nguyên."""
@@ -67,7 +56,7 @@ def _is_code_token(token: str) -> bool:
 
 
 def _spell_token(token: str) -> str:
-    """Đánh vần từng chữ cái của token ALL-CAPS thuần (GPLX, SAT, HCM, IELTS...)."""
+    """Đánh vần từng chữ cái của token ALL-CAPS thuần"""
     return " ".join(LETTER_MAP.get(ch, ch) for ch in token)
 
 
@@ -255,6 +244,7 @@ OUT: Điểm chuẩn, ai eo là sáu phẩy năm, ét ây ti là một nghìn ha
 
 IN:  Sinh viên tốt nghiệp có thể làm về IT, AI và IoT.
 OUT: Sinh viên tốt nghiệp có thể làm về ai ti, ây ai và ai ô ti."""
+
 def _build_tour_prompt() -> str:
     return f"""\
 Bạn là chuyên gia chuẩn hóa văn bản du lịch tiếng Việt cho hệ thống TTS.
@@ -407,34 +397,6 @@ class TTSNormalizerAgent:
             )
         return self._llm
 
-    def normalize(self, text: str) -> str:
-        from langchain_core.messages import HumanMessage, SystemMessage
-        if not text.strip():
-            return text
-        try:
-            resp = self._get_llm().invoke([
-                SystemMessage(content=self._system_prompt),
-                HumanMessage(content=text),
-            ])
-            return _regex_post_process(resp.content.strip())
-        except Exception as exc:
-            logger.warning("TTS [%s] normalize error, returning original: %s", self._domain, exc)
-            return text
-
-    async def anormalize(self, text: str) -> str:
-        from langchain_core.messages import HumanMessage, SystemMessage
-        if not text.strip():
-            return text
-        try:
-            resp = await self._get_llm().ainvoke([
-                SystemMessage(content=self._system_prompt),
-                HumanMessage(content=text),
-            ])
-            return _regex_post_process(resp.content.strip())
-        except Exception as exc:
-            logger.warning("TTS [%s] anormalize error, returning original: %s", self._domain, exc)
-            return text
-
     async def astream_normalize(self, text: str):
         """
         Stream token từ LLM TTS normalizer — yield chunk ngay khi LLM trả về,
@@ -479,11 +441,11 @@ class TTSNormalizerAgent:
                 if last_boundary >= 0:
                     to_yield = buffer[: last_boundary + 1]
                     buffer   = buffer[last_boundary + 1 :]
-                    yield to_yield
+                    yield _regex_post_process(to_yield)
 
             # Flush phần còn lại (đuôi câu không kết thúc bằng dấu câu)
             if buffer:
-                yield buffer
+                yield _regex_post_process(buffer)
 
         except Exception as exc:
             logger.warning(

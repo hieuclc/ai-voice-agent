@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from bot import run_bot
 from dotenv import load_dotenv
+import os
 from fastapi import BackgroundTasks, FastAPI, Request, HTTPException, Query
 from fastapi.responses import FileResponse
 from loguru import logger
@@ -25,8 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from transcription_handler import TranscriptHandler
 from uuid import uuid4
 
-from utils import get_metrics, get_texts, clear_metrics, benchmark_sink, current_session_id
-import asyncio
+from utils import get_metrics, get_texts, clear_metrics, benchmark_sink
 
 # Thêm sau khi tạo app:
 logger.add(benchmark_sink, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}")
@@ -54,19 +54,17 @@ app.add_middleware(
 small_webrtc_handler = SmallWebRTCRequestHandler(
     ice_servers=[
         RTCIceServer(
-            urls="stun:ss-turn1.xirsys.com",
+            urls=os.getenv("STUN_URL"),
         ),
         RTCIceServer(
-            urls="turn:ss-turn1.xirsys.com:3478",
-            username="ynuYRR28qU2zB-hB60HmYV6ulUr4Vxn3a08Fti13c0aGS-msyw6Iws7G22TbgQmgAAAAAGlBhJ9oaWV1bGNsY2JnYm4xMjM=",
-            credential="d6c8b274-da99-11f0-ba29-0242ac140004",
+            urls=os.getenv("TURN_URL"),
+            username=os.getenv("TURN_USERNAME"),
+            credential=os.getenv("TURN_CREDENTIAL"),
         )
     ]
 )
 
-transcript_handler = TranscriptHandler(session_id = None)
-
-active_bot_tasks: set[asyncio.Task] = set()
+transcript_handler = TranscriptHandler(session_id = None, mongo_uri = os.getenv("MONGO_URI"), database_name = os.getenv("DATABASE_NAME"), collection_name = os.getenv("COLLECTION_NAME"))
 
 @app.post("/api/offer")
 async def offer(request: SmallWebRTCRequest, background_tasks: BackgroundTasks, session_id = Query(...)):
@@ -115,7 +113,8 @@ async def delete_chat_session(session_id: str):
     return {"status": "deleted", "session_id": session_id}
 
 
-
+@app.post("/api/chat-sessions/create")
+async def create_chat_session():
     session_id = uuid4()
     logger.debug(f"Creating chat session '{session_id}'")
     

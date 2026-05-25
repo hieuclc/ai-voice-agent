@@ -242,7 +242,7 @@ def build_law_agent(
     Returns:
         Compiled LangGraph sub-agent.
     """
-    from agent_routing import build_sub_agent
+    from utils import build_sub_agent
 
     global _grader_llm_ref
     _grader_llm_ref = grader_llm

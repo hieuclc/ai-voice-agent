@@ -228,7 +228,6 @@ async def stream_agent_response(
         "hop_count":         0,
         "thinking_streamed": False,
         "domain":            domain,
-        "skip_tts":          True,
     }
 
     # agent_done_event: set khi agent hoàn thành (dù thành công hay lỗi)

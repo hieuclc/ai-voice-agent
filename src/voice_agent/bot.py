@@ -41,7 +41,7 @@ from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.processors.transcript_processor import TranscriptProcessor
 
-# from transcription_handler import TranscriptHandler
+from transcription_handler import TranscriptHandler
 from tts_chunker import TTSChunkerProcessor, ChunkMode
 logger.info("✅ All components loaded successfully!")
 
@@ -128,16 +128,10 @@ async def run_bot(webrtc_connection, session_id):
     4. Câu đầu tiên chỉ được phép có tối đa 5 từ, và kết thúc bằng dấu chấm.
     '''
 
-    messages = [
-        {
-            "role": "system",
-            "content": prompt,
-        },
-    ]
+    messages = []
 
     transcript = TranscriptProcessor()
 
-    # from transcription_handler import TranscriptHandler
     transcript_handler = TranscriptHandler(session_id=session_id)
     await transcript_handler.load_session()
     if transcript_handler.messages:
@@ -146,6 +140,13 @@ async def run_bot(webrtc_connection, session_id):
                 "role": message.role,
                 "content": message.content
             })
+    else:
+        messages = [
+            {
+                "role": "system",
+                "content": prompt,
+            },
+        ]
 
     context = LLMContext(messages)
     context_aggregator = LLMContextAggregatorPair(
@@ -159,7 +160,7 @@ async def run_bot(webrtc_connection, session_id):
 
     rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
     thinking_processor = ThinkingSentenceProcessor()
-    tts_chunker = TTSChunkerProcessor(mode=ChunkMode.PUNCT_ONLY)
+    tts_chunker = TTSChunkerProcessor()
 
     pipeline = Pipeline(
         [
