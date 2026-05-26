@@ -91,7 +91,7 @@ async def _rewrite_query(
         "Query hiện tại không tìm được đủ tài liệu liên quan.\n\n"
         f"Query gốc: {original}\n"
         f"Query hiện tại: {current}\n\n"
-        "Viết lại query (5–12 từ, thuật ngữ pháp lý chính xác hơn).\n"
+        "Viết lại query (5-12 từ, thuật ngữ pháp lý chính xác hơn).\n"
         "Chỉ trả về query mới, không giải thích:"
     )
     try:

@@ -4,7 +4,6 @@ build_db.py — Indexing pipeline cho toàn bộ dữ liệu vào Qdrant (hybrid
 Collections:
   - law        : văn bản pháp luật (Luật, Nghị định, Thông tư)
   - admission  : tư vấn tuyển sinh
-  - tours      : dữ liệu tour du lịch
 
 Hybrid strategy:
   - Dense vector  : AITeamVN/Vietnamese_Embedding_v2 (BGE-M3 fine-tuned, dim=1024)
@@ -61,7 +60,6 @@ UPSERT_BATCH    = 256
 
 LAW_COLLECTION       = "law"
 ADMISSION_COLLECTION = "admission"
-TOUR_COLLECTION      = "tours"
 
 
 # ---------------------------------------------------------------------------
@@ -224,7 +222,7 @@ class LegalDocParser:
             else:
                 for letter, point_text in points.items():
                     self.add_chunk(
-                        text=f"{title} – {clause_title}\n{point_text}",
+                        text=f"{title} - {clause_title}\n{point_text}",
                         chapter=chapter, section=section,
                         article=title, clause=clause_title, point=f"Điểm {letter}",
                         article_full=article_full, clause_full=clause_full,
@@ -281,168 +279,6 @@ class AdmissionParser:
                 article_full=block,
             )
         return self.chunks
-
-
-class TourParser:
-    """
-    Parser cho dữ liệu tour du lịch (JSON).
-    Mỗi tour → summary + departures + services + policies + day_N chunks.
-
-    Mapping sang Chunk:
-      point        ← tour_id
-      article      ← tour_id (legacy)
-      chapter      ← tour_type
-      section      ← title
-      clause       ← "summary" | "departures" | "services" | "policies" | "day_N"
-      clause_full  ← compact JSON metadata
-    """
-
-    def __init__(self, source_file: str = "extracted_data.json"):
-        self.source_file = source_file
-        self.chunks: List[Chunk] = []
-
-    @staticmethod
-    def _fmt_price(amount: int) -> str:
-        return f"{amount:,}".replace(",", ".")
-
-    def add_chunk(self, text: str, **kwargs) -> None:
-        self.chunks.append(Chunk(
-            id=make_id("tour"),
-            text=text,
-            doc_type="tour",
-            source_file=self.source_file,
-            **kwargs,
-        ))
-
-    def parse(self, tours: list) -> List[Chunk]:
-        self.chunks = []
-        for tour in tours:
-            self._parse_tour(tour)
-        return self.chunks
-
-    def _parse_tour(self, tour: dict) -> None:
-        tid       = tour["tour_id"]
-        title     = tour["title"]
-        tour_type = tour.get("tour_type", "")
-        dur       = tour.get("duration", {})
-        pr        = tour.get("price_range", {})
-        dests     = ", ".join(tour.get("destinations", []))
-        transport = ", ".join(tour.get("transport", []))
-        deps      = tour.get("departures", [])
-        services  = tour.get("services", {})
-        policies  = tour.get("policies", {})
-
-        duration_str = f"{dur.get('days', '?')} ngày {dur.get('nights', '?')} đêm"
-        price_str    = (
-            f"{self._fmt_price(pr.get('min_price', 0))} – "
-            f"{self._fmt_price(pr.get('max_price', 0))} VND"
-        )
-
-        summary_meta = json.dumps({
-            "p0": pr.get("min_price", 0),
-            "p1": pr.get("max_price", 0),
-            "d":  dur.get("days"),
-            "n":  dur.get("nights"),
-            "nd": deps[0]["date"] if deps else "",
-            "tr": transport,
-            "dc": tour.get("departure", {}).get("city", ""),
-            "ds": tour.get("destinations", []),
-            "inc": services.get("included", ""),
-            "exc": services.get("excluded", ""),
-            "pol_cancel":   policies.get("cancellation_policy", ""),
-            "pol_children": policies.get("children_policy", ""),
-            "pol_payment":  policies.get("payment_policy", ""),
-            "pol_notes":    policies.get("notes", ""),
-        }, ensure_ascii=False)
-
-        # 1. Summary chunk
-        self.add_chunk(
-            text=(
-                f"{title}. Loại tour: {tour_type}. Điểm đến: {dests}. "
-                f"Thời gian: {duration_str}. Phương tiện: {transport}. Giá từ: {price_str}."
-            ),
-            chapter=tour_type, section=title, article=tid,
-            clause="summary", point=tid, clause_full=summary_meta,
-        )
-
-        # 2. Departures chunk
-        if deps:
-            by_date: dict = defaultdict(list)
-            for d in deps:
-                by_date[d.get("date", "")].append(d)
-            dep_lines = [f"{title} – Lịch khởi hành và giá chi tiết:"]
-            for date, entries in sorted(by_date.items()):
-                for e in entries:
-                    hotel = e.get("hotel_standard", "")
-                    price = self._fmt_price(e.get("price", 0))
-                    slots = e.get("available_slots", 0)
-                    dep_lines.append(
-                        f"  Ngày {date} – {hotel}: {price} VND"
-                        + (f" (còn {slots} chỗ)" if slots else "")
-                    )
-            self.add_chunk(
-                text="\n".join(dep_lines),
-                chapter=tour_type, section=title, article=tid,
-                clause="departures", point=tid, clause_full=summary_meta,
-            )
-
-        # 3. Services chunk
-        inc = services.get("included", "")
-        exc = services.get("excluded", "")
-        if inc or exc:
-            svc_parts = [f"{title} – Dịch vụ:"]
-            if inc: svc_parts.append(f"Bao gồm: {inc}")
-            if exc: svc_parts.append(f"Không bao gồm: {exc}")
-            self.add_chunk(
-                text="\n".join(svc_parts),
-                chapter=tour_type, section=title, article=tid,
-                clause="services", point=tid, clause_full=summary_meta,
-            )
-
-        # 4. Policies chunk
-        pol_cancel   = policies.get("cancellation_policy", "")
-        pol_children = policies.get("children_policy", "")
-        pol_payment  = policies.get("payment_policy", "")
-        pol_notes    = policies.get("notes", "")
-        if any([pol_cancel, pol_children, pol_payment, pol_notes]):
-            pol_parts = [f"{title} – Chính sách:"]
-            if pol_cancel:   pol_parts.append(f"Hủy tour: {pol_cancel}")
-            if pol_children: pol_parts.append(f"Trẻ em: {pol_children}")
-            if pol_payment:  pol_parts.append(f"Thanh toán: {pol_payment}")
-            if pol_notes:    pol_parts.append(f"Lưu ý: {pol_notes}")
-            self.add_chunk(
-                text="\n".join(pol_parts),
-                chapter=tour_type, section=title, article=tid,
-                clause="policies", point=tid, clause_full=summary_meta,
-            )
-
-        # 5. Itinerary chunks (one per day)
-        for day in tour.get("itinerary", []):
-            day_num   = day.get("day", 0)
-            day_title = day.get("title", "")
-            desc      = day.get("description", "")
-            locs      = ", ".join(day.get("locations", []))
-            meals     = ", ".join(day.get("meals", []))
-            overnight = day.get("overnight") or ""
-
-            day_meta = json.dumps({
-                "meals":     day.get("meals", []),
-                "overnight": overnight,
-                "day_label": f"Ngày {day_num}: {day_title}",
-                "locations": day.get("locations", []),
-            }, ensure_ascii=False)
-
-            day_parts = [f"{title} – Ngày {day_num}: {day_title}."]
-            if locs:      day_parts.append(f"Địa điểm: {locs}.")
-            if desc:      day_parts.append(desc)
-            if meals:     day_parts.append(f"Bữa ăn: {meals}.")
-            if overnight: day_parts.append(f"Nghỉ đêm tại: {overnight}.")
-
-            self.add_chunk(
-                text=" ".join(day_parts),
-                chapter=tour_type, section=title, article=tid,
-                clause=f"day_{day_num}", point=tid, clause_full=day_meta,
-            )
 
 
 # ---------------------------------------------------------------------------
@@ -572,7 +408,6 @@ if __name__ == "__main__":
         "../data/Nghị định 160 năm 2024.docx",
     ]
     ADMISSION_TXT = "../data/admission.txt"
-    TOUR_JSON     = "../data/extracted_data.json"
 
     qdrant = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
     engine = EmbeddingEngine()
@@ -604,21 +439,10 @@ if __name__ == "__main__":
 
     ingest_chunks(admission_chunks, ADMISSION_COLLECTION, engine, qdrant)
 
-    # 3. Tours
-    ensure_collection(qdrant, TOUR_COLLECTION)
-    tour_chunks: List[Chunk] = []
-
-    if Path(TOUR_JSON).exists():
-        with open(TOUR_JSON, "r", encoding="utf-8") as f:
-            tours = json.load(f)
-        tour_chunks = TourParser(source_file=TOUR_JSON).parse(tours)
-        logger.info("Tours: %d chunks", len(tour_chunks))
-
-    ingest_chunks(tour_chunks, TOUR_COLLECTION, engine, qdrant)
 
     # Summary
     print("\n=== Ingest Summary ===")
-    for col in [LAW_COLLECTION, ADMISSION_COLLECTION, TOUR_COLLECTION]:
+    for col in [LAW_COLLECTION, ADMISSION_COLLECTION]:
         info = qdrant.get_collection(col)
         print(f"  {col:12s}: {info.points_count or 0:>6d} vectors")
     print("✅ Done.")

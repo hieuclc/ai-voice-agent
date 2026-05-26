@@ -56,7 +56,7 @@ OPENAI_API_KEY  = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", None)
 LLM_MODEL       = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 
-_TOOL_DOMAINS = {"law", "admission", "tour"}
+_TOOL_DOMAINS = {"law", "admission"}
 
 _openai_client: Optional[AsyncOpenAI] = None
 
@@ -343,7 +343,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="RAG Agent – OpenAI Compatible API",
+    title="RAG Agent - OpenAI Compatible API",
     version="1.0.0",
     lifespan=lifespan,
 )

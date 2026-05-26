@@ -2,7 +2,7 @@
 agent_routing.py — Router graph ghép các domain sub-agents.
 
 Kiến trúc:
-  RouterState → route_node → [law | admission | tour | normal_talk] → tts_node → END
+  RouterState → route_node → [law | admission | normal_talk] → tts_node → END
 
 Exports:
   build_sub_agent(llm_with_tools, tools, system_prompt) → compiled LangGraph
@@ -74,14 +74,13 @@ Bạn là bộ định tuyến câu hỏi. Phân loại câu hỏi sau vào đú
 
 - "law"         : câu hỏi về luật, nghị định, thông tư, xử phạt, quy định pháp luật Việt Nam
 - "admission"   : câu hỏi về tuyển sinh, điểm chuẩn, học phí, ngành học, mã ngành (UET)
-- "tour"        : câu hỏi về tour du lịch, lịch trình, chính sách tour, bữa ăn, giá tour
 - "normal_talk" : lời chào hỏi, cảm ơn, hỏi thăm, tán gẫu, câu hỏi xã giao,
                   hoặc bất kỳ nội dung nào không thuộc ba domain trên
 
-Chỉ trả về đúng một trong bốn từ: law, admission, tour, hoặc normal_talk. Không giải thích.\
+Chỉ trả về đúng một trong bốn từ: law, admission, hoặc normal_talk. Không giải thích.\
 """
 
-_VALID_DOMAINS = {"law", "admission", "tour", "normal_talk"}
+_VALID_DOMAINS = {"law", "admission", "normal_talk"}
 
 _router_llm_instance: Optional[ChatOpenAI] = None
 
@@ -148,8 +147,7 @@ QUY TẮC:
 - Tuyệt đối không dùng markdown, bullet, số thứ tự, emoji, header, dấu gạch đầu dòng.
 - Không giải thích cách suy nghĩ.
 - Mỗi câu phải có ít nhất bốn từ.
-- Nếu được hỏi về chủ đề nằm ngoài khả năng (pháp luật chuyên sâu, tuyển sinh UET,
-  tour du lịch cụ thể), hãy nói rõ bạn có thể hỗ trợ những chủ đề đó và mời người dùng hỏi."""
+- Nếu được hỏi về chủ đề nằm ngoài khả năng (pháp luật chuyên sâu, tuyển sinh UET), hãy nói rõ bạn có thể hỗ trợ những chủ đề đó và mời người dùng hỏi."""
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +158,6 @@ def _build_router_graph(
     router_llm: ChatOpenAI,
     law_graph,
     admission_graph,
-    tour_graph,
     normal_talk_llm: ChatOpenAI,
     normal_talk_system_prompt: str,
 ):
@@ -184,11 +181,6 @@ def _build_router_graph(
         result    = await admission_graph.ainvoke(sub_state)
         return {"messages": result["messages"], "hop_count": state["hop_count"]}
 
-    async def run_tour(state: RouterState) -> dict:
-        sub_state = {"messages": state["messages"], "hop_count": 0, "thinking_streamed": False}
-        result    = await tour_graph.ainvoke(sub_state)
-        return {"messages": result["messages"], "hop_count": state["hop_count"]}
-
     async def run_normal_talk(state: RouterState) -> dict:
         raw = list(state["messages"])
         system_msgs  = [m for m in raw if isinstance(m, SystemMessage)]
@@ -210,7 +202,6 @@ def _build_router_graph(
     g.add_node("router",      route_node)
     g.add_node("law",         run_law)
     g.add_node("admission",   run_admission)
-    g.add_node("tour",        run_tour)
     g.add_node("normal_talk", run_normal_talk)
     
     g.set_entry_point("router")
@@ -220,14 +211,12 @@ def _build_router_graph(
         {
             "law":         "law",
             "admission":   "admission",
-            "tour":        "tour",
             "normal_talk": "normal_talk",
         },
     )
 
     g.add_edge("law",         END)
     g.add_edge("admission",   END)
-    g.add_edge("tour",        END)
     g.add_edge("normal_talk", END)
 
     return g.compile()
@@ -259,7 +248,6 @@ def create_router_agent(
     """
     from law_agent import build_law_agent
     from admission_agent import build_admission_agent
-    from tour_agent import build_tour_agent
 
     api_key  = openai_api_key or os.environ.get("OPENAI_API_KEY")
     base_url = openai_base_url
@@ -292,7 +280,6 @@ def create_router_agent(
 
     law_graph       = build_law_agent(streaming_llm, non_streaming_llm, date, extra_tools)
     admission_graph = build_admission_agent(streaming_llm, non_streaming_llm, date, extra_tools)
-    tour_graph      = build_tour_agent(streaming_llm, non_streaming_llm, date, extra_tools)
 
     normal_talk_llm  = _make_llm(streaming=False)
     nt_system_prompt = _normal_talk_system_prompt(date)
@@ -301,7 +288,6 @@ def create_router_agent(
         router_llm,
         law_graph,
         admission_graph,
-        tour_graph,
         normal_talk_llm,
         nt_system_prompt,
     )

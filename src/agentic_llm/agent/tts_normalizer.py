@@ -4,15 +4,13 @@ tts_normalizer.py — LLM-based TTS Text Normalization Agent for Vietnamese.
 Mỗi domain có system prompt riêng, gọn và tập trung vào đặc thù của domain đó.
 Class TTSNormalizerAgent nhận domain param để chọn đúng prompt khi normalize.
 
-Domains: law | admission | tour | normal_talk
+Domains: law | admission | normal_talk
 Fallback: nếu domain không xác định → dùng prompt chung (minimal)
 
 Usage:
     agent = TTSNormalizerAgent(domain="law")
     clean = await agent.anormalize("Phạt 18.000.000 đồng theo NĐ-CP.")
 
-    agent = TTSNormalizerAgent(domain="tour")
-    clean = await agent.anormalize("TOUR PHÚ QUỐC 3N2Đ | GRAND WORLD - VINWONDERS")
 """
 
 from __future__ import annotations
@@ -245,40 +243,6 @@ OUT: Điểm chuẩn, ai eo là sáu phẩy năm, ét ây ti là một nghìn ha
 IN:  Sinh viên tốt nghiệp có thể làm về IT, AI và IoT.
 OUT: Sinh viên tốt nghiệp có thể làm về ai ti, ây ai và ai ô ti."""
 
-def _build_tour_prompt() -> str:
-    return f"""\
-Bạn là chuyên gia chuẩn hóa văn bản du lịch tiếng Việt cho hệ thống TTS.
-Nhiệm vụ: chuyển văn bản tour du lịch thành dạng đọc được — không còn số, viết tắt, ký tự đặc biệt.
-
-{_SHARED_RULES}
-
-QUY TẮC SỐ TOUR:
-- Giá tour: 5.990.000 → năm triệu chín trăm chín mươi nghìn.
-- Thời lượng: 5N4D / 5N4Đ → năm ngày bốn đêm; 3N2D → ba ngày hai đêm.
-- Số nguyên thông thường: 2 → hai; 15 → mười lăm; 25 → hai mươi lăm.
-- % → phần trăm; VND → đồng.
-- Mã tour dạng CHỮ+SỐ → GIỮ NGUYÊN.
-
-QUY TẮC ĐỊA DANH / THƯƠNG HIỆU:
-- Tên viết HOA TOÀN BỘ không phải viết tắt → Title Case.
-  Ví dụ: GRAND WORLD → Grand World; VINWONDERS → Vinwonders; CÁP TREO HÒN THƠM → Cáp Treo Hòn Thơm.
-- Dấu " - " giữa các địa danh → dấu phẩy.
-- buffet → búp phê.
-
-BẢNG VIẾT TẮT TOUR:
-  VND → đồng | % → phần trăm | TP.HCM → thành phố hồ chí minh | TP → thành phố | VN → việt nam
-
-VÍ DỤ:
-IN:  TOUR PHÚ QUỐC MÙA XUÂN 3N2Đ | GRAND WORLD - VINWONDERS - SAFARI - CÁP TREO HÒN THƠM
-OUT: Tour Phú Quốc Mùa Xuân ba ngày hai đêm, Grand World, Vinwonders, Safari, Cáp Treo Hòn Thơm.
-
-IN:  Tour Miền Bắc 5N4Đ | Tam Chúc – Ninh Bình – Hạ Long
-OUT: Tour Miền Bắc năm ngày bốn đêm, Tam Chúc, Ninh Bình, Hạ Long.
-
-IN:  Giá tour 5.990.000 VND, bao gồm buffet sáng và vé tham quan.
-OUT: Giá tour năm triệu chín trăm chín mươi nghìn đồng, bao gồm búp phê sáng và vé tham quan.\
-"""
-
 
 def _build_normal_talk_prompt() -> str:
     return f"""\
@@ -343,7 +307,6 @@ OUT: Kết quả ai eo và tô ách đều được chấp nhận.\
 _PROMPT_BUILDERS: dict[str, object] = {
     "law":         _build_law_prompt,
     "admission":   _build_admission_prompt,
-    "tour":        _build_tour_prompt,
     "normal_talk": _build_normal_talk_prompt,
 }
 
@@ -363,7 +326,7 @@ class TTSNormalizerAgent:
     LLM-based TTS normalizer với system prompt per-domain.
 
     Args:
-        domain: "law" | "admission" | "tour" | "normal_talk"
+        domain: "law" | "admission" | "normal_talk"
                 Nếu None hoặc không xác định → dùng normal_talk prompt.
     """
 

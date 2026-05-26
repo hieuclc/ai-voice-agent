@@ -65,8 +65,7 @@ OUTPUT_FORMAT = """\
 QUY TẮC ĐỊNH DẠNG ĐẦU RA — BẮT BUỘC:
 - Luôn trả lời bằng tiếng Việt.
 - Chỉ trả lời đúng phạm vi câu hỏi. Không liệt kê thông tin thừa không được hỏi.
-  Ví dụ: hỏi "khởi hành từ đâu" → chỉ trả lời tên địa điểm, không thêm tên tour, mã số, giá.
-  Ví dụ: hỏi "chính sách hủy ngay sau đăng ký" → chỉ cần mức phí đó, không liệt kê toàn bộ bảng.
+  Ví dụ: hỏi "điểm chuẩn ngành khoa học máy tính" -> chỉ nói về điểm chuẩn, không nói về thông tin khác
 - Không thêm câu tổng kết, lời chúc, hay lời mời hỏi thêm sau khi đã trả lời xong.
 - Không giải thích lại nội dung vừa nói bằng câu khác.
 - Dừng lại ngay sau khi đã trả lời đầy đủ câu hỏi.
@@ -291,7 +290,6 @@ async def encode_query(query: str) -> tuple[list[float], dict[int, float]]:
 async def hybrid_retrieve(collection: str, query: str, k: int = RETRIEVAL_K) -> list[dict]:
     """
     Hybrid (dense + sparse RRF) retrieval từ một Qdrant collection.
-    Tour dùng hàm riêng trong tour_agent.py vì cần filter đặc thù.
     """
     client = get_async_qdrant()
     dense_vec, sparse_dict = await encode_query(query)
