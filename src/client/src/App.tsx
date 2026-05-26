@@ -459,7 +459,7 @@ export default function App() {
               role: 'user',
               text: data.text,
               source: 'live',
-              timestamp: data.timestamp,
+              timestamp: data.timestamp ?? new Date().toISOString(),
             });
           }
         },
@@ -469,7 +469,7 @@ export default function App() {
               role: 'assistant',
               text: data.text,
               source: 'live',
-              timestamp: data.timestamp,
+              timestamp: data.timestamp ?? new Date().toISOString(),
             });
           }
         },

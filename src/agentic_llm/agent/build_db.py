@@ -22,12 +22,12 @@ import logging
 import os
 import re
 import uuid
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import numpy as np
-import pdfplumber
 import torch
 from docx import Document
 from dotenv import load_dotenv
@@ -51,13 +51,13 @@ logger = logging.getLogger(__name__)
 # Config
 # ---------------------------------------------------------------------------
 
-QDRANT_HOST      = os.environ.get("QDRANT_HOST", "localhost")
-QDRANT_PORT      = int(os.environ.get("QDRANT_PORT", "6333"))
-EMBEDDING_MODEL  = os.environ.get("EMBEDDING_MODEL_NAME", "AITeamVN/Vietnamese_Embedding_v2")
-DEVICE           = os.environ.get("DEVICE", "cpu")
-DENSE_DIM        = 1024
-ENCODE_BATCH     = 32
-UPSERT_BATCH     = 256
+QDRANT_HOST     = os.environ.get("QDRANT_HOST", "localhost")
+QDRANT_PORT     = int(os.environ.get("QDRANT_PORT", "6333"))
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL_NAME", "AITeamVN/Vietnamese_Embedding_v2")
+DEVICE          = os.environ.get("DEVICE", "cpu")
+DENSE_DIM       = 1024
+ENCODE_BATCH    = 32
+UPSERT_BATCH    = 256
 
 LAW_COLLECTION       = "law"
 ADMISSION_COLLECTION = "admission"
@@ -69,7 +69,7 @@ TOUR_COLLECTION      = "tours"
 # ---------------------------------------------------------------------------
 
 @dataclass
-class LegalChunk:
+class Chunk:
     id: str
     text: str
     doc_type: str
@@ -86,14 +86,14 @@ class LegalChunk:
 
     def to_metadata(self) -> dict:
         return {
-            "doc_type":    self.doc_type,
-            "source_file": self.source_file,
-            "source":      ".".join(self.source_file.split("/")[-1].split(".")[:-1]),
-            "chapter":     self.chapter or "",
-            "section":     self.section or "",
-            "article":     self.article or "",
-            "clause":      self.clause or "",
-            "point":       self.point or "",
+            "doc_type":     self.doc_type,
+            "source_file":  self.source_file,
+            "source":       ".".join(self.source_file.split("/")[-1].split(".")[:-1]),
+            "chapter":      self.chapter or "",
+            "section":      self.section or "",
+            "article":      self.article or "",
+            "clause":       self.clause or "",
+            "point":        self.point or "",
             "article_full": self.article_full,
             "clause_full":  self.clause_full,
         }
@@ -106,10 +106,6 @@ class LegalChunk:
 def load_docx_paragraphs(path: str) -> List[str]:
     doc = Document(path)
     return [p.text.strip() for p in doc.paragraphs if p.text.strip()]
-
-
-def load_docx_text(path: str) -> str:
-    return "\n".join(load_docx_paragraphs(path))
 
 
 def make_id(prefix: str = "") -> str:
@@ -131,31 +127,54 @@ RE_POINT   = re.compile(r"^([a-zđ])\)\s+(.+)")
 # Parsers
 # ---------------------------------------------------------------------------
 
-class LawParser:
+class LegalDocParser:
     """
-    Luật: Chương → [Mục] → Điều → Khoản → Điểm
-    Granularity: chunk mỗi Khoản (hoặc Điểm nếu có).
+    Parser chung cho Luật, Nghị định, Thông tư.
+    Cấu trúc: [Chương] → [Mục] → Điều → Khoản → Điểm
+    Chương/Mục là optional — Nghị định/Thông tư thường không có.
     """
 
-    def __init__(self, source_file: str = ""):
+    DOC_TYPE_MAP = {
+        "luat":      re.compile(r"Luật", re.IGNORECASE),
+        "nghi_dinh": re.compile(r"Nghị\s*định", re.IGNORECASE),
+        "thong_tu":  re.compile(r"Thông\s*tư", re.IGNORECASE),
+    }
+
+    def __init__(self, source_file: str = "", doc_type: str = "luat"):
         self.source_file = source_file
-        self.chunks: List[LegalChunk] = []
+        self.doc_type    = doc_type
+        self.chunks: List[Chunk] = []
 
-    def _new_chunk(self, text: str, **kwargs) -> None:
-        self.chunks.append(LegalChunk(
-            id=make_id("luat"),
+    @classmethod
+    def from_file(cls, path: str) -> "LegalDocParser":
+        """Auto-detect doc_type từ tên file."""
+        name = Path(path).name
+        for dtype, pattern in cls.DOC_TYPE_MAP.items():
+            if pattern.search(name):
+                return cls(source_file=path, doc_type=dtype)
+        return cls(source_file=path, doc_type="luat")
+
+    def add_chunk(self, text: str, **kwargs) -> None:
+        self.chunks.append(Chunk(
+            id=make_id(self.doc_type),
             text=text,
-            doc_type="luat",
+            doc_type=self.doc_type,
             source_file=self.source_file,
             **kwargs,
         ))
 
-    def parse(self, paragraphs: List[str]) -> List[LegalChunk]:
+    def parse(self, source: str | List[str]) -> List[Chunk]:
+        """Nhận raw string hoặc list of paragraphs — normalize thành list."""
+        if isinstance(source, str):
+            paragraphs = [line.strip() for line in source.splitlines() if line.strip()]
+        else:
+            paragraphs = [p for p in source if p]
+
         self.chunks = []
         chapter = section = article_title = None
         article_lines: List[str] = []
 
-        def flush():
+        def flush() -> None:
             if article_title and article_lines:
                 self._process_article(article_title, article_lines, chapter, section)
 
@@ -172,22 +191,31 @@ class LawParser:
         flush()
         return self.chunks
 
-    def _process_article(self, title, lines, chapter, section):
+    def _process_article(
+        self,
+        title: str,
+        lines: List[str],
+        chapter: Optional[str],
+        section: Optional[str],
+    ) -> None:
         article_full = title + "\n" + "\n".join(lines)
         clauses = self._split_clauses(lines)
 
         if not clauses:
-            self._new_chunk(text=article_full, chapter=chapter, section=section,
-                            article=title, article_full=article_full)
+            self.add_chunk(
+                text=article_full,
+                chapter=chapter, section=section,
+                article=title, article_full=article_full,
+            )
             return
 
         for num, clause_lines in clauses.items():
             clause_title = f"Khoản {num}"
             clause_full  = "\n".join(clause_lines)
-            points = self._split_points(clause_lines)
+            points       = self._split_points(clause_lines)
 
             if not points:
-                self._new_chunk(
+                self.add_chunk(
                     text=f"{title}\n{clause_full}",
                     chapter=chapter, section=section,
                     article=title, clause=clause_title,
@@ -195,7 +223,7 @@ class LawParser:
                 )
             else:
                 for letter, point_text in points.items():
-                    self._new_chunk(
+                    self.add_chunk(
                         text=f"{title} – {clause_title}\n{point_text}",
                         chapter=chapter, section=section,
                         article=title, clause=clause_title, point=f"Điểm {letter}",
@@ -217,89 +245,25 @@ class LawParser:
 
     @staticmethod
     def _split_points(lines: List[str]) -> Dict[str, str]:
-        return {RE_POINT.match(line).group(1): line
-                for line in lines if RE_POINT.match(line)}
+        return {
+            RE_POINT.match(line).group(1): line
+            for line in lines
+            if RE_POINT.match(line)
+        }
 
 
-class CircularParser:
+class AdmissionParser:
     """
-    Thông tư / Nghị định: Điều → Khoản → Điểm
-    Granularity: chunk ở cấp Điểm; nếu không có điểm → chunk Khoản.
+    Parser cho tài liệu tư vấn tuyển sinh (plain text).
+    Mỗi paragraph (cách nhau bằng dòng trống) → 1 chunk.
     """
 
     def __init__(self, source_file: str = ""):
         self.source_file = source_file
-        self.chunks: List[LegalChunk] = []
+        self.chunks: List[Chunk] = []
 
-    def _new_chunk(self, text: str, **kwargs) -> None:
-        self.chunks.append(LegalChunk(
-            id=make_id("thong_tu"),
-            text=text,
-            doc_type="thong_tu",
-            source_file=self.source_file,
-            **kwargs,
-        ))
-
-    def parse(self, raw_text: str) -> List[LegalChunk]:
-        self.chunks = []
-        articles = re.findall(
-            r"(Điều\s+\d+\.?.*?)(?=Điều\s+\d+\.|$)", raw_text, flags=re.S
-        )
-        for art in articles:
-            art_title    = art.split("\n")[0].strip()
-            article_full = art.strip()
-            clauses      = self._parse_clauses(art)
-
-            if not clauses:
-                self._new_chunk(text=article_full, article=art_title, article_full=article_full)
-                continue
-
-            for clause_text in clauses:
-                clause_title = clause_text.split("\n")[0].strip()
-                clause_full  = clause_text.strip()
-                points       = self._parse_points(clause_text)
-
-                if not points:
-                    self._new_chunk(
-                        text=f"{art_title}\n{clause_full}",
-                        article=art_title, clause=clause_title,
-                        article_full=article_full, clause_full=clause_full,
-                    )
-                else:
-                    for point_text in points:
-                        behavior = point_text.lstrip("abcdefghijklmnopqrstuvwxyzđ)").strip().rstrip(";")
-                        self._new_chunk(
-                            text=behavior,
-                            article=art_title, clause=clause_title, point=point_text,
-                            article_full=article_full, clause_full=clause_full,
-                        )
-        return self.chunks
-
-    @staticmethod
-    def _parse_clauses(article_text: str) -> List[str]:
-        return [c.strip() for c in re.findall(r"(\n\d+\.\s.*?)(?=\n\d+\.|\Z)", article_text, flags=re.S)]
-
-    @staticmethod
-    def _parse_points(clause_text: str) -> List[str]:
-        return re.findall(r"(?:^|\n)([a-zđ]\)\s+[^\n]+)", clause_text)
-
-
-class AdmissionConsultingParser:
-    """
-    Parser cho tài liệu tư vấn tuyển sinh (PDF).
-    Structure: Roman → Section → Subsection
-    """
-
-    ROMAN_PATTERN      = r"^\s*([IVX]+)\.\s+"
-    SECTION_PATTERN    = r"^\s*(\d+)\.\s+"
-    SUBSECTION_PATTERN = r"^\s*(\d+\.\d+)\.?\s+"
-
-    def __init__(self, source_file: str = ""):
-        self.source_file = source_file
-        self.chunks: List[LegalChunk] = []
-
-    def _new_chunk(self, text: str, **kwargs) -> None:
-        self.chunks.append(LegalChunk(
+    def add_chunk(self, text: str, **kwargs) -> None:
+        self.chunks.append(Chunk(
             id=make_id("tu_van_tuyen_sinh"),
             text=text,
             doc_type="tu_van_tuyen_sinh",
@@ -307,129 +271,16 @@ class AdmissionConsultingParser:
             **kwargs,
         ))
 
-    def parse(self, pdf_path: str) -> List[LegalChunk]:
+    def parse(self, raw: str) -> List[Chunk]:
         self.chunks = []
-        blocks = self._extract_blocks(pdf_path)
-        last_chunk_index = None
-
-        for block in blocks:
-            if block["type"] == "text":
-                for content, meta in self._split_text_block(block["content"]):
-                    self._new_chunk(
-                        text=content.strip(),
-                        chapter=meta["roman"],
-                        section=meta["section"],
-                        clause=meta["subsection"],
-                        article=f"Page {block['page']}",
-                        article_full=content.strip(),
-                    )
-                    last_chunk_index = len(self.chunks) - 1
-            elif block["type"] == "table":
-                sentences = self._table_to_semantic_sentences(block["content"])
-                if sentences and last_chunk_index is not None:
-                    self.chunks[last_chunk_index].text += "\n" + "\n".join(sentences)
-
+        for block in [b.strip() for b in raw.split("\n\n") if b.strip()]:
+            self.add_chunk(
+                text=block,
+                chapter=None, section=None, clause=None,
+                article="Tài liệu tư vấn tuyển sinh UET 2026",
+                article_full=block,
+            )
         return self.chunks
-
-    @staticmethod
-    def _clean(text) -> str:
-        return str(text).strip().replace("\n", " ") if text else ""
-
-    @staticmethod
-    def _is_page_number(line: str) -> bool:
-        return bool(re.match(r"^\s*\d+\s*$", line.strip()))
-
-    def _table_to_semantic_sentences(self, table) -> List[str]:
-        if not table or len(table) < 2:
-            return []
-
-        headers = [self._clean(h) for h in table[0]]
-        rows    = table[1:]
-
-        merged_rows = []
-        current_row = None
-        for row in rows:
-            row = [self._clean(c) for c in row]
-            if len(row) < len(headers):
-                row += [""] * (len(headers) - len(row))
-
-            if row[0]:
-                if current_row:
-                    merged_rows.append(current_row)
-                current_row = row
-            elif current_row:
-                for i in range(len(row)):
-                    if row[i]:
-                        current_row[i] = (current_row[i] + " " + row[i]).strip()
-
-        if current_row:
-            merged_rows.append(current_row)
-
-        sentences = []
-        for row in merged_rows:
-            row_dict = dict(zip(headers, row))
-            parts = [f"{h}: {row_dict[h]}" for h in headers if row_dict.get(h)]
-            if parts:
-                sentences.append(". ".join(parts) + ".")
-        return sentences
-
-    def _extract_blocks(self, pdf_path: str) -> list:
-        blocks = []
-        with pdfplumber.open(pdf_path) as pdf:
-            for page_num, page in enumerate(pdf.pages, start=1):
-                tables    = sorted(page.find_tables(), key=lambda t: t.bbox[1])
-                last_bottom = 0
-
-                for table in tables:
-                    x0, top, x1, bottom = table.bbox
-                    if top > last_bottom:
-                        upper = page.crop((0, last_bottom, page.width, top))
-                        text  = upper.extract_text()
-                        if text:
-                            blocks.append({"type": "text", "content": text, "page": page_num})
-                    blocks.append({"type": "table", "content": table.extract(), "page": page_num})
-                    last_bottom = bottom
-
-                if last_bottom < page.height:
-                    lower = page.crop((0, last_bottom, page.width, page.height))
-                    text  = lower.extract_text()
-                    if text:
-                        blocks.append({"type": "text", "content": text, "page": page_num})
-        return blocks
-
-    def _split_text_block(self, text: str) -> list:
-        lines   = text.split("\n")
-        chunks  = []
-        current_chunk = ""
-        current_meta  = {"roman": None, "section": None, "subsection": None}
-
-        for line in lines:
-            if self._is_page_number(line):
-                continue
-
-            if re.match(self.ROMAN_PATTERN, line):
-                if current_chunk.strip():
-                    chunks.append((current_chunk.strip(), current_meta.copy()))
-                current_meta = {"roman": re.match(self.ROMAN_PATTERN, line).group(1),
-                                "section": None, "subsection": None}
-                current_chunk = line + "\n"
-            elif re.match(self.SUBSECTION_PATTERN, line):
-                if current_chunk.strip():
-                    chunks.append((current_chunk.strip(), current_meta.copy()))
-                current_meta["subsection"] = re.match(self.SUBSECTION_PATTERN, line).group(1)
-                current_chunk = line + "\n"
-            elif re.match(self.SECTION_PATTERN, line):
-                if current_chunk.strip():
-                    chunks.append((current_chunk.strip(), current_meta.copy()))
-                current_meta["section"]    = re.match(self.SECTION_PATTERN, line).group(1)
-                current_meta["subsection"] = None
-                current_chunk = line + "\n"
-            else:
-                current_chunk += line + "\n"
-
-        if current_chunk.strip():
-            chunks.append((current_chunk.strip(), current_meta.copy()))
-        return chunks
 
 
 class TourParser:
@@ -437,7 +288,7 @@ class TourParser:
     Parser cho dữ liệu tour du lịch (JSON).
     Mỗi tour → summary + departures + services + policies + day_N chunks.
 
-    Mapping sang LegalChunk:
+    Mapping sang Chunk:
       point        ← tour_id
       article      ← tour_id (legacy)
       chapter      ← tour_type
@@ -448,14 +299,14 @@ class TourParser:
 
     def __init__(self, source_file: str = "extracted_data.json"):
         self.source_file = source_file
-        self.chunks: List[LegalChunk] = []
+        self.chunks: List[Chunk] = []
 
     @staticmethod
     def _fmt_price(amount: int) -> str:
         return f"{amount:,}".replace(",", ".")
 
-    def _new_chunk(self, text: str, **kwargs) -> None:
-        self.chunks.append(LegalChunk(
+    def add_chunk(self, text: str, **kwargs) -> None:
+        self.chunks.append(Chunk(
             id=make_id("tour"),
             text=text,
             doc_type="tour",
@@ -463,7 +314,7 @@ class TourParser:
             **kwargs,
         ))
 
-    def parse(self, tours: list) -> List[LegalChunk]:
+    def parse(self, tours: list) -> List[Chunk]:
         self.chunks = []
         for tour in tours:
             self._parse_tour(tour)
@@ -505,7 +356,7 @@ class TourParser:
         }, ensure_ascii=False)
 
         # 1. Summary chunk
-        self._new_chunk(
+        self.add_chunk(
             text=(
                 f"{title}. Loại tour: {tour_type}. Điểm đến: {dests}. "
                 f"Thời gian: {duration_str}. Phương tiện: {transport}. Giá từ: {price_str}."
@@ -516,21 +367,20 @@ class TourParser:
 
         # 2. Departures chunk
         if deps:
-            from collections import defaultdict
             by_date: dict = defaultdict(list)
             for d in deps:
                 by_date[d.get("date", "")].append(d)
             dep_lines = [f"{title} – Lịch khởi hành và giá chi tiết:"]
             for date, entries in sorted(by_date.items()):
                 for e in entries:
-                    hotel  = e.get("hotel_standard", "")
-                    price  = self._fmt_price(e.get("price", 0))
-                    slots  = e.get("available_slots", 0)
+                    hotel = e.get("hotel_standard", "")
+                    price = self._fmt_price(e.get("price", 0))
+                    slots = e.get("available_slots", 0)
                     dep_lines.append(
                         f"  Ngày {date} – {hotel}: {price} VND"
                         + (f" (còn {slots} chỗ)" if slots else "")
                     )
-            self._new_chunk(
+            self.add_chunk(
                 text="\n".join(dep_lines),
                 chapter=tour_type, section=title, article=tid,
                 clause="departures", point=tid, clause_full=summary_meta,
@@ -543,7 +393,7 @@ class TourParser:
             svc_parts = [f"{title} – Dịch vụ:"]
             if inc: svc_parts.append(f"Bao gồm: {inc}")
             if exc: svc_parts.append(f"Không bao gồm: {exc}")
-            self._new_chunk(
+            self.add_chunk(
                 text="\n".join(svc_parts),
                 chapter=tour_type, section=title, article=tid,
                 clause="services", point=tid, clause_full=summary_meta,
@@ -560,7 +410,7 @@ class TourParser:
             if pol_children: pol_parts.append(f"Trẻ em: {pol_children}")
             if pol_payment:  pol_parts.append(f"Thanh toán: {pol_payment}")
             if pol_notes:    pol_parts.append(f"Lưu ý: {pol_notes}")
-            self._new_chunk(
+            self.add_chunk(
                 text="\n".join(pol_parts),
                 chapter=tour_type, section=title, article=tid,
                 clause="policies", point=tid, clause_full=summary_meta,
@@ -583,12 +433,12 @@ class TourParser:
             }, ensure_ascii=False)
 
             day_parts = [f"{title} – Ngày {day_num}: {day_title}."]
-            if locs:     day_parts.append(f"Địa điểm: {locs}.")
-            if desc:     day_parts.append(desc)
-            if meals:    day_parts.append(f"Bữa ăn: {meals}.")
+            if locs:      day_parts.append(f"Địa điểm: {locs}.")
+            if desc:      day_parts.append(desc)
+            if meals:     day_parts.append(f"Bữa ăn: {meals}.")
             if overnight: day_parts.append(f"Nghỉ đêm tại: {overnight}.")
 
-            self._new_chunk(
+            self.add_chunk(
                 text=" ".join(day_parts),
                 chapter=tour_type, section=title, article=tid,
                 clause=f"day_{day_num}", point=tid, clause_full=day_meta,
@@ -599,7 +449,7 @@ class TourParser:
 # Embedding engine
 # ---------------------------------------------------------------------------
 
-class _EmbeddingEngine:
+class EmbeddingEngine:
     def __init__(self, model_name: str = EMBEDDING_MODEL, device: str = DEVICE):
         logger.info("Loading embedding model: %s on %s", model_name, device)
         self.model = BGEM3FlagModel(model_name, use_fp16=(device == "cuda"), device=device)
@@ -635,7 +485,7 @@ class _EmbeddingEngine:
         return result
 
 
-def _to_qdrant_sparse(d: dict[int, float]) -> SparseVector:
+def to_qdrant_sparse(d: dict[int, float]) -> SparseVector:
     idx = sorted(d.keys())
     return SparseVector(indices=idx, values=[d[i] for i in idx])
 
@@ -644,7 +494,7 @@ def _to_qdrant_sparse(d: dict[int, float]) -> SparseVector:
 # Collection helpers
 # ---------------------------------------------------------------------------
 
-def _ensure_collection(client: QdrantClient, name: str) -> None:
+def ensure_collection(client: QdrantClient, name: str) -> None:
     if client.collection_exists(name):
         logger.info("Dropping existing collection '%s'", name)
         client.delete_collection(name)
@@ -661,9 +511,9 @@ def _ensure_collection(client: QdrantClient, name: str) -> None:
 # ---------------------------------------------------------------------------
 
 def ingest_chunks(
-    chunks: List[LegalChunk],
+    chunks: List[Chunk],
     collection_name: str,
-    engine: _EmbeddingEngine,
+    engine: EmbeddingEngine,
     client: QdrantClient,
 ) -> None:
     if not chunks:
@@ -690,7 +540,7 @@ def ingest_chunks(
             id=str(uuid.uuid4()),
             vector={
                 "dense":  dense_vec.tolist(),
-                "sparse": _to_qdrant_sparse(sparse_dict),
+                "sparse": to_qdrant_sparse(sparse_dict),
             },
             payload={
                 "page_content": chunk.text,
@@ -715,68 +565,53 @@ def ingest_chunks(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    LAW_PATH      = os.environ.get("LAW_PATH",      "../data/Luật giao thông đường bộ.docx")
-    CIRCULAR_PATH = os.environ.get("CIRCULAR_PATH", "../data/Nghị định 168 năm 2024.docx")
-    ADMISSION_TXT = os.environ.get("ADMISSION_TXT", "../data/admission.txt")
-    TOUR_JSON     = os.environ.get("TOUR_JSON",      "../data/extracted_data.json")
+    LAW_FILES = [
+        "../data/Luật giao thông đường bộ.docx",
+        "../data/Nghị định 168 năm 2024.docx",
+        "../data/Nghị định 151 năm 2024.docx",
+        "../data/Nghị định 160 năm 2024.docx",
+    ]
+    ADMISSION_TXT = "../data/admission.txt"
+    TOUR_JSON     = "../data/extracted_data.json"
 
     qdrant = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
-    engine = _EmbeddingEngine()
+    engine = EmbeddingEngine()
 
     # 1. Law
-    _ensure_collection(qdrant, LAW_COLLECTION)
-    law_chunks: List[LegalChunk] = []
+    ensure_collection(qdrant, LAW_COLLECTION)
+    law_chunks: List[Chunk] = []
 
-    if Path(LAW_PATH).exists():
-        p = LawParser(source_file=LAW_PATH)
-        law_chunks += p.parse(load_docx_paragraphs(LAW_PATH))
-        logger.info("Law docx: %d chunks", len(law_chunks))
-
-        for file_name in [
-            "../data/Nghị định 151 năm 2024.docx",
-            "../data/Nghị định 160 năm 2024.docx",
-        ]:
-            p = LawParser(source_file=file_name)
-            law_chunks += p.parse(load_docx_paragraphs(file_name))
-            logger.info("Law docx: %d chunks total", len(law_chunks))
-
-    if Path(CIRCULAR_PATH).exists():
-        p  = CircularParser(source_file=CIRCULAR_PATH)
-        cc = p.parse(load_docx_text(CIRCULAR_PATH))
-        law_chunks += cc
-        logger.info("Circular docx: %d chunks (running total: %d)", len(cc), len(law_chunks))
+    for file_path in LAW_FILES:
+        if not Path(file_path).exists():
+            logger.warning("File not found, skipping: %s", file_path)
+            continue
+        p      = LegalDocParser.from_file(file_path)
+        chunks = p.parse(load_docx_paragraphs(file_path))
+        law_chunks += chunks
+        logger.info("%s → %d chunks (total: %d)", Path(file_path).name, len(chunks), len(law_chunks))
 
     ingest_chunks(law_chunks, LAW_COLLECTION, engine, qdrant)
 
     # 2. Admission
-    _ensure_collection(qdrant, ADMISSION_COLLECTION)
-    admission_chunks: List[LegalChunk] = []
+    ensure_collection(qdrant, ADMISSION_COLLECTION)
+    admission_chunks: List[Chunk] = []
 
     if Path(ADMISSION_TXT).exists():
-        ap = AdmissionConsultingParser(source_file=ADMISSION_TXT)
         with open(ADMISSION_TXT, "r", encoding="utf-8") as f:
             raw = f.read()
-        for block in [b.strip() for b in raw.split("\n\n") if b.strip()]:
-            ap._new_chunk(
-                text=block,
-                chapter=None, section=None, clause=None,
-                article="Tài liệu tư vấn tuyển sinh UET 2026",
-                article_full=block,
-            )
-        admission_chunks = ap.chunks
+        admission_chunks = AdmissionParser(source_file=ADMISSION_TXT).parse(raw)
         logger.info("Admission: %d chunks", len(admission_chunks))
 
     ingest_chunks(admission_chunks, ADMISSION_COLLECTION, engine, qdrant)
 
     # 3. Tours
-    _ensure_collection(qdrant, TOUR_COLLECTION)
-    tour_chunks: List[LegalChunk] = []
+    ensure_collection(qdrant, TOUR_COLLECTION)
+    tour_chunks: List[Chunk] = []
 
     if Path(TOUR_JSON).exists():
         with open(TOUR_JSON, "r", encoding="utf-8") as f:
             tours = json.load(f)
-        tp = TourParser(source_file=TOUR_JSON)
-        tour_chunks = tp.parse(tours)
+        tour_chunks = TourParser(source_file=TOUR_JSON).parse(tours)
         logger.info("Tours: %d chunks", len(tour_chunks))
 
     ingest_chunks(tour_chunks, TOUR_COLLECTION, engine, qdrant)
