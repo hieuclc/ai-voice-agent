@@ -42,7 +42,7 @@ from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.processors.transcript_processor import TranscriptProcessor
 
 from transcription_handler import TranscriptHandler
-from tts_chunker import TTSChunkerProcessor, ChunkMode
+from tts_chunker import TTSChunkerProcessor
 logger.info("✅ All components loaded successfully!")
 
 load_dotenv(override=True)
@@ -132,7 +132,7 @@ async def run_bot(webrtc_connection, session_id):
 
     transcript = TranscriptProcessor()
 
-    transcript_handler = TranscriptHandler(session_id=session_id)
+    transcript_handler = TranscriptHandler(session_id=session_id, mongo_uri=os.getenv("MONGO_URI"), database_name=os.getenv("DATABASE_NAME"), collection_name=os.getenv("COLLECTION_NAME"))
     await transcript_handler.load_session()
     if transcript_handler.messages:
         for message in transcript_handler.messages:
